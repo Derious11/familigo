@@ -1,0 +1,8 @@
+{
+  "name": "FamiliGo",
+  "description": "A fun, game-like social app for families to issue and complete simple exercise challenges, promoting light physical activity and playful connection.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
