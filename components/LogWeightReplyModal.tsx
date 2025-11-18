@@ -1,3 +1,4 @@
+
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../App';
 import { XMarkIcon } from './Icons';
@@ -32,11 +33,21 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
         try {
             // 1. Update user's weight profile
             await updateUserWeight(currentUser.id, weightValue, unit);
-            updateCurrentUser({ currentWeight: weightValue, weightUnit: unit });
             
-            // 2. Add a reply to the challenge
-            const replyText = `Logged: ${weightValue} ${unit}`;
-            await addReply(challenge.id, { text: replyText });
+            const newHistoryEntry = { value: weightValue, timestamp: new Date() };
+            const updatedHistory = [...(currentUser.weightHistory || []), newHistoryEntry];
+            
+            updateCurrentUser({ 
+                currentWeight: weightValue, 
+                weightUnit: unit,
+                weightHistory: updatedHistory
+            });
+            
+            // 2. Add a reply to the challenge with a generic message for privacy
+            const replyText = 'Logged their weight!';
+            // The third argument (parentId) is undefined.
+            // The fourth argument (isCompletion) is true, marking the challenge as done.
+            await addReply(challenge.id, { text: replyText }, undefined, true);
 
             onClose();
         } catch (err) {

@@ -36,6 +36,7 @@ export interface Reply {
     timestamp: Date;
     challengeId: string;
     familyCircleId: string;
+    parentId?: string;
 }
 
 export interface Challenge {

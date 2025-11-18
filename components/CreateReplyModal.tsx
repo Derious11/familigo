@@ -53,7 +53,9 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
         setIsLoading(true);
         setError('');
         try {
-            await context?.addReply(challengeId, payload);
+            // The third argument (parentId) is undefined.
+            // The fourth argument (isCompletion) is true, marking the challenge as done.
+            await context?.addReply(challengeId, payload, undefined, true);
             handleClose();
         } catch (err: any) {
             console.error('Failed to submit reply:', err);

@@ -1,5 +1,5 @@
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
 import { Challenge, Reply, User } from '../types';
 import { onRepliesUpdate, updateReaction } from '../services/firebaseService';
@@ -70,10 +70,13 @@ const ProgressTracker: React.FC<{ challenge: Challenge; members: User[] }> = ({ 
 
 const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) => {
     const context = useContext(AppContext);
-    const { currentUser, deleteReply, deleteChallenge, familyCircle } = context || {};
+    const { currentUser, deleteReply, deleteChallenge, familyCircle, addReply } = context || {};
     const [replies, setReplies] = useState<Reply[]>([]);
     const [isLogWeightModalOpen, setIsLogWeightModalOpen] = useState(false);
     const [isCreateReplyModalOpen, setIsCreateReplyModalOpen] = useState(false);
+    const [replyingToId, setReplyingToId] = useState<string | null>(null);
+    const [mainComment, setMainComment] = useState('');
+    const [isPostingMainComment, setIsPostingMainComment] = useState(false);
     
     // State for deletion confirmation
     const [itemToDelete, setItemToDelete] = useState<{ type: 'reply' | 'challenge', id: string } | null>(null);
@@ -85,10 +88,30 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
         const unsubscribe = onRepliesUpdate(challenge.id, setReplies);
         return () => unsubscribe();
     }, [challenge.id]);
+    
+    const { topLevelReplies, repliesByParent } = useMemo(() => {
+        const topLevel: Reply[] = [];
+        const byParent: Record<string, Reply[]> = {};
+        replies.forEach(reply => {
+            if (reply.parentId) {
+                if (!byParent[reply.parentId]) {
+                    byParent[reply.parentId] = [];
+                }
+                byParent[reply.parentId].push(reply);
+            } else {
+                topLevel.push(reply);
+            }
+        });
+        // Sort children replies by timestamp
+        for (const parentId in byParent) {
+            byParent[parentId].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        }
+        return { topLevelReplies: topLevel, repliesByParent: byParent };
+    }, [replies]);
 
     const hasReplied = currentUser && challenge.completedBy?.includes(currentUser.id);
 
-    const handleReply = () => {
+    const handleCompleteChallenge = () => {
         if (!currentUser || hasReplied || !isActive) return;
 
         if (challenge.exercise.name === 'Weight Check-in') {
@@ -100,6 +123,23 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
     const handleReaction = (replyId: string, emoji: string) => {
         updateReaction(replyId, emoji);
+    };
+
+    const handleDeleteReplyClick = (replyId: string) => {
+        setItemToDelete({ type: 'reply', id: replyId });
+    };
+    
+    const handleToggleReply = (replyId: string) => {
+        setReplyingToId(current => (current === replyId ? null : replyId));
+    };
+
+    const handleMainCommentSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!mainComment.trim() || !addReply) return;
+        setIsPostingMainComment(true);
+        await addReply(challenge.id, { text: mainComment }, undefined, false);
+        setMainComment('');
+        setIsPostingMainComment(false);
     };
 
     const confirmDeletion = async () => {
@@ -156,12 +196,41 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 {familyCircle && isActive && <ProgressTracker challenge={challenge} members={familyCircle.members} />}
             </div>
 
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <form onSubmit={handleMainCommentSubmit} className="flex items-start gap-2">
+                     <img className="w-8 h-8 rounded-full mt-1" src={currentUser?.avatarUrl} alt={currentUser?.name} />
+                     <textarea
+                        value={mainComment}
+                        onChange={(e) => setMainComment(e.target.value)}
+                        rows={1}
+                        placeholder="Add a comment..."
+                        className="flex-grow text-sm p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:ring-brand-blue focus:border-brand-blue resize-none"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!mainComment.trim() || isPostingMainComment}
+                        className="bg-brand-blue hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg text-sm transition-colors disabled:opacity-50"
+                    >
+                        Post
+                    </button>
+                </form>
+            </div>
+
             {replies.length > 0 && (
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="font-semibold text-sm mb-3 text-brand-text-secondary dark:text-gray-400">Replies:</h4>
                     <div className="space-y-4">
-                        {replies.map(reply => (
-                            <ReplyCard key={reply.id} reply={reply} onReact={(emoji) => handleReaction(reply.id, emoji)} onDeleteClick={() => setItemToDelete({ type: 'reply', id: reply.id })} />
+                        {topLevelReplies.map(reply => (
+                           <ReplyCard
+                                key={reply.id}
+                                reply={reply}
+                                onReact={handleReaction}
+                                onDeleteClick={handleDeleteReplyClick}
+                                childReplies={repliesByParent[reply.id] || []}
+                                allRepliesByParent={repliesByParent}
+                                challengeId={challenge.id}
+                                onToggleReply={handleToggleReply}
+                                replyingToId={replyingToId}
+                            />
                         ))}
                     </div>
                 </div>
@@ -170,7 +239,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
             {currentUser && !hasReplied && isActive && (
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                     <button
-                        onClick={handleReply}
+                        onClick={handleCompleteChallenge}
                         className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
                     >
                         I Did It!
@@ -195,50 +264,138 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 onConfirm={confirmDeletion}
                 isLoading={isDeleting}
                 title={itemToDelete?.type === 'challenge' ? 'Delete Challenge' : 'Delete Reply'}
-                message={`Are you sure you want to delete this ${itemToDelete?.type}? This action cannot be undone.`}
+                message={`Are you sure you want to delete this ${itemToDelete?.type}? This will also remove any nested replies. This action cannot be undone.`}
             />
         </div>
     );
 };
 
-const ReplyCard: React.FC<{ reply: Reply; onReact: (emoji: string) => void; onDeleteClick: () => void; }> = ({ reply, onReact, onDeleteClick }) => {
+const InlineReplyForm: React.FC<{
+    challengeId: string;
+    parentId: string;
+    onCancel: () => void;
+}> = ({ challengeId, parentId, onCancel }) => {
+    const context = useContext(AppContext);
+    const { addReply } = context || {};
+    const [text, setText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!text.trim() || !addReply) return;
+        setIsSubmitting(true);
+        await addReply(challengeId, { text }, parentId, false); // isCompletion is false for threaded replies
+        setIsSubmitting(false);
+        setText('');
+        onCancel();
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="mt-2 ml-10">
+            <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={2}
+                placeholder="Write a reply..."
+                className="w-full text-sm p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md focus:ring-brand-blue focus:border-brand-blue"
+                autoFocus
+            />
+            <div className="flex items-center justify-end gap-2 mt-2">
+                <button type="button" onClick={onCancel} className="text-sm font-semibold text-gray-600 dark:text-gray-300 hover:underline">
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    disabled={!text.trim() || isSubmitting}
+                    className="bg-brand-blue hover:bg-blue-600 text-white font-semibold py-1 px-3 rounded-lg text-sm transition-colors disabled:opacity-50"
+                >
+                    {isSubmitting ? 'Posting...' : 'Post'}
+                </button>
+            </div>
+        </form>
+    );
+};
+
+const ReplyCard: React.FC<{
+    reply: Reply;
+    onReact: (replyId: string, emoji: string) => void;
+    onDeleteClick: (replyId: string) => void;
+    childReplies: Reply[];
+    allRepliesByParent: Record<string, Reply[]>;
+    challengeId: string;
+    onToggleReply: (replyId: string) => void;
+    replyingToId: string | null;
+}> = ({ reply, onReact, onDeleteClick, childReplies, allRepliesByParent, challengeId, onToggleReply, replyingToId }) => {
     const context = useContext(AppContext);
     const { currentUser } = context || {};
     const emojis = ['💪', '🔥', '😂', '🙌'];
     const canDelete = currentUser && currentUser.id === reply.user.id;
 
     return (
-        <div className="flex items-start gap-3">
-            <img className="w-10 h-10 rounded-full mt-1" src={reply.user.avatarUrl} alt={reply.user.name} />
-            <div className="flex-1">
-                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 relative group">
-                     {canDelete && (
-                        <button 
-                            onClick={onDeleteClick}
-                            className="absolute top-2 right-2 p-1 rounded-full bg-gray-200/50 dark:bg-gray-600/50 text-gray-500 dark:text-gray-300 transition-colors hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400"
-                            aria-label="Delete reply"
-                        >
-                            <TrashIcon className="w-4 h-4" />
+        <div>
+            <div className="flex items-start gap-3">
+                <img className="w-10 h-10 rounded-full mt-1" src={reply.user.avatarUrl} alt={reply.user.name} />
+                <div className="flex-1">
+                    <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 relative group">
+                        {canDelete && (
+                            <button 
+                                onClick={() => onDeleteClick(reply.id)}
+                                className="absolute top-2 right-2 p-1 rounded-full bg-gray-200/50 dark:bg-gray-600/50 text-gray-500 dark:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400"
+                                aria-label="Delete reply"
+                            >
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                        )}
+                        <p className="font-semibold text-sm text-brand-text-primary dark:text-gray-100">{reply.user.name}</p>
+                        {reply.text && (
+                            <p className="text-md text-brand-text-primary dark:text-gray-200 mt-1 whitespace-pre-wrap">{reply.text}</p>
+                        )}
+                        {reply.mediaUrl && <img src={reply.mediaUrl} alt="Reply media" className="mt-2 rounded-md w-full h-40 object-cover" />}
+                    </div>
+                    <div className="flex items-center gap-4 mt-1">
+                        <div className="flex items-center gap-2">
+                             {emojis.map(emoji => (
+                                <button
+                                    key={emoji}
+                                    onClick={() => onReact(reply.id, emoji)}
+                                    className="text-xs bg-gray-200/80 dark:bg-gray-600/80 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full px-2 py-1 transition-transform transform hover:scale-110"
+                                >
+                                    {emoji} {reply.reactions[emoji] || ''}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={() => onToggleReply(reply.id)} className="text-xs font-semibold text-brand-text-secondary dark:text-gray-400 hover:underline">
+                           Reply
                         </button>
-                    )}
-                    <p className="font-semibold text-sm text-brand-text-primary dark:text-gray-100">{reply.user.name}</p>
-                    {reply.text && (
-                        <p className="text-md text-brand-text-primary dark:text-gray-200 mt-1 whitespace-pre-wrap">{reply.text}</p>
-                    )}
-                    {reply.mediaUrl && <img src={reply.mediaUrl} alt="Reply media" className="mt-2 rounded-md w-full h-40 object-cover" />}
-                </div>
-                 <div className="flex items-center gap-2 mt-1">
-                    {emojis.map(emoji => (
-                        <button
-                            key={emoji}
-                            onClick={() => onReact(emoji)}
-                            className="text-xs bg-gray-200/80 dark:bg-gray-600/80 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full px-2 py-1 transition-transform transform hover:scale-110"
-                        >
-                            {emoji} {reply.reactions[emoji] || ''}
-                        </button>
-                    ))}
+                    </div>
                 </div>
             </div>
+
+            {replyingToId === reply.id && (
+                <InlineReplyForm
+                    challengeId={challengeId}
+                    parentId={reply.id}
+                    onCancel={() => onToggleReply(reply.id)}
+                />
+            )}
+
+            {childReplies.length > 0 && (
+                 <div className="mt-4 pl-6 border-l-2 border-gray-200 dark:border-gray-600 space-y-4">
+                    {childReplies.map(child => (
+                        <ReplyCard
+                            key={child.id}
+                            reply={child}
+                            onReact={onReact}
+                            onDeleteClick={onDeleteClick}
+                            childReplies={allRepliesByParent[child.id] || []}
+                            allRepliesByParent={allRepliesByParent}
+                            challengeId={challengeId}
+                            onToggleReply={onToggleReply}
+                            replyingToId={replyingToId}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

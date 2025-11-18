@@ -10,7 +10,7 @@ import { auth } from './firebaseConfig';
 export const AppContext = React.createContext<{
     currentUser: User | null;
     familyCircle: FamilyCircle | null;
-    addReply: (challengeId: string, payload: AddReplyPayload) => Promise<void>;
+    addReply: (challengeId: string, payload: AddReplyPayload, parentId?: string, isCompletion?: boolean) => Promise<void>;
     deleteReply: (replyId: string) => Promise<void>;
     addChallenge: (exercise: Exercise, target: string, mediaUrl?: string) => Promise<void>;
     deleteChallenge: (challengeId: string) => Promise<void>;
@@ -64,7 +64,7 @@ const App: React.FC = () => {
         signOutUser();
     };
 
-    const addReply = useCallback(async (challengeId: string, payload: AddReplyPayload) => {
+    const addReply = useCallback(async (challengeId: string, payload: AddReplyPayload, parentId?: string, isCompletion: boolean = false) => {
         if (!currentUser || !familyCircle) return;
         
         let mediaUrl: string | undefined = undefined;
@@ -72,7 +72,7 @@ const App: React.FC = () => {
             mediaUrl = await uploadReplyImage(payload.image);
         }
         
-        await addReplyToChallenge(currentUser, challengeId, familyCircle.id, mediaUrl, payload.text);
+        await addReplyToChallenge(currentUser, challengeId, familyCircle.id, mediaUrl, payload.text, parentId, isCompletion);
     }, [currentUser, familyCircle]);
 
     const deleteReply = useCallback(async (replyId: string) => {

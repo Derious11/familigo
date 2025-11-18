@@ -1,3 +1,4 @@
+
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -360,7 +361,7 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
     await batch.commit();
 };
 
-export const addReplyToChallenge = async (user: User, challengeId: string, familyCircleId: string, mediaUrl?: string, text?: string) => {
+export const addReplyToChallenge = async (user: User, challengeId: string, familyCircleId: string, mediaUrl?: string, text?: string, parentId?: string, isCompletion: boolean = false) => {
     const batch = writeBatch(db);
     
     const replyRef = doc(collection(db, 'replies'));
@@ -377,19 +378,43 @@ export const addReplyToChallenge = async (user: User, challengeId: string, famil
     };
     if (text) newReply.text = text;
     if (mediaUrl) newReply.mediaUrl = mediaUrl;
+    if (parentId) newReply.parentId = parentId;
+
     batch.set(replyRef, newReply);
 
-    const challengeRef = doc(db, 'challenges', challengeId);
-    batch.update(challengeRef, {
-        completedBy: arrayUnion(user.id)
-    });
+    // Only mark challenge as completed if it's an explicit completion action
+    if (isCompletion) {
+        const challengeRef = doc(db, 'challenges', challengeId);
+        batch.update(challengeRef, {
+            completedBy: arrayUnion(user.id)
+        });
+    }
     
     await batch.commit();
 };
 
 export const deleteReply = async (replyId: string): Promise<void> => {
+    // First, find all children of this reply
+    const childrenQuery = query(collection(db, 'replies'), where('parentId', '==', replyId));
+    const childrenSnapshot = await getDocs(childrenQuery);
+
+    const batch = writeBatch(db);
+    
+    // Delete all children recursively
+    if (!childrenSnapshot.empty) {
+        for (const childDoc of childrenSnapshot.docs) {
+            // This simple implementation deletes direct children.
+            // For deeply nested replies, a more complex recursive function would be needed.
+            // For this app's scope, deleting one level down is sufficient.
+            batch.delete(childDoc.ref);
+        }
+    }
+
+    // Then delete the parent reply itself
     const replyRef = doc(db, 'replies', replyId);
-    await deleteDoc(replyRef);
+    batch.delete(replyRef);
+
+    await batch.commit();
 };
 
 
@@ -446,14 +471,9 @@ export const updateUserAvatar = async (userId: string, avatarUrl: string): Promi
 
 export const updateUserWeight = async (userId: string, weight: number, unit: 'lbs' | 'kg'): Promise<void> => {
     const userDocRef = doc(db, 'users', userId);
-    const historyEntry = {
-        value: weight,
-        // Timestamp.now() is allowed inside arrays whereas serverTimestamp sentinels are not.
-        timestamp: Timestamp.now(),
-    };
     await updateDoc(userDocRef, {
         currentWeight: weight,
         weightUnit: unit,
-        weightHistory: arrayUnion(historyEntry),
+        weightHistory: arrayUnion({ value: weight, timestamp: serverTimestamp() }),
     });
 };
