@@ -50,12 +50,29 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
             return { success: false, error: 'Permission not granted. To receive notifications, please enable them in your browser settings.' };
         }
     } catch (error: any) {
-        console.error('An error occurred while requesting permission: ', error);
-        // This specifically handles the case where getToken fails because permission is blocked.
-        if (error.code === 'messaging/permission-blocked') {
-            return { success: false, error: 'Notifications are blocked. Please go to your browser settings to allow notifications for this site.' };
+        console.error('An error occurred while getting FCM token: ', error);
+        
+        let errorMessage = 'An unknown error occurred while enabling notifications.';
+
+        // Check for specific Firebase Messaging error codes to provide better feedback
+        switch (error.code) {
+            case 'messaging/permission-blocked':
+            case 'messaging/permission-default':
+                errorMessage = 'Notifications are blocked. Please go to your browser settings to allow notifications for this site.';
+                break;
+            case 'messaging/sw-reg-fail':
+            case 'messaging/sw-not-supported':
+                errorMessage = 'Could not set up notifications. Your browser might not be supported or the service worker failed to register.';
+                break;
+            case 'messaging/invalid-vapid-key':
+                errorMessage = 'Notification setup failed due to an invalid configuration key. Please contact support.';
+                break;
+            case 'messaging/registration-failed':
+                errorMessage = 'Notification setup failed. This might be a temporary network issue. Please try again.';
+                break;
         }
-        return { success: false, error: 'An unknown error occurred while enabling notifications.' };
+
+        return { success: false, error: errorMessage };
     }
 };
 
