@@ -58,6 +58,15 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
 
             if (userDoc) {
                 const userData = userDoc.data();
+                
+                // Convert weightHistory timestamps from Firestore Timestamps to JS Dates
+                if (userData.weightHistory && Array.isArray(userData.weightHistory)) {
+                    userData.weightHistory = userData.weightHistory.map((entry: any) => ({
+                        ...entry,
+                        timestamp: entry.timestamp instanceof Timestamp ? entry.timestamp.toDate() : new Date(), // Defensive check
+                    }));
+                }
+
                 callback({
                     id: firebaseUser.uid,
                     emailVerified: firebaseUser.emailVerified,
@@ -278,7 +287,7 @@ export const onChallengesUpdate = (familyCircleId: string, callback: (challenges
                 completedBy: data.completedBy || [],
             } as Challenge
         });
-        challenges.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        challenges.sort((a, b) => b.timestamp.getTime() - b.timestamp.getTime());
         callback(challenges);
     });
 };
@@ -437,9 +446,14 @@ export const updateUserAvatar = async (userId: string, avatarUrl: string): Promi
 
 export const updateUserWeight = async (userId: string, weight: number, unit: 'lbs' | 'kg'): Promise<void> => {
     const userDocRef = doc(db, 'users', userId);
+    const historyEntry = {
+        value: weight,
+        // Timestamp.now() is allowed inside arrays whereas serverTimestamp sentinels are not.
+        timestamp: Timestamp.now(),
+    };
     await updateDoc(userDocRef, {
         currentWeight: weight,
         weightUnit: unit,
-        weightHistory: arrayUnion({ value: weight, timestamp: serverTimestamp() }),
+        weightHistory: arrayUnion(historyEntry),
     });
 };

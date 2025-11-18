@@ -30,7 +30,16 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
         setError('');
         try {
             await updateUserWeight(currentUser.id, weightValue, unit);
-            updateCurrentUser({ currentWeight: weightValue, weightUnit: unit });
+
+            const newHistoryEntry = { value: weightValue, timestamp: new Date() };
+            const updatedHistory = [...(currentUser.weightHistory || []), newHistoryEntry];
+            
+            updateCurrentUser({ 
+                currentWeight: weightValue, 
+                weightUnit: unit,
+                weightHistory: updatedHistory,
+            });
+
             onClose();
         } catch (err) {
             setError('Failed to update weight. Please try again.');

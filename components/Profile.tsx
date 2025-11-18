@@ -5,6 +5,7 @@ import { Badge } from '../types';
 import { getBadges } from '../services/firebaseService';
 import EditProfilePictureModal from './EditProfilePictureModal';
 import UpdateWeightModal from './UpdateWeightModal';
+import WeightChart from './WeightChart';
 
 const Profile: React.FC = () => {
     const context = useContext(AppContext);
@@ -95,6 +96,7 @@ const Profile: React.FC = () => {
                          </p>
                     </div>
                 </div>
+                <WeightChart data={currentUser.weightHistory} unit={currentUser.weightUnit} />
             </div>
 
             {familyCircle && (
