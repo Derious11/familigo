@@ -1,11 +1,12 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
-import { FireIcon, PencilIcon, LinkIcon, CheckIcon, ScaleIcon } from './Icons';
+import { FireIcon, PencilIcon, LinkIcon, CheckIcon, ScaleIcon, BellIcon } from './Icons';
 import { Badge } from '../types';
 import { getBadges } from '../services/firebaseService';
 import EditProfilePictureModal from './EditProfilePictureModal';
 import UpdateWeightModal from './UpdateWeightModal';
 import WeightChart from './WeightChart';
+import { requestNotificationPermission, revokeNotificationPermission } from '../services/pushNotificationService';
 
 const Profile: React.FC = () => {
     const context = useContext(AppContext);
@@ -14,12 +15,17 @@ const Profile: React.FC = () => {
     const [isLinkCopied, setIsLinkCopied] = useState(false);
     const [allBadges, setAllBadges] = useState<Omit<Badge, 'unlocked'>[]>([]);
     const [isLoadingBadges, setIsLoadingBadges] = useState(true);
+    const [isNotificationToggleLoading, setIsNotificationToggleLoading] = useState(false);
 
     if (!context || !context.currentUser) {
         return <div>Loading profile...</div>;
     }
 
     const { currentUser, familyCircle, signOut } = context;
+    
+    const hasNotificationsEnabled = useMemo(() => {
+        return currentUser.notificationTokens && currentUser.notificationTokens.length > 0;
+    }, [currentUser.notificationTokens]);
 
     useEffect(() => {
         const fetchBadges = async () => {
@@ -43,6 +49,29 @@ const Profile: React.FC = () => {
             navigator.clipboard.writeText(inviteLink);
             setIsLinkCopied(true);
             setTimeout(() => setIsLinkCopied(false), 2000); // Reset after 2 seconds
+        }
+    };
+    
+    const handleNotificationToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const enable = e.target.checked;
+        setIsNotificationToggleLoading(true);
+
+        try {
+            if (enable) {
+                const result = await requestNotificationPermission(currentUser.id);
+                if (!result.success) {
+                    alert(`Could not enable notifications: ${result.error}`);
+                }
+            } else {
+                await revokeNotificationPermission(currentUser.id);
+            }
+        } catch (error) {
+            console.error("Failed to toggle notifications:", error);
+            alert("An unexpected error occurred. Please try again.");
+        } finally {
+            // The onAuthStateChanged listener in App.tsx will eventually receive the
+            // updated user data from Firestore and trigger a re-render with the correct toggle state.
+            setIsNotificationToggleLoading(false);
         }
     };
 
@@ -72,6 +101,32 @@ const Profile: React.FC = () => {
                         <p className="text-2xl font-bold text-brand-green">{currentUser.badges.filter(b => b.unlocked).length}</p>
                         <p className="text-sm text-brand-text-secondary dark:text-gray-400">Badges</p>
                     </div>
+                </div>
+            </div>
+
+            <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h3 className="text-xl font-bold mb-4 text-brand-text-primary dark:text-gray-100">Settings</h3>
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-blue-100 dark:bg-blue-900/40 p-3 rounded-full">
+                            <BellIcon className="w-6 h-6 text-brand-blue dark:text-blue-300" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-brand-text-primary dark:text-gray-100">Push Notifications</p>
+                            <p className="text-sm text-brand-text-secondary dark:text-gray-400">For new challenges and replies</p>
+                        </div>
+                    </div>
+                     <label htmlFor="notification-toggle" className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            id="notification-toggle"
+                            className="sr-only peer"
+                            checked={hasNotificationsEnabled}
+                            onChange={handleNotificationToggle}
+                            disabled={isNotificationToggleLoading}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-blue"></div>
+                    </label>
                 </div>
             </div>
 

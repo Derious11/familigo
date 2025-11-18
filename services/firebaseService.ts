@@ -28,11 +28,13 @@ import {
     Timestamp,
     arrayUnion,
     deleteDoc,
+    arrayRemove,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { auth, db, storage } from '../firebaseConfig';
 import { User, FamilyCircle, Challenge, Reply, Exercise, Badge } from '../types';
+import { sendPushNotification } from "./pushNotificationService";
 
 // --- AUTHENTICATION ---
 
@@ -103,6 +105,7 @@ export const signUpWithEmail = async (name: string, email: string, pass: string)
             badges: allBadges.map(b => ({ ...b, unlocked: false })),
             weightUnit: 'lbs',
             weightHistory: [],
+            notificationTokens: [],
         };
 
         await setDoc(doc(db, 'users', user.uid), newUser);
@@ -142,6 +145,7 @@ export const signInWithGoogle = async (): Promise<{ user: User | null, error: st
                 badges: allBadges.map(b => ({ ...b, unlocked: false })),
                 weightUnit: 'lbs',
                 weightHistory: [],
+                notificationTokens: [],
             };
             await setDoc(doc(db, 'users', user.uid), newUser);
         }
@@ -288,7 +292,7 @@ export const onChallengesUpdate = (familyCircleId: string, callback: (challenges
                 completedBy: data.completedBy || [],
             } as Challenge
         });
-        challenges.sort((a, b) => b.timestamp.getTime() - b.timestamp.getTime());
+        challenges.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
         callback(challenges);
     });
 };
@@ -309,6 +313,20 @@ export const onRepliesUpdate = (challengeId: string, callback: (replies: Reply[]
         replies.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
         callback(replies);
     });
+};
+
+const getUserTokens = async (userIds: string[]): Promise<string[]> => {
+    if (userIds.length === 0) return [];
+    const usersQuery = query(collection(db, 'users'), where(documentId(), 'in', userIds));
+    const snapshot = await getDocs(usersQuery);
+    const tokens: string[] = [];
+    snapshot.forEach(doc => {
+        const user = doc.data() as User;
+        if (user.notificationTokens) {
+            tokens.push(...user.notificationTokens);
+        }
+    });
+    return tokens;
 };
 
 export const addChallengeToFamily = async (challenger: User, familyCircleId: string, exercise: Exercise, target: string, mediaUrl?: string) => {
@@ -359,6 +377,17 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
     }
     
     await batch.commit();
+
+    // Send notifications to other family members
+    const circleDoc = await getDoc(doc(db, 'familyCircles', familyCircleId));
+    if (circleDoc.exists()) {
+        const memberIds = circleDoc.data().memberIds as string[];
+        const recipientIds = memberIds.filter(id => id !== challenger.id);
+        const tokens = await getUserTokens(recipientIds);
+        if (tokens.length > 0) {
+            sendPushNotification(tokens, 'New Challenge!', `${challenger.name} challenged you to ${exercise.name}!`);
+        }
+    }
 };
 
 export const addReplyToChallenge = async (user: User, challengeId: string, familyCircleId: string, mediaUrl?: string, text?: string, parentId?: string, isCompletion: boolean = false) => {
@@ -391,6 +420,35 @@ export const addReplyToChallenge = async (user: User, challengeId: string, famil
     }
     
     await batch.commit();
+
+    // Send notifications for the new reply
+    let recipientId: string | undefined;
+    let title = 'New Reply!';
+    const body = `${user.name}: ${text || 'posted a photo'}`;
+
+    if (parentId) {
+        // It's a nested reply, notify the parent commenter
+        const parentReplyDoc = await getDoc(doc(db, 'replies', parentId));
+        if (parentReplyDoc.exists()) {
+            recipientId = parentReplyDoc.data().user.id;
+            title = 'New reply to your comment';
+        }
+    } else {
+        // It's a top-level comment, notify the challenge creator
+        const challengeDoc = await getDoc(doc(db, 'challenges', challengeId));
+        if (challengeDoc.exists()) {
+            recipientId = challengeDoc.data().challenger.id;
+             title = `New comment on your challenge`;
+        }
+    }
+
+    // Don't send a notification to the user who wrote the reply
+    if (recipientId && recipientId !== user.id) {
+        const tokens = await getUserTokens([recipientId]);
+        if (tokens.length > 0) {
+            sendPushNotification(tokens, title, body);
+        }
+    }
 };
 
 export const deleteReply = async (replyId: string): Promise<void> => {
@@ -476,4 +534,28 @@ export const updateUserWeight = async (userId: string, weight: number, unit: 'lb
         weightUnit: unit,
         weightHistory: arrayUnion({ value: weight, timestamp: serverTimestamp() }),
     });
+};
+
+// --- PUSH NOTIFICATIONS ---
+export const addNotificationToken = async (userId: string, token: string): Promise<void> => {
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, {
+        notificationTokens: arrayUnion(token)
+    });
+};
+
+export const removeNotificationToken = async (userId: string, token?: string): Promise<void> => {
+    const userDocRef = doc(db, 'users', userId);
+    if (token) {
+        // If a specific token is provided, remove only that one.
+        await updateDoc(userDocRef, {
+            notificationTokens: arrayRemove(token)
+        });
+    } else {
+        // If no token is provided, clear all tokens for the user.
+        // This is a safe fallback to ensure notifications are fully disabled.
+        await updateDoc(userDocRef, {
+            notificationTokens: []
+        });
+    }
 };

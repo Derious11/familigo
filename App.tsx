@@ -6,6 +6,7 @@ import MainApp from './components/MainApp';
 import AuthFlow from './components/AuthFlow';
 import OnboardingFlow from './components/OnboardingFlow';
 import { auth } from './firebaseConfig';
+import { initializeFCM } from './services/pushNotificationService';
 
 export const AppContext = React.createContext<{
     currentUser: User | null;
@@ -35,6 +36,11 @@ const App: React.FC = () => {
             // Clean the URL to avoid it being re-processed or shared accidentally
             window.history.replaceState({}, document.title, window.location.pathname);
         }
+    }, []);
+    
+    useEffect(() => {
+        // Initialize Firebase Cloud Messaging to listen for foreground notifications
+        initializeFCM();
     }, []);
 
     useEffect(() => {

@@ -11,6 +11,7 @@ export interface User {
     currentWeight?: number;
     weightUnit?: 'lbs' | 'kg';
     weightHistory?: { value: number; timestamp: Date }[];
+    notificationTokens?: string[];
 }
 
 export interface Badge {
