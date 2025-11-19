@@ -5,6 +5,7 @@ export interface User {
     email: string;
     avatarUrl: string;
     streak: number;
+    lastActiveDate?: Date;
     badges: Badge[];
     familyCircleId?: string;
     emailVerified: boolean;
@@ -18,7 +19,7 @@ export interface Badge {
     id: string;
     name: string;
     description: string;
-    icon: string; 
+    icon: string;
     unlocked: boolean;
 }
 

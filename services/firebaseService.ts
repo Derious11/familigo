@@ -38,6 +38,48 @@ import { sendPushNotification } from "./pushNotificationService";
 
 // --- AUTHENTICATION ---
 
+const checkAndUpdateStreak = async (user: User) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let lastActive = user.lastActiveDate;
+
+    // If no lastActiveDate, treat as if active today (for new users) or handle legacy
+    if (!lastActive) {
+        // If it's a legacy user with 0 streak, set to 1 and today
+        // If they have a streak but no date, assume they are continuing today
+        const newStreak = user.streak > 0 ? user.streak : 1;
+        await updateDoc(doc(db, 'users', user.id), {
+            lastActiveDate: serverTimestamp(),
+            streak: newStreak
+        });
+        return;
+    }
+
+    // Normalize lastActive to midnight for comparison
+    const lastActiveDate = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate());
+
+    const diffTime = Math.abs(today.getTime() - lastActiveDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+        // Already active today, do nothing
+        return;
+    } else if (diffDays === 1) {
+        // Consecutive day, increment streak
+        await updateDoc(doc(db, 'users', user.id), {
+            streak: increment(1),
+            lastActiveDate: serverTimestamp()
+        });
+    } else {
+        // Missed a day (or more), reset streak
+        await updateDoc(doc(db, 'users', user.id), {
+            streak: 1,
+            lastActiveDate: serverTimestamp()
+        });
+    }
+};
+
 export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
     return onFirebaseAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
@@ -70,11 +112,21 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
                     }));
                 }
 
-                callback({
+                // Convert lastActiveDate from Firestore Timestamp to JS Date
+                if (userData.lastActiveDate && userData.lastActiveDate instanceof Timestamp) {
+                    userData.lastActiveDate = userData.lastActiveDate.toDate();
+                }
+
+                const user: User = {
                     id: firebaseUser.uid,
                     emailVerified: firebaseUser.emailVerified,
                     ...userData,
-                } as User);
+                } as User;
+
+                // Check and update streak
+                checkAndUpdateStreak(user);
+
+                callback(user);
             } else {
                 // If the user document doesn't exist even after retries, it's an inconsistent state.
                 // It's safer to sign the user out.
@@ -101,7 +153,8 @@ export const signUpWithEmail = async (name: string, email: string, pass: string)
             name,
             email: user.email!,
             avatarUrl: `https://i.pravatar.cc/150?u=${user.uid}`,
-            streak: 0,
+            streak: 1,
+            lastActiveDate: new Date(),
             badges: allBadges.map(b => ({ ...b, unlocked: false })),
             weightUnit: 'lbs',
             weightHistory: [],
@@ -141,7 +194,8 @@ export const signInWithGoogle = async (): Promise<{ user: User | null, error: st
                 name: user.displayName || 'New User',
                 email: user.email!,
                 avatarUrl: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
-                streak: 0,
+                streak: 1,
+                lastActiveDate: new Date(),
                 badges: allBadges.map(b => ({ ...b, unlocked: false })),
                 weightUnit: 'lbs',
                 weightHistory: [],
