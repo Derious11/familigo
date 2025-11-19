@@ -1,4 +1,11 @@
-// This file must be in the public directory
+// This file must be served from the root for Firebase Messaging to work.
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
 // Scripts for firebase and firebase messaging
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
@@ -12,7 +19,7 @@ const firebaseConfig = {
   storageBucket: "familigo-11643.firebasestorage.app",
   messagingSenderId: "34674887836",
   appId: "1:34674887836:web:bff36d1b66d97404dab159",
-  measurementId: "G-5XW9XNW42X"
+  measurementId: "G-5XW9XNW42X",
 };
 
 // Initialize Firebase
@@ -28,9 +35,9 @@ messaging.onBackgroundMessage((payload) => {
     payload
   );
   // Customize notification here
-  const notificationTitle = payload.notification.title;
+  const notificationTitle = payload.notification?.title ?? "FamiliGo";
   const notificationOptions = {
-    body: payload.notification.body,
+    body: payload.notification?.body,
     icon: "/assets/FamiliGo_logo.png",
   };
 

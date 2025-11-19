@@ -3,7 +3,7 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../firebaseConfig';
 import { addNotificationToken, removeNotificationToken } from './firebaseService';
 
-const VAPID_KEY = "BL2B7R5PZ_i8L6pQ8CEy0w7wJgJ-esnCkTDbI-cLo09J7T21pwhikV9Xm5aSP5Jrmw22-PCHpWz2vBxAaTR_s7M";
+const VAPID_KEY = "BMfIUjjBmlJPDzcYwv5czBovIThXoRlqD5o3qtaeeHNC4AkinV1If2t8AsB11OEzqxrN4K1Ygpoh7zyF9BAqBzE";
 let currentToken: string | null = null;
 
 // This function initializes the service worker and sets up a listener for foreground messages.
@@ -29,7 +29,7 @@ export const initializeFCM = () => {
 };
 
 // This function requests permission from the user to send notifications.
-export const requestNotificationPermission = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+export const requestNotificationPermission = async (userId: string): Promise<{ success: boolean; token?: string; error?: string }> => {
     if (typeof messaging === 'undefined') {
         return { success: false, error: "Messaging not supported." };
     }
@@ -41,7 +41,7 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
             if (token) {
                 currentToken = token;
                 await addNotificationToken(userId, token);
-                return { success: true };
+                return { success: true, token };
             } else {
                  return { success: false, error: 'Could not get notification token. Please try again.' };
             }

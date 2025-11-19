@@ -21,7 +21,7 @@ const Profile: React.FC = () => {
         return <div>Loading profile...</div>;
     }
 
-    const { currentUser, familyCircle, signOut } = context;
+    const { currentUser, familyCircle, signOut, updateCurrentUser } = context;
     
     const hasNotificationsEnabled = useMemo(() => {
         return currentUser.notificationTokens && currentUser.notificationTokens.length > 0;
@@ -59,11 +59,19 @@ const Profile: React.FC = () => {
         try {
             if (enable) {
                 const result = await requestNotificationPermission(currentUser.id);
-                if (!result.success) {
+                if (result.success) {
+                    const tokens = currentUser.notificationTokens || [];
+                    if (result.token && !tokens.includes(result.token)) {
+                        updateCurrentUser({
+                            notificationTokens: [...tokens, result.token],
+                        });
+                    }
+                } else {
                     alert(`Could not enable notifications: ${result.error}`);
                 }
             } else {
                 await revokeNotificationPermission(currentUser.id);
+                updateCurrentUser({ notificationTokens: [] });
             }
         } catch (error) {
             console.error("Failed to toggle notifications:", error);
