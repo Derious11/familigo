@@ -30,7 +30,7 @@ import {
     deleteDoc,
     arrayRemove,
 } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 import { auth, db, storage } from '../firebaseConfig';
 import { User, FamilyCircle, Challenge, Reply, Exercise, Badge } from '../types';
@@ -61,7 +61,7 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
 
             if (userDoc) {
                 const userData = userDoc.data();
-                
+
                 // Convert weightHistory timestamps from Firestore Timestamps to JS Dates
                 if (userData.weightHistory && Array.isArray(userData.weightHistory)) {
                     userData.weightHistory = userData.weightHistory.map((entry: any) => ({
@@ -92,7 +92,7 @@ export const signUpWithEmail = async (name: string, email: string, pass: string)
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const { user } = userCredential;
-        
+
         await sendEmailVerification(user);
 
         const allBadges = await getBadges();
@@ -179,7 +179,7 @@ export const resendVerificationEmail = async (): Promise<{ success: boolean, err
             await sendEmailVerification(user);
             return { success: true, error: null };
         } catch (error: any) {
-             return { success: false, error: error.message };
+            return { success: false, error: error.message };
         }
     }
     return { success: false, error: "No user is currently signed in." };
@@ -212,14 +212,14 @@ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircl
     if (!circleDoc.exists()) return null;
 
     const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[] };
-    
+
     let members: User[] = [];
     if (circleData.memberIds?.length) {
         const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
         const membersSnapshot = await getDocs(membersQuery);
         members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
     }
-    
+
     return {
         id: circleDoc.id,
         name: circleData.name,
@@ -246,7 +246,7 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
     return {
         id: circleRef.id,
         ...newCircleData,
-        members: [{id: userId, ...user.data()} as User],
+        members: [{ id: userId, ...user.data() } as User],
     };
 };
 
@@ -278,7 +278,7 @@ export const joinFamilyCircle = async (userId: string, inviteCode: string): Prom
 
 export const onChallengesUpdate = (familyCircleId: string, callback: (challenges: Challenge[]) => void): (() => void) => {
     const q = query(collection(db, 'challenges'), where('familyCircleId', '==', familyCircleId));
-    
+
     return onSnapshot(q, (querySnapshot) => {
         const challenges = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -299,7 +299,7 @@ export const onChallengesUpdate = (familyCircleId: string, callback: (challenges
 
 export const onRepliesUpdate = (challengeId: string, callback: (replies: Reply[]) => void): (() => void) => {
     const q = query(collection(db, 'replies'), where('challengeId', '==', challengeId));
-    
+
     return onSnapshot(q, (querySnapshot) => {
         const replies = querySnapshot.docs.map(doc => {
             const data = doc.data();
@@ -361,7 +361,7 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
 
         if (userDoc.exists()) {
             const userData = userDoc.data();
-            const currentBadges = userData.badges || []; 
+            const currentBadges = userData.badges || [];
             const isBadgeUnlocked = currentBadges.some((b: any) => b.id === 'b1' && b.unlocked);
 
             if (!isBadgeUnlocked) {
@@ -375,7 +375,7 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
             }
         }
     }
-    
+
     await batch.commit();
 
     // Send notifications to other family members
@@ -392,7 +392,7 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
 
 export const addReplyToChallenge = async (user: User, challengeId: string, familyCircleId: string, mediaUrl?: string, text?: string, parentId?: string, isCompletion: boolean = false) => {
     const batch = writeBatch(db);
-    
+
     const replyRef = doc(collection(db, 'replies'));
     const newReply: any = {
         user: {
@@ -418,7 +418,7 @@ export const addReplyToChallenge = async (user: User, challengeId: string, famil
             completedBy: arrayUnion(user.id)
         });
     }
-    
+
     await batch.commit();
 
     // Send notifications for the new reply
@@ -438,7 +438,7 @@ export const addReplyToChallenge = async (user: User, challengeId: string, famil
         const challengeDoc = await getDoc(doc(db, 'challenges', challengeId));
         if (challengeDoc.exists()) {
             recipientId = challengeDoc.data().challenger.id;
-             title = `New comment on your challenge`;
+            title = `New comment on your challenge`;
         }
     }
 
@@ -457,7 +457,7 @@ export const deleteReply = async (replyId: string): Promise<void> => {
     const childrenSnapshot = await getDocs(childrenQuery);
 
     const batch = writeBatch(db);
-    
+
     // Delete all children recursively
     if (!childrenSnapshot.empty) {
         for (const childDoc of childrenSnapshot.docs) {
@@ -504,22 +504,57 @@ export const updateReaction = async (replyId: string, emoji: string) => {
 export const getRepliesForFamily = async (familyCircleId: string): Promise<Reply[]> => {
     const q = query(collection(db, 'replies'), where('familyCircleId', '==', familyCircleId));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Reply));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reply));
 };
 
 // --- USER PROFILE & STORAGE ---
 export const uploadProfileImage = async (userId: string, file: File | Blob): Promise<string> => {
     const storageRef = ref(storage, `profile-pictures/${userId}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
+
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                // Optional: Handle progress
+            },
+            (error) => {
+                console.error("Profile upload failed:", error);
+                reject(error);
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                    resolve(downloadURL);
+                });
+            }
+        );
+    });
 };
 
 export const uploadReplyImage = async (file: Blob): Promise<string> => {
     const uniqueId = doc(collection(db, 'temp')).id; // Generate a unique ID for the path
     const storageRef = ref(storage, `reply-images/${uniqueId}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    return await getDownloadURL(snapshot.ref);
+
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                // You can add progress logging here if needed
+                // const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                // console.log('Upload is ' + progress + '% done');
+            },
+            (error) => {
+                console.error("Upload failed:", error);
+                reject(error);
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                    resolve(downloadURL);
+                });
+            }
+        );
+    });
 };
 
 export const updateUserAvatar = async (userId: string, avatarUrl: string): Promise<void> => {
