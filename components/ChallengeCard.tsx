@@ -4,6 +4,7 @@ import { AppContext } from '../App';
 import { Challenge, Reply, User } from '../types';
 import { onRepliesUpdate, updateReaction } from '../services/firebaseService';
 import LogWeightReplyModal from './LogWeightReplyModal';
+import LogActivityModal from './LogActivityModal';
 import CreateReplyModal from './CreateReplyModal';
 import { TrashIcon } from './Icons';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
@@ -43,7 +44,25 @@ const Countdown: React.FC<{ expiryDate: Date }> = ({ expiryDate }) => {
 
 const ProgressTracker: React.FC<{ challenge: Challenge; members: User[] }> = ({ challenge, members }) => {
     if (!members || members.length === 0) return null;
-    
+
+    if (challenge.type === 'team' && challenge.goalTotal) {
+        const current = challenge.currentTotal || 0;
+        const goal = challenge.goalTotal;
+        const progress = Math.min((current / goal) * 100, 100);
+
+        return (
+            <div className="my-4">
+                <div className="flex justify-between items-center mb-1 text-sm">
+                    <span className="font-semibold text-brand-text-secondary dark:text-gray-400">Team Goal</span>
+                    <span className="font-bold text-brand-text-primary dark:text-gray-200">{current} / {goal} {challenge.unit}</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                    <div className="bg-brand-blue h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                </div>
+            </div>
+        );
+    }
+
     const completedMembers = members.filter(member => challenge.completedBy?.includes(member.id));
     const progress = (challenge.completedBy?.length / members.length) * 100;
 
@@ -73,22 +92,23 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     const { currentUser, deleteReply, deleteChallenge, familyCircle, addReply } = context || {};
     const [replies, setReplies] = useState<Reply[]>([]);
     const [isLogWeightModalOpen, setIsLogWeightModalOpen] = useState(false);
+    const [isLogActivityModalOpen, setIsLogActivityModalOpen] = useState(false);
     const [isCreateReplyModalOpen, setIsCreateReplyModalOpen] = useState(false);
     const [replyingToId, setReplyingToId] = useState<string | null>(null);
     const [mainComment, setMainComment] = useState('');
     const [isPostingMainComment, setIsPostingMainComment] = useState(false);
-    
+
     // State for deletion confirmation
     const [itemToDelete, setItemToDelete] = useState<{ type: 'reply' | 'challenge', id: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    
+
     const isChallenger = currentUser?.id === challenge.challenger.id;
-    
+
     useEffect(() => {
         const unsubscribe = onRepliesUpdate(challenge.id, setReplies);
         return () => unsubscribe();
     }, [challenge.id]);
-    
+
     const { topLevelReplies, repliesByParent } = useMemo(() => {
         const topLevel: Reply[] = [];
         const byParent: Record<string, Reply[]> = {};
@@ -112,10 +132,18 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     const hasReplied = currentUser && challenge.completedBy?.includes(currentUser.id);
 
     const handleCompleteChallenge = () => {
-        if (!currentUser || hasReplied || !isActive) return;
+        if (!currentUser || !isActive) return;
+
+        // For individual challenges, prevent multiple completions
+        if (challenge.type !== 'team' && hasReplied) return;
 
         if (challenge.exercise.name === 'Weight Check-in') {
             setIsLogWeightModalOpen(true);
+        } else if (challenge.type === 'team') {
+            // We'll reuse the LogWeightReplyModal logic but adapted for generic activity logging
+            // For now, let's assume we will create a new modal or adapt the existing one.
+            // Let's use a new state for LogActivityModal
+            setIsLogActivityModalOpen(true);
         } else {
             setIsCreateReplyModalOpen(true);
         }
@@ -128,7 +156,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     const handleDeleteReplyClick = (replyId: string) => {
         setItemToDelete({ type: 'reply', id: replyId });
     };
-    
+
     const handleToggleReply = (replyId: string) => {
         setReplyingToId(current => (current === replyId ? null : replyId));
     };
@@ -174,7 +202,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                     </div>
                     <div className="flex items-center gap-2">
                         {isChallenger && (
-                            <button 
+                            <button
                                 onClick={() => setItemToDelete({ type: 'challenge', id: challenge.id })}
                                 className="p-1.5 rounded-full text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                                 aria-label="Delete challenge"
@@ -198,8 +226,8 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 <form onSubmit={handleMainCommentSubmit} className="flex items-start gap-2">
-                     <img className="w-8 h-8 rounded-full mt-1" src={currentUser?.avatarUrl} alt={currentUser?.name} />
-                     <textarea
+                    <img className="w-8 h-8 rounded-full mt-1" src={currentUser?.avatarUrl} alt={currentUser?.name} />
+                    <textarea
                         value={mainComment}
                         onChange={(e) => setMainComment(e.target.value)}
                         rows={1}
@@ -220,7 +248,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="space-y-4">
                         {topLevelReplies.map(reply => (
-                           <ReplyCard
+                            <ReplyCard
                                 key={reply.id}
                                 reply={reply}
                                 onReact={handleReaction}
@@ -236,29 +264,46 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 </div>
             )}
 
-            {currentUser && !hasReplied && isActive && (
+            {currentUser && isActive && (
                 <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                        onClick={handleCompleteChallenge}
-                        className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
-                    >
-                        I Did It!
-                    </button>
+                    {challenge.type === 'team' ? (
+                        <button
+                            onClick={handleCompleteChallenge}
+                            className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
+                        >
+                            Log Activity
+                        </button>
+                    ) : (
+                        !hasReplied && (
+                            <button
+                                onClick={handleCompleteChallenge}
+                                className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
+                            >
+                                I Did It!
+                            </button>
+                        )
+                    )}
                 </div>
             )}
             {isLogWeightModalOpen && (
-                <LogWeightReplyModal 
-                    challenge={challenge} 
-                    onClose={() => setIsLogWeightModalOpen(false)} 
+                <LogWeightReplyModal
+                    challenge={challenge}
+                    onClose={() => setIsLogWeightModalOpen(false)}
                 />
             )}
             {isCreateReplyModalOpen && (
-                <CreateReplyModal 
-                    challengeId={challenge.id} 
-                    onClose={() => setIsCreateReplyModalOpen(false)} 
+                <CreateReplyModal
+                    challengeId={challenge.id}
+                    onClose={() => setIsCreateReplyModalOpen(false)}
                 />
             )}
-            <ConfirmDeleteModal 
+            {isLogActivityModalOpen && (
+                <LogActivityModal
+                    challenge={challenge}
+                    onClose={() => setIsLogActivityModalOpen(false)}
+                />
+            )}
+            <ConfirmDeleteModal
                 isOpen={!!itemToDelete}
                 onClose={() => setItemToDelete(null)}
                 onConfirm={confirmDeletion}
@@ -338,7 +383,7 @@ const ReplyCard: React.FC<{
                 <div className="flex-1">
                     <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 relative group">
                         {canDelete && (
-                            <button 
+                            <button
                                 onClick={() => onDeleteClick(reply.id)}
                                 className="absolute top-2 right-2 p-1 rounded-full bg-gray-200/50 dark:bg-gray-600/50 text-gray-500 dark:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400"
                                 aria-label="Delete reply"
@@ -354,7 +399,7 @@ const ReplyCard: React.FC<{
                     </div>
                     <div className="flex items-center gap-4 mt-1">
                         <div className="flex items-center gap-2">
-                             {emojis.map(emoji => (
+                            {emojis.map(emoji => (
                                 <button
                                     key={emoji}
                                     onClick={() => onReact(reply.id, emoji)}
@@ -365,7 +410,7 @@ const ReplyCard: React.FC<{
                             ))}
                         </div>
                         <button onClick={() => onToggleReply(reply.id)} className="text-xs font-semibold text-brand-text-secondary dark:text-gray-400 hover:underline">
-                           Reply
+                            Reply
                         </button>
                     </div>
                 </div>
@@ -380,7 +425,7 @@ const ReplyCard: React.FC<{
             )}
 
             {childReplies.length > 0 && (
-                 <div className="mt-4 pl-6 border-l-2 border-gray-200 dark:border-gray-600 space-y-4">
+                <div className="mt-4 pl-6 border-l-2 border-gray-200 dark:border-gray-600 space-y-4">
                     {childReplies.map(child => (
                         <ReplyCard
                             key={child.id}

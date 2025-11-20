@@ -20,22 +20,20 @@ const Feed: React.FC = () => {
         return () => unsubscribe();
     }, [context?.familyCircle]);
 
-    const { activeChallenges, historyChallenges } = useMemo(() => {
+    const activeChallenges = useMemo(() => {
         const now = new Date();
-        const active = challenges.filter(c => c.expiresAt > now);
-        const history = challenges.filter(c => c.expiresAt <= now);
-        return { activeChallenges: active, historyChallenges: history };
+        return challenges.filter(c => c.expiresAt > now);
     }, [challenges]);
 
 
     if (isLoading) {
-         return (
-             <div className="text-center py-12 text-brand-text-secondary">
+        return (
+            <div className="text-center py-12 text-brand-text-secondary">
                 <p>Loading feed...</p>
             </div>
         );
     }
-    
+
     return (
         <div>
             <div className="space-y-8">
@@ -54,17 +52,6 @@ const Feed: React.FC = () => {
                         </div>
                     )}
                 </section>
-                
-                {historyChallenges.length > 0 && (
-                    <section>
-                         <h2 className="text-xl font-bold text-brand-text-primary dark:text-gray-100 mb-4 px-1">Challenge History</h2>
-                         <div className="space-y-6">
-                            {historyChallenges.map(challenge => (
-                                <ChallengeCard key={challenge.id} challenge={challenge} isActive={false} />
-                            ))}
-                         </div>
-                    </section>
-                )}
             </div>
         </div>
     );

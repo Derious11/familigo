@@ -11,9 +11,9 @@ import { initializeFCM } from './services/pushNotificationService';
 export const AppContext = React.createContext<{
     currentUser: User | null;
     familyCircle: FamilyCircle | null;
-    addReply: (challengeId: string, payload: AddReplyPayload, parentId?: string, isCompletion?: boolean) => Promise<void>;
+    addReply: (challengeId: string, payload: AddReplyPayload, parentId?: string, isCompletion?: boolean, contributionValue?: number) => Promise<void>;
     deleteReply: (replyId: string) => Promise<void>;
-    addChallenge: (exercise: Exercise, target: string, mediaUrl?: string) => Promise<void>;
+    addChallenge: (exercise: Exercise, target: string, mediaUrl?: string, type?: 'individual' | 'team', goalTotal?: number, unit?: string, durationDays?: number) => Promise<void>;
     deleteChallenge: (challengeId: string) => Promise<void>;
     signOut: () => void;
     setFamilyCircle: (circle: FamilyCircle | null) => void;
@@ -37,7 +37,7 @@ const App: React.FC = () => {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
-    
+
     useEffect(() => {
         // Initialize Firebase Cloud Messaging to listen for foreground notifications
         initializeFCM();
@@ -49,7 +49,7 @@ const App: React.FC = () => {
         const unsubscribe = onAuthStateChanged(async (user) => {
             if (user) {
                 setCurrentUser(user);
-                setAuthState('loading'); 
+                setAuthState('loading');
                 if (user.familyCircleId) {
                     const circle = await getUserFamilyCircle(user.familyCircleId);
                     setFamilyCircle(circle);
@@ -70,24 +70,24 @@ const App: React.FC = () => {
         signOutUser();
     };
 
-    const addReply = useCallback(async (challengeId: string, payload: AddReplyPayload, parentId?: string, isCompletion: boolean = false) => {
+    const addReply = useCallback(async (challengeId: string, payload: AddReplyPayload, parentId?: string, isCompletion: boolean = false, contributionValue?: number) => {
         if (!currentUser || !familyCircle) return;
-        
+
         let mediaUrl: string | undefined = undefined;
         if (payload.image) {
             mediaUrl = await uploadReplyImage(payload.image);
         }
-        
-        await addReplyToChallenge(currentUser, challengeId, familyCircle.id, mediaUrl, payload.text, parentId, isCompletion);
+
+        await addReplyToChallenge(currentUser, challengeId, familyCircle.id, mediaUrl, payload.text, parentId, isCompletion, contributionValue);
     }, [currentUser, familyCircle]);
 
     const deleteReply = useCallback(async (replyId: string) => {
         await deleteReplyFromFirestore(replyId);
     }, []);
 
-    const addChallenge = useCallback(async (exercise: Exercise, target: string, mediaUrl?: string) => {
+    const addChallenge = useCallback(async (exercise: Exercise, target: string, mediaUrl?: string, type: 'individual' | 'team' = 'individual', goalTotal?: number, unit?: string, durationDays?: number) => {
         if (!currentUser || !familyCircle) return;
-        await addChallengeToFamily(currentUser, familyCircle.id, exercise, target, mediaUrl);
+        await addChallengeToFamily(currentUser, familyCircle.id, exercise, target, mediaUrl, type, goalTotal, unit, durationDays);
     }, [currentUser, familyCircle]);
 
     const deleteChallenge = useCallback(async (challengeId: string) => {
@@ -136,7 +136,7 @@ const App: React.FC = () => {
 
         return <AuthFlow />; // Fallback
     };
-    
+
     return (
         <AppContext.Provider value={appContextValue}>
             <div className="min-h-screen bg-brand-background dark:bg-gray-900 font-sans text-brand-text-primary dark:text-gray-100">{renderContent()}</div>

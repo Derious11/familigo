@@ -383,7 +383,17 @@ const getUserTokens = async (userIds: string[]): Promise<string[]> => {
     return tokens;
 };
 
-export const addChallengeToFamily = async (challenger: User, familyCircleId: string, exercise: Exercise, target: string, mediaUrl?: string) => {
+export const addChallengeToFamily = async (
+    challenger: User,
+    familyCircleId: string,
+    exercise: Exercise,
+    target: string,
+    mediaUrl?: string,
+    type: 'individual' | 'team' = 'individual',
+    goalTotal?: number,
+    unit?: string,
+    durationDays: number = 2
+) => {
     const batch = writeBatch(db);
     const challengesRef = collection(db, 'challenges');
 
@@ -391,8 +401,8 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
     const userChallengesSnapshot = await getDocs(userChallengesQuery);
     const isFirstChallenge = userChallengesSnapshot.empty;
 
-    const expirationDate = new Date(Date.now() + 48 * 60 * 60 * 1000);
-    const newChallenge = {
+    const expirationDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+    const newChallenge: any = {
         challenger: {
             id: challenger.id,
             name: challenger.name,
@@ -401,11 +411,18 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
         familyCircleId,
         exercise,
         target,
+        type,
         mediaUrl: mediaUrl || exercise.visualGuideUrl,
         timestamp: serverTimestamp(),
         expiresAt: Timestamp.fromDate(expirationDate),
         completedBy: [],
     };
+
+    if (type === 'team') {
+        newChallenge.goalTotal = goalTotal;
+        newChallenge.currentTotal = 0;
+        newChallenge.unit = unit;
+    }
     const newChallengeRef = doc(challengesRef);
     batch.set(newChallengeRef, newChallenge);
 
@@ -444,7 +461,16 @@ export const addChallengeToFamily = async (challenger: User, familyCircleId: str
     }
 };
 
-export const addReplyToChallenge = async (user: User, challengeId: string, familyCircleId: string, mediaUrl?: string, text?: string, parentId?: string, isCompletion: boolean = false) => {
+export const addReplyToChallenge = async (
+    user: User,
+    challengeId: string,
+    familyCircleId: string,
+    mediaUrl?: string,
+    text?: string,
+    parentId?: string,
+    isCompletion: boolean = false,
+    contributionValue?: number
+) => {
     const batch = writeBatch(db);
 
     const replyRef = doc(collection(db, 'replies'));
@@ -462,14 +488,23 @@ export const addReplyToChallenge = async (user: User, challengeId: string, famil
     if (text) newReply.text = text;
     if (mediaUrl) newReply.mediaUrl = mediaUrl;
     if (parentId) newReply.parentId = parentId;
+    if (contributionValue) newReply.contributionValue = contributionValue;
 
     batch.set(replyRef, newReply);
 
+    const challengeRef = doc(db, 'challenges', challengeId);
+
     // Only mark challenge as completed if it's an explicit completion action
     if (isCompletion) {
-        const challengeRef = doc(db, 'challenges', challengeId);
         batch.update(challengeRef, {
             completedBy: arrayUnion(user.id)
+        });
+    }
+
+    // If there is a contribution value, update the challenge total
+    if (contributionValue) {
+        batch.update(challengeRef, {
+            currentTotal: increment(contributionValue)
         });
     }
 

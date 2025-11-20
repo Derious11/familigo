@@ -39,13 +39,18 @@ export interface Reply {
     challengeId: string;
     familyCircleId: string;
     parentId?: string;
+    contributionValue?: number;
 }
 
 export interface Challenge {
     id: string;
+    type: 'individual' | 'team';
     challenger: { id: string, name: string, avatarUrl: string };
     exercise: Exercise;
-    target: string;
+    target: string; // Description for individual, or summary for team
+    goalTotal?: number;
+    currentTotal?: number;
+    unit?: string;
     mediaUrl?: string;
     timestamp: Date;
     familyCircleId: string;
