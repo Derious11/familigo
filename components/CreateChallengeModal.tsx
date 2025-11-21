@@ -80,8 +80,8 @@ const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) 
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-md relative animate-fade-in-up border border-white/20" onClick={(e) => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                     <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -185,7 +185,7 @@ const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) 
                         <div className="pt-2 space-y-2">
                             <button
                                 type="submit"
-                                className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                                className="w-full bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-blue/90 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-[1.02] shadow-lg"
                             >
                                 Post Challenge
                             </button>

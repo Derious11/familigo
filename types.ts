@@ -59,15 +59,27 @@ export interface Challenge {
     completedBy: string[];
 }
 
+export interface Message {
+    id: string;
+    familyCircleId: string;
+    senderId: string;
+    senderName: string;
+    senderAvatarUrl: string;
+    text: string;
+    timestamp: Date;
+    type: 'text' | 'system';
+}
+
 export interface FamilyCircle {
     id: string;
     name: string;
+    chatName?: string;
     inviteCode: string;
     members: User[];
     challenges?: Challenge[]; // Kept for potential future use or old data structures
 }
 
-export type View = 'feed' | 'history' | 'profile';
+export type View = 'feed' | 'history' | 'profile' | 'chat';
 
 export type AuthState = 'loading' | 'authenticated' | 'unauthenticated';
 

@@ -13,7 +13,7 @@ interface LogWeightReplyModalProps {
 const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, challenge }) => {
     const context = useContext(AppContext);
     const { currentUser, updateCurrentUser, addReply } = context || {};
-    
+
     const [weight, setWeight] = useState<string>(currentUser?.currentWeight?.toString() || '');
     const [unit, setUnit] = useState<'lbs' | 'kg'>(currentUser?.weightUnit || 'lbs');
     const [isLoading, setIsLoading] = useState(false);
@@ -33,16 +33,16 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
         try {
             // 1. Update user's weight profile
             await updateUserWeight(currentUser.id, weightValue, unit);
-            
+
             const newHistoryEntry = { value: weightValue, timestamp: new Date() };
             const updatedHistory = [...(currentUser.weightHistory || []), newHistoryEntry];
-            
-            updateCurrentUser({ 
-                currentWeight: weightValue, 
+
+            updateCurrentUser({
+                currentWeight: weightValue,
                 weightUnit: unit,
                 weightHistory: updatedHistory
             });
-            
+
             // 2. Add a reply to the challenge with a generic message for privacy
             const replyText = 'Logged their weight!';
             // The third argument (parentId) is undefined.
@@ -59,8 +59,8 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up border border-white/20" onClick={(e) => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                     <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -94,12 +94,12 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
                         </div>
 
                         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                        
+
                         <div className="pt-2">
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
+                                className="w-full bg-gradient-to-r from-brand-green to-emerald-600 hover:from-brand-green/90 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:opacity-50"
                             >
                                 {isLoading ? 'Submitting...' : 'Submit & Complete'}
                             </button>
@@ -107,7 +107,7 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
                     </form>
                 </div>
             </div>
-             <style>{`
+            <style>{`
                 @keyframes fade-in-up {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }

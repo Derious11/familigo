@@ -8,6 +8,7 @@ import LogActivityModal from './LogActivityModal';
 import CreateReplyModal from './CreateReplyModal';
 import { TrashIcon } from './Icons';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
+import confetti from 'canvas-confetti';
 
 interface ChallengeCardProps {
     challenge: Challenge;
@@ -136,6 +137,13 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
         // For individual challenges, prevent multiple completions
         if (challenge.type !== 'team' && hasReplied) return;
+
+        // Trigger confetti
+        confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+        });
 
         if (challenge.exercise.name === 'Weight Check-in') {
             setIsLogWeightModalOpen(true);
@@ -269,7 +277,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                     {challenge.type === 'team' ? (
                         <button
                             onClick={handleCompleteChallenge}
-                            className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
+                            className="w-full bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-blue/90 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg active:scale-95"
                         >
                             Log Activity
                         </button>
@@ -277,7 +285,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                         !hasReplied && (
                             <button
                                 onClick={handleCompleteChallenge}
-                                className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105"
+                                className="w-full bg-gradient-to-r from-brand-green to-emerald-600 hover:from-brand-green/90 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg active:scale-95 animate-pulse"
                             >
                                 I Did It!
                             </button>

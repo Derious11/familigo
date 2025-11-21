@@ -9,6 +9,7 @@ import Profile from './Profile';
 import { AppContext } from '../App';
 import { resendVerificationEmail } from '../services/firebaseService';
 import CreateChallengeModal from './CreateChallengeModal';
+import Chat from './Chat';
 import { PlusIcon } from './Icons';
 
 const MainApp: React.FC = () => {
@@ -32,12 +33,14 @@ const MainApp: React.FC = () => {
                 return <History />;
             case 'profile':
                 return <Profile />;
+            case 'chat':
+                return <Chat />;
             case 'feed':
             default:
                 return <Feed />;
         }
     };
-    
+
     return (
         <div className="min-h-screen bg-brand-background dark:bg-gray-900 font-sans text-brand-text-primary dark:text-gray-100">
             {currentUser && !currentUser.emailVerified && (
@@ -46,7 +49,7 @@ const MainApp: React.FC = () => {
                         <span>Verification email sent! Check your inbox.</span>
                     ) : (
                         <>
-                            Please check your email to verify your account. 
+                            Please check your email to verify your account.
                             <button onClick={handleResendEmail} className="font-bold underline ml-2 hover:text-yellow-900 dark:hover:text-yellow-100">
                                 Resend email
                             </button>
@@ -60,7 +63,7 @@ const MainApp: React.FC = () => {
                     {renderView()}
                 </main>
             </div>
-            
+
             <button
                 onClick={() => setIsCreateChallengeModalOpen(true)}
                 className="fixed bottom-6 right-6 bg-brand-blue hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-transform transform hover:scale-110 z-40"

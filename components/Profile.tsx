@@ -22,7 +22,7 @@ const Profile: React.FC = () => {
     }
 
     const { currentUser, familyCircle, signOut, updateCurrentUser } = context;
-    
+
     const hasNotificationsEnabled = useMemo(() => {
         return currentUser.notificationTokens && currentUser.notificationTokens.length > 0;
     }, [currentUser.notificationTokens]);
@@ -51,7 +51,7 @@ const Profile: React.FC = () => {
             setTimeout(() => setIsLinkCopied(false), 2000); // Reset after 2 seconds
         }
     };
-    
+
     const handleNotificationToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const enable = e.target.checked;
         setIsNotificationToggleLoading(true);
@@ -88,7 +88,7 @@ const Profile: React.FC = () => {
             <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6 flex flex-col items-center">
                 <div className="relative">
                     <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-24 h-24 rounded-full border-4 border-brand-blue shadow-lg mb-4" />
-                     <button 
+                    <button
                         onClick={() => setIsEditModalOpen(true)}
                         className="absolute bottom-4 -right-1 bg-brand-blue hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-transform transform hover:scale-110"
                         aria-label="Change profile picture"
@@ -100,8 +100,8 @@ const Profile: React.FC = () => {
                 <h2 className="text-3xl font-bold text-brand-text-primary dark:text-gray-100">{currentUser.name}</h2>
                 <div className="mt-4 flex items-center gap-4 text-center">
                     <div>
-                        <p className="text-2xl font-bold text-brand-yellow-600 flex items-center justify-center gap-1">
-                            <FireIcon className="w-6 h-6"/> {currentUser.streak}
+                        <p className="text-2xl font-bold text-orange-500 dark:text-orange-400 flex items-center justify-center gap-1">
+                            <FireIcon className="w-6 h-6" /> {currentUser.streak}
                         </p>
                         <p className="text-sm text-brand-text-secondary dark:text-gray-400">Day Streak</p>
                     </div>
@@ -124,7 +124,7 @@ const Profile: React.FC = () => {
                             <p className="text-sm text-brand-text-secondary dark:text-gray-400">For new challenges and replies</p>
                         </div>
                     </div>
-                     <label htmlFor="notification-toggle" className="relative inline-flex items-center cursor-pointer">
+                    <label htmlFor="notification-toggle" className="relative inline-flex items-center cursor-pointer">
                         <input
                             type="checkbox"
                             id="notification-toggle"
@@ -141,7 +141,7 @@ const Profile: React.FC = () => {
             <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <div className="flex justify-between items-center">
                     <h3 className="text-xl font-bold text-brand-text-primary dark:text-gray-100">Health Stats</h3>
-                    <button 
+                    <button
                         onClick={() => setIsWeightModalOpen(true)}
                         className="text-sm bg-gray-200/60 hover:bg-gray-300/80 dark:bg-gray-700/70 dark:hover:bg-gray-600/90 text-brand-text-secondary dark:text-gray-300 font-semibold py-2 px-3 rounded-lg transition-colors"
                     >
@@ -150,13 +150,13 @@ const Profile: React.FC = () => {
                 </div>
                 <div className="mt-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg flex items-center gap-4">
                     <div className="bg-blue-100 dark:bg-blue-900/40 p-3 rounded-full">
-                         <ScaleIcon className="w-6 h-6 text-brand-blue dark:text-blue-300" />
+                        <ScaleIcon className="w-6 h-6 text-brand-blue dark:text-blue-300" />
                     </div>
                     <div>
                         <p className="text-sm font-medium text-brand-text-secondary dark:text-gray-400">Current Weight</p>
-                         <p className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">
-                             {currentUser.currentWeight ? `${currentUser.currentWeight} ${currentUser.weightUnit || 'lbs'}` : 'Not set'}
-                         </p>
+                        <p className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">
+                            {currentUser.currentWeight ? `${currentUser.currentWeight} ${currentUser.weightUnit || 'lbs'}` : 'Not set'}
+                        </p>
                     </div>
                 </div>
                 <WeightChart data={currentUser.weightHistory} unit={currentUser.weightUnit} />
@@ -165,18 +165,17 @@ const Profile: React.FC = () => {
             {familyCircle && (
                 <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
                     <h3 className="text-xl font-bold mb-4 text-brand-text-primary dark:text-gray-100">Family Circle</h3>
-                    
+
                     <div className="mb-6">
                         <p className="text-sm font-medium text-brand-text-secondary dark:text-gray-400 mb-2">Share this link to invite family:</p>
                         <div className="flex items-center gap-2 mt-1 bg-gray-100 dark:bg-gray-700/60 p-2 rounded-lg">
                             <p className="font-mono text-lg font-bold text-brand-blue dark:text-blue-300 tracking-widest flex-grow truncate">{familyCircle.inviteCode}</p>
-                            <button 
+                            <button
                                 onClick={handleShareInviteLink}
-                                className={`flex items-center justify-center gap-1.5 font-semibold py-2 px-3 rounded-md transition-all duration-200 text-sm w-32 ${
-                                    isLinkCopied 
-                                    ? 'bg-brand-green text-white' 
-                                    : 'bg-brand-blue hover:bg-blue-600 text-white'
-                                }`}
+                                className={`flex items-center justify-center gap-1.5 font-semibold py-2 px-3 rounded-md transition-all duration-200 text-sm w-32 ${isLinkCopied
+                                        ? 'bg-brand-green text-white'
+                                        : 'bg-brand-blue hover:bg-blue-600 text-white'
+                                    }`}
                                 aria-live="polite"
                             >
                                 {isLinkCopied ? (
@@ -215,21 +214,21 @@ const Profile: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {allBadges.map(badge => (
-                            <BadgeItem key={badge.id} badge={{...badge, unlocked: unlockedBadgeIds.has(badge.id) }} />
+                            <BadgeItem key={badge.id} badge={{ ...badge, unlocked: unlockedBadgeIds.has(badge.id) }} />
                         ))}
                     </div>
                 )}
             </div>
 
             <div className="pt-4">
-                <button 
+                <button
                     onClick={signOut}
                     className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-3 px-4 rounded-lg transition-colors"
                 >
                     Sign Out
                 </button>
             </div>
-            
+
             {isEditModalOpen && <EditProfilePictureModal onClose={() => setIsEditModalOpen(false)} />}
             {isWeightModalOpen && <UpdateWeightModal onClose={() => setIsWeightModalOpen(false)} />}
         </div>

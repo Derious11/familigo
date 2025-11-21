@@ -20,7 +20,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
     const [view, setView] = useState<View>('select');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    
+
     // States for different reply types
     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
     const [text, setText] = useState('');
@@ -72,7 +72,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
     // --- Camera Logic ---
     useEffect(() => {
         if (view !== 'camera') return;
-        
+
         const startCamera = async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -145,11 +145,11 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                         <div className="grid grid-cols-2 gap-2 mt-4">
                             <button onClick={() => { setView('select'); setImageBlob(null); }} className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-3 px-4 rounded-lg">Back</button>
                             {imageBlob ? (
-                                <button onClick={() => handleSubmit({ image: imageBlob })} disabled={isLoading} className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50">
+                                <button onClick={() => handleSubmit({ image: imageBlob })} disabled={isLoading} className="w-full bg-gradient-to-r from-brand-green to-emerald-600 hover:from-brand-green/90 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]">
                                     {isLoading ? 'Submitting...' : 'Submit Photo'}
                                 </button>
                             ) : (
-                                <button onClick={takePicture} className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">Capture</button>
+                                <button onClick={takePicture} className="w-full bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-blue/90 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]">Capture</button>
                             )}
                         </div>
                     </div>
@@ -167,21 +167,21 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                         />
                         <div className="grid grid-cols-2 gap-2 mt-4">
                             <button onClick={() => setView('select')} className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-3 px-4 rounded-lg">Back</button>
-                            <button onClick={() => handleSubmit({ text })} disabled={isLoading || !text} className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50">
+                            <button onClick={() => handleSubmit({ text })} disabled={isLoading || !text} className="w-full bg-gradient-to-r from-brand-green to-emerald-600 hover:from-brand-green/90 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02]">
                                 {isLoading ? 'Submitting...' : 'Submit'}
                             </button>
                         </div>
                     </div>
                 );
             case 'voice':
-                 return (
+                return (
                     <div>
                         <h3 className="text-xl font-bold text-center mb-4 text-brand-text-primary dark:text-gray-100">Record a Message</h3>
                         <div className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md min-h-[96px]">{transcript || <span className="text-gray-400">Your message will appear here...</span>}</div>
                         <button onClick={toggleRecording} className={`w-full flex items-center justify-center gap-2 mt-4 font-bold py-3 px-4 rounded-lg text-white ${isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-brand-blue hover:bg-blue-600'}`}>
-                           <MicrophoneIcon className="w-5 h-5"/> {isRecording ? 'Stop Recording' : 'Start Recording'}
+                            <MicrophoneIcon className="w-5 h-5" /> {isRecording ? 'Stop Recording' : 'Start Recording'}
                         </button>
-                         <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="grid grid-cols-2 gap-2 mt-2">
                             <button onClick={() => setView('select')} className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-3 px-4 rounded-lg">Back</button>
                             <button onClick={() => handleSubmit({ text: transcript })} disabled={isLoading || !transcript} className="w-full bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg disabled:opacity-50">
                                 {isLoading ? 'Submitting...' : 'Submit'}
@@ -211,10 +211,10 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                 );
         }
     };
-    
+
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={handleClose}>
-            <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={handleClose}>
+            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up border border-white/20" onClick={(e) => e.stopPropagation()}>
                 <button onClick={handleClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 z-10">
                     <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -223,7 +223,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                     {renderContent()}
                 </div>
             </div>
-             <style>{`
+            <style>{`
                 @keyframes fade-in-up {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }

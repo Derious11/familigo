@@ -33,7 +33,7 @@ import {
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 import { auth, db, storage } from '../firebaseConfig';
-import { User, FamilyCircle, Challenge, Reply, Exercise, Badge } from '../types';
+import { User, FamilyCircle, Challenge, Reply, Exercise, Badge, Message } from '../types';
 import { sendPushNotification } from "./pushNotificationService";
 
 // --- AUTHENTICATION ---
@@ -682,4 +682,97 @@ export const removeNotificationToken = async (userId: string, token?: string): P
             notificationTokens: []
         });
     }
+};
+
+// --- CHAT ---
+
+export const sendMessage = async (familyCircleId: string, user: User, text: string, type: 'text' | 'system' = 'text') => {
+    const messagesRef = collection(db, 'messages');
+    await addDoc(messagesRef, {
+        familyCircleId,
+        senderId: user.id,
+        senderName: user.name,
+        senderAvatarUrl: user.avatarUrl,
+        text,
+        type,
+        timestamp: serverTimestamp(),
+    });
+
+    // Send notifications for chat messages (only for text messages, not system)
+    if (type === 'text') {
+        const circleDoc = await getDoc(doc(db, 'familyCircles', familyCircleId));
+        if (circleDoc.exists()) {
+            const memberIds = circleDoc.data().memberIds as string[];
+            const recipientIds = memberIds.filter(id => id !== user.id);
+            const tokens = await getUserTokens(recipientIds);
+            if (tokens.length > 0) {
+                const chatName = circleDoc.data().chatName || 'Family Chat';
+                sendPushNotification(tokens, chatName, `${user.name}: ${text}`);
+            }
+        }
+    }
+};
+
+export const onMessagesUpdate = (familyCircleId: string, callback: (messages: Message[]) => void): (() => void) => {
+    const q = query(
+        collection(db, 'messages'),
+        where('familyCircleId', '==', familyCircleId),
+        orderBy('timestamp', 'asc')
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+        const messages = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            const timestamp = data.timestamp as Timestamp | null;
+            return {
+                id: doc.id,
+                ...data,
+                timestamp: timestamp ? timestamp.toDate() : new Date(),
+            } as Message;
+        });
+        callback(messages);
+    });
+};
+
+export const updateFamilyCircleChatName = async (familyCircleId: string, user: User, newName: string) => {
+    const circleRef = doc(db, 'familyCircles', familyCircleId);
+    await updateDoc(circleRef, { chatName: newName });
+
+    // Send a system message about the rename
+    await sendMessage(familyCircleId, user, `renamed the chat to "${newName}"`, 'system');
+};
+
+export const deleteMessage = async (messageId: string) => {
+    const messageRef = doc(db, 'messages', messageId);
+    await deleteDoc(messageRef);
+};
+
+export const onFamilyCircleUpdate = (familyCircleId: string, callback: (circle: FamilyCircle | null) => void): (() => void) => {
+    const circleRef = doc(db, 'familyCircles', familyCircleId);
+    return onSnapshot(circleRef, async (docSnapshot) => {
+        if (docSnapshot.exists()) {
+            const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string };
+
+            // We need to fetch member details to construct the full FamilyCircle object
+            // This is a bit expensive to do on every update, but necessary if we want the full object.
+            // For just the chat name, we could optimize, but let's keep it consistent for now.
+            let members: User[] = [];
+            if (circleData.memberIds?.length) {
+                const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
+                const membersSnapshot = await getDocs(membersQuery);
+                members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+            }
+
+            const circle: FamilyCircle = {
+                id: docSnapshot.id,
+                name: circleData.name,
+                chatName: circleData.chatName,
+                inviteCode: circleData.inviteCode,
+                members,
+            };
+            callback(circle);
+        } else {
+            callback(null);
+        }
+    });
 };

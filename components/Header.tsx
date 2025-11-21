@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../App';
 import { View } from '../types';
-import { FireIcon, UserCircleIcon, NewspaperIcon, SunIcon, MoonIcon, ClipboardIcon } from './Icons';
+import { FireIcon, UserCircleIcon, NewspaperIcon, SunIcon, MoonIcon, ClipboardIcon, ChatBubbleIcon } from './Icons';
 
 interface HeaderProps {
     activeView: View;
@@ -52,33 +52,37 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
     const { currentUser } = context || {};
 
     return (
-        <header className="sticky top-0 bg-brand-surface/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm z-40">
-            <div className="max-w-2xl mx-auto px-4 py-3">
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <img src="/assets/FamiliGo_logo.png" alt="FamiliGo Logo" className="h-8 w-8" />
-                        <h1 className="text-2xl font-bold text-brand-blue">
-                            FamiliGo
-                        </h1>
-                    </div>
-                     <div className="flex items-center gap-2">
-                         {currentUser && (
-                             <div className="flex items-center gap-2 bg-brand-yellow/10 text-brand-yellow-700 rounded-full px-3 py-1">
-                                <FireIcon className="w-5 h-5" />
-                                <span className="font-bold">{currentUser.streak}</span>
-                             </div>
-                         )}
-                         <ThemeToggle />
-                    </div>
+        <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 shadow-sm border-b border-gray-200/50 dark:border-gray-700/50 transition-colors duration-300">
+            <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <img src="/assets/FamiliGo_logo.png" alt="FamiliGo Logo" className="h-12 w-auto object-contain" />
+                    <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-brand-blue to-brand-pink tracking-tight">
+                        FamiliGo
+                    </h1>
+                </div>
+                <div className="flex items-center gap-2">
+                    {currentUser && (
+                        <div className="flex items-center gap-2 bg-orange-100/50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-full px-3 py-1 border border-orange-200 dark:border-orange-800">
+                            <FireIcon className="w-5 h-5 text-orange-500 dark:text-orange-400" />
+                            <span className="font-bold">{currentUser.streak}</span>
+                        </div>
+                    )}
+                    <ThemeToggle />
                 </div>
             </div>
             <nav className="max-w-2xl mx-auto px-4 pb-2">
-                <div className="grid grid-cols-3 gap-2 bg-gray-200/50 dark:bg-gray-800/50 p-1 rounded-lg">
+                <div className="grid grid-cols-4 gap-2 bg-gray-200/50 dark:bg-gray-800/50 p-1 rounded-lg">
                     <NavButton
                         icon={<NewspaperIcon className="w-6 h-6" />}
                         label="Feed"
                         isActive={activeView === 'feed'}
                         onClick={() => setActiveView('feed')}
+                    />
+                    <NavButton
+                        icon={<ChatBubbleIcon className="w-6 h-6" />}
+                        label="Chat"
+                        isActive={activeView === 'chat'}
+                        onClick={() => setActiveView('chat')}
                     />
                     <NavButton
                         icon={<ClipboardIcon className="w-6 h-6" />}
@@ -94,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
                     />
                 </div>
             </nav>
-        </header>
+        </header >
     );
 };
 
@@ -109,11 +113,10 @@ const NavButton: React.FC<NavButtonProps> = ({ icon, label, isActive, onClick })
     return (
         <button
             onClick={onClick}
-            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md transition-colors duration-200 ${
-                isActive
-                    ? 'bg-brand-surface dark:bg-gray-700 shadow-sm text-brand-blue dark:text-blue-400'
-                    : 'text-brand-text-secondary dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-gray-700/70'
-            }`}
+            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md transition-colors duration-200 ${isActive
+                ? 'bg-brand-surface dark:bg-gray-700 shadow-sm text-brand-blue dark:text-blue-400'
+                : 'text-brand-text-secondary dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-gray-700/70'
+                }`}
         >
             {icon}
             <span className="font-semibold text-sm">{label}</span>

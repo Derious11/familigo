@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { User, FamilyCircle, AuthState, Exercise, AddReplyPayload } from './types';
-import { onAuthStateChanged, getUserFamilyCircle, signOutUser, addChallengeToFamily, addReplyToChallenge, deleteReply as deleteReplyFromFirestore, uploadReplyImage, deleteChallengeAndReplies } from './services/firebaseService';
+import { onAuthStateChanged, getUserFamilyCircle, signOutUser, addChallengeToFamily, addReplyToChallenge, deleteReply as deleteReplyFromFirestore, uploadReplyImage, deleteChallengeAndReplies, onFamilyCircleUpdate } from './services/firebaseService';
 import MainApp from './components/MainApp';
 import AuthFlow from './components/AuthFlow';
 import OnboardingFlow from './components/OnboardingFlow';
@@ -46,24 +46,30 @@ const App: React.FC = () => {
     useEffect(() => {
         if (typeof auth === 'undefined') return;
 
-        const unsubscribe = onAuthStateChanged(async (user) => {
+        const unsubscribeAuth = onAuthStateChanged(async (user) => {
             if (user) {
                 setCurrentUser(user);
                 setAuthState('loading');
                 if (user.familyCircleId) {
-                    const circle = await getUserFamilyCircle(user.familyCircleId);
-                    setFamilyCircle(circle);
+                    // Use real-time listener for family circle
+                    const unsubscribeFamily = onFamilyCircleUpdate(user.familyCircleId, (circle) => {
+                        setFamilyCircle(circle);
+                        setAuthState('authenticated');
+                    });
+                    // Store the unsubscribe function to clean it up later if needed
+                    // (In this simple effect, we rely on the auth listener re-running if user changes)
+                    return () => unsubscribeFamily();
                 } else {
                     setFamilyCircle(null);
+                    setAuthState('authenticated');
                 }
-                setAuthState('authenticated');
             } else {
                 setCurrentUser(null);
                 setFamilyCircle(null);
                 setAuthState('unauthenticated');
             }
         });
-        return () => unsubscribe();
+        return () => unsubscribeAuth();
     }, []);
 
     const signOut = () => {
