@@ -16,6 +16,12 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) =>
 
     if (!familyCircle || !currentUser) return null;
 
+    console.log('FamilySettingsModal Debug:', {
+        currentUserId: currentUser.id,
+        adminIds: familyCircle.adminIds,
+        isAdmin: familyCircle.adminIds?.includes(currentUser.id)
+    });
+
     const isAdmin = familyCircle.adminIds?.includes(currentUser.id);
 
     const handleSave = async () => {
