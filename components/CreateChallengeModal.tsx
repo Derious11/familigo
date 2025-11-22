@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../App';
-import { getExercises } from '../services/firebaseService';
+import { getExercises } from '../services/challengeService';
 import { XMarkIcon } from './Icons';
 import { Exercise } from '../types';
 

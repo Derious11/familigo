@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, FamilyCircle } from '../types';
-import { createFamilyCircle, joinFamilyCircle } from '../services/firebaseService';
+import { createFamilyCircle, joinFamilyCircle } from '../services/familyService';
 
 interface OnboardingFlowProps {
     user: User;
@@ -58,12 +58,12 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
             setError(error || "An unknown error occurred.");
         }
     };
-    
+
     const renderStep = () => {
         switch (step) {
             case 'create':
                 return (
-                     <form onSubmit={handleCreateSubmit} className="w-full">
+                    <form onSubmit={handleCreateSubmit} className="w-full">
                         <h2 className="text-2xl font-bold text-center mb-2 dark:text-gray-100">Create Your Circle</h2>
                         <p className="text-center text-brand-text-secondary dark:text-gray-400 mb-6">Give your family circle a fun name!</p>
                         <input
@@ -75,14 +75,14 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
                         />
                         {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
                         <button type="submit" disabled={isLoading} className="w-full mt-4 bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50">
-                             {isLoading ? 'Creating...' : 'Create'}
+                            {isLoading ? 'Creating...' : 'Create'}
                         </button>
-                         <button onClick={() => setStep('initial')} className="w-full mt-2 text-sm text-brand-text-secondary dark:text-gray-400 hover:underline">Back</button>
+                        <button onClick={() => setStep('initial')} className="w-full mt-2 text-sm text-brand-text-secondary dark:text-gray-400 hover:underline">Back</button>
                     </form>
                 );
             case 'join':
                 return (
-                     <form onSubmit={handleJoinSubmit} className="w-full">
+                    <form onSubmit={handleJoinSubmit} className="w-full">
                         <h2 className="text-2xl font-bold text-center mb-2 dark:text-gray-100">Join a Circle</h2>
                         <p className="text-center text-brand-text-secondary dark:text-gray-400 mb-6">Enter the invite code from your family.</p>
                         <input
@@ -92,11 +92,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
                             placeholder="ABC-1234"
                             className="w-full text-center tracking-widest font-mono text-lg p-3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded-md focus:ring-brand-blue focus:border-brand-blue"
                         />
-                         {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
+                        {error && <p className="text-red-500 text-sm text-center mt-2">{error}</p>}
                         <button type="submit" disabled={isLoading} className="w-full mt-4 bg-brand-green hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50">
-                           {isLoading ? 'Joining...' : 'Join'}
+                            {isLoading ? 'Joining...' : 'Join'}
                         </button>
-                         <button onClick={() => setStep('initial')} className="w-full mt-2 text-sm text-brand-text-secondary dark:text-gray-400 hover:underline">Back</button>
+                        <button onClick={() => setStep('initial')} className="w-full mt-2 text-sm text-brand-text-secondary dark:text-gray-400 hover:underline">Back</button>
                     </form>
                 );
             case 'created':
@@ -108,7 +108,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
                             <p className="font-mono text-3xl font-bold text-brand-blue dark:text-blue-300 tracking-widest">{newCircle?.inviteCode}</p>
                         </div>
                         <button onClick={() => setFamilyCircle(newCircle!)} className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">
-                           Let's Go!
+                            Let's Go!
                         </button>
                     </div>
                 );
@@ -122,7 +122,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
                             <button onClick={() => setStep('create')} className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg">
                                 Create a Family Circle
                             </button>
-                             <button onClick={() => setStep('join')} className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-4 px-4 rounded-lg transition-colors text-lg">
+                            <button onClick={() => setStep('join')} className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-4 px-4 rounded-lg transition-colors text-lg">
                                 Join an Existing Circle
                             </button>
                         </div>
@@ -135,7 +135,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
             <div className="w-full max-w-sm bg-brand-surface dark:bg-gray-800 p-8 rounded-2xl shadow-lg flex flex-col items-center">
-                 {renderStep()}
+                {renderStep()}
             </div>
         </div>
     );

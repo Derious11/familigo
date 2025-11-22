@@ -1,13 +1,13 @@
 
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../firebaseConfig';
-import { addNotificationToken, removeNotificationToken } from './firebaseService';
+import { addNotificationToken, removeNotificationToken } from './userService';
 
 const VAPID_KEY = "BMfIUjjBmlJPDzcYwv5czBovIThXoRlqD5o3qtaeeHNC4AkinV1If2t8AsB11OEzqxrN4K1Ygpoh7zyF9BAqBzE";
 let currentToken: string | null = null;
 
 // This function initializes the service worker and sets up a listener for foreground messages.
-export const initializeFCM = () => {
+export const initializeFCM = (): (() => void) | undefined => {
     if ('serviceWorker' in navigator && typeof messaging !== 'undefined') {
         navigator.serviceWorker
             .register('/firebase-messaging-sw.js')
@@ -17,15 +17,16 @@ export const initializeFCM = () => {
             .catch((err) => {
                 console.log('Service Worker registration failed:', err);
             });
-        
+
         // Listen for messages when the app is in the foreground
-        onMessage(messaging, (payload) => {
+        return onMessage(messaging, (payload) => {
             console.log('Message received. ', payload);
             // Display a toast or other in-app notification
             // For simplicity, we'll just log it. A real app might use a toast library.
             alert(`New Notification:\n${payload.notification?.title}\n${payload.notification?.body}`);
         });
     }
+    return undefined;
 };
 
 // This function requests permission from the user to send notifications.
@@ -33,7 +34,7 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
     if (typeof messaging === 'undefined') {
         return { success: false, error: "Messaging not supported." };
     }
-    
+
     try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
@@ -43,7 +44,7 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
                 await addNotificationToken(userId, token);
                 return { success: true, token };
             } else {
-                 return { success: false, error: 'Could not get notification token. Please try again.' };
+                return { success: false, error: 'Could not get notification token. Please try again.' };
             }
         } else {
             // This covers 'denied' and 'default' (if the user dismisses the prompt)
@@ -51,7 +52,7 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
         }
     } catch (error: any) {
         console.error('An error occurred while getting FCM token: ', error);
-        
+
         let errorMessage = 'An unknown error occurred while enabling notifications.';
 
         // Check for specific Firebase Messaging error codes to provide better feedback

@@ -1,8 +1,9 @@
 
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../App';
-import { View } from '../types';
+import { View, FamilyCircle } from '../types';
 import { FireIcon, UserCircleIcon, NewspaperIcon, SunIcon, MoonIcon, ClipboardIcon, ChatBubbleIcon } from './Icons';
+import { onFamilyCircleUpdate } from '../services/familyService';
 
 interface HeaderProps {
     activeView: View;
@@ -50,6 +51,19 @@ const ThemeToggle: React.FC = () => {
 const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
     const context = useContext(AppContext);
     const { currentUser } = context || {};
+    const [familyCircle, setFamilyCircle] = useState<FamilyCircle | null>(null);
+
+    useEffect(() => {
+        if (currentUser?.familyCircleId) {
+            const unsubscribe = onFamilyCircleUpdate(currentUser.familyCircleId, (circle) => {
+                setFamilyCircle(circle);
+            });
+            return () => unsubscribe();
+        }
+    }, [currentUser?.familyCircleId]);
+
+    const unreadCount = (familyCircle?.messageCount || 0) - (currentUser?.lastReadMessageCount || 0);
+
 
     return (
         <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 shadow-sm border-b border-gray-200/50 dark:border-gray-700/50 transition-colors duration-300">
@@ -83,6 +97,7 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
                         label="Chat"
                         isActive={activeView === 'chat'}
                         onClick={() => setActiveView('chat')}
+                        badgeCount={unreadCount > 0 ? unreadCount : undefined}
                     />
                     <NavButton
                         icon={<ClipboardIcon className="w-6 h-6" />}
@@ -107,19 +122,25 @@ interface NavButtonProps {
     label: string;
     isActive: boolean;
     onClick: () => void;
+    badgeCount?: number;
 }
 
-const NavButton: React.FC<NavButtonProps> = ({ icon, label, isActive, onClick }) => {
+const NavButton: React.FC<NavButtonProps> = ({ icon, label, isActive, onClick, badgeCount }) => {
     return (
         <button
             onClick={onClick}
-            className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md transition-colors duration-200 ${isActive
+            className={`relative flex items-center justify-center gap-2 px-3 py-2 rounded-md transition-colors duration-200 ${isActive
                 ? 'bg-brand-surface dark:bg-gray-700 shadow-sm text-brand-blue dark:text-blue-400'
                 : 'text-brand-text-secondary dark:text-gray-400 hover:bg-gray-200/70 dark:hover:bg-gray-700/70'
                 }`}
         >
             {icon}
             <span className="font-semibold text-sm">{label}</span>
+            {badgeCount !== undefined && badgeCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center border-2 border-white dark:border-gray-800">
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                </span>
+            )}
         </button>
     );
 };

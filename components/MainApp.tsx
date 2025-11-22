@@ -7,7 +7,7 @@ import Feed from './Feed';
 import History from './History';
 import Profile from './Profile';
 import { AppContext } from '../App';
-import { resendVerificationEmail } from '../services/firebaseService';
+import { resendVerificationEmail } from '../services/authService';
 import CreateChallengeModal from './CreateChallengeModal';
 import Chat from './Chat';
 import { PlusIcon } from './Icons';

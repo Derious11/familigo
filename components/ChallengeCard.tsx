@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
 import { Challenge, Reply, User } from '../types';
-import { onRepliesUpdate, updateReaction } from '../services/firebaseService';
+import { onRepliesUpdate, updateReaction } from '../services/challengeService';
 import LogWeightReplyModal from './LogWeightReplyModal';
 import LogActivityModal from './LogActivityModal';
 import CreateReplyModal from './CreateReplyModal';

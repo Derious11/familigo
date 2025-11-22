@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { AppContext } from '../App';
-import { uploadProfileImage, updateUserAvatar } from '../services/firebaseService';
+import { uploadProfileImage } from '../services/storageService';
+import { updateUserAvatar } from '../services/userService';
 import { CameraIcon, PhotoIcon, XMarkIcon } from './Icons';
 
 interface EditProfilePictureModalProps {
@@ -32,7 +33,7 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
-    
+
     useEffect(() => {
         const startCameraStream = async () => {
             try {
@@ -79,7 +80,7 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
         }
         setView('camera');
     };
-    
+
     const takePicture = () => {
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
@@ -161,7 +162,7 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
                 return (
                     <div>
                         <h3 className="text-xl font-bold text-center mb-4 text-brand-text-primary dark:text-gray-100">Preview</h3>
-                        <img src={imageUrl} alt="Preview" className="w-full rounded-lg aspect-square object-cover"/>
+                        <img src={imageUrl} alt="Preview" className="w-full rounded-lg aspect-square object-cover" />
                         <ErrorMessage message={error} />
                         <div className="grid grid-cols-2 gap-2 mt-4">
                             <button onClick={reset} className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-3 px-4 rounded-lg">
@@ -180,10 +181,10 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
                         <h3 className="text-xl font-bold text-center mb-6 text-brand-text-primary dark:text-gray-100">Change Profile Picture</h3>
                         <ErrorMessage message={error} />
                         <div className="space-y-4">
-                             <button onClick={handleTakePhotoClick} className="w-full flex items-center justify-center gap-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-brand-text-primary dark:text-gray-100 font-semibold py-4 px-4 rounded-lg transition-colors">
+                            <button onClick={handleTakePhotoClick} className="w-full flex items-center justify-center gap-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-brand-text-primary dark:text-gray-100 font-semibold py-4 px-4 rounded-lg transition-colors">
                                 <CameraIcon className="w-6 h-6" /> Take Photo
                             </button>
-                             <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-brand-text-primary dark:text-gray-100 font-semibold py-4 px-4 rounded-lg transition-colors">
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center justify-center gap-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-brand-text-primary dark:text-gray-100 font-semibold py-4 px-4 rounded-lg transition-colors">
                                 <PhotoIcon className="w-6 h-6" /> Upload from Library
                             </button>
                             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
@@ -192,7 +193,7 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
                 );
         }
     };
-    
+
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
@@ -203,7 +204,7 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
                     {renderContent()}
                 </div>
             </div>
-             <style>{`
+            <style>{`
                 @keyframes fade-in-up {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }

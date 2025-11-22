@@ -2,7 +2,7 @@
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../App';
 import { XMarkIcon } from './Icons';
-import { updateUserWeight } from '../services/firebaseService';
+import { updateUserWeight } from '../services/userService';
 import { Challenge } from '../types';
 
 interface LogWeightReplyModalProps {

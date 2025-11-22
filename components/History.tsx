@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
 import { Challenge } from '../types';
-import { onChallengesUpdate } from '../services/firebaseService';
+import { onChallengesUpdate } from '../services/challengeService';
 import Leaderboard from './Leaderboard';
 import { ChevronDownIcon } from './Icons';
 
@@ -36,13 +36,13 @@ const History: React.FC = () => {
             </div>
         );
     }
-    
+
     return (
         <div className="space-y-6">
             {familyCircle && <Leaderboard challenges={challenges} members={familyCircle.members} />}
 
             <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md">
-                <button 
+                <button
                     className="w-full flex justify-between items-center p-4 sm:p-6 text-left"
                     onClick={() => setIsLogbookOpen(!isLogbookOpen)}
                     aria-expanded={isLogbookOpen}
@@ -50,11 +50,11 @@ const History: React.FC = () => {
                     <h2 className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">Challenge Logbook</h2>
                     <ChevronDownIcon className={`w-6 h-6 text-brand-text-secondary dark:text-gray-400 transition-transform duration-300 ${isLogbookOpen ? 'rotate-180' : ''}`} />
                 </button>
-                
+
                 {isLogbookOpen && (
                     <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                         {historyChallenges.length > 0 ? (
-                             <ul className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <ul className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
                                 {historyChallenges.map(challenge => (
                                     <HistoryItem key={challenge.id} challenge={challenge} />
                                 ))}

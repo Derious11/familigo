@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { signUpWithEmail, signInWithEmail, signInWithGoogle } from '../services/firebaseService';
-import { onAuthStateChanged } from '../services/firebaseService'; // We don't use it but good to show it exists
+import { signUpWithEmail, signInWithEmail, signInWithGoogle, onAuthStateChanged } from '../services/authService';
 
 interface AuthPageProps {
     mode: 'login' | 'signup';
@@ -36,9 +35,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode }) => {
             }
         } else {
             if (!name) {
-                 setError('Please enter your name.');
-                 setIsLoading(false);
-                 return;
+                setError('Please enter your name.');
+                setIsLoading(false);
+                return;
             }
             const { error } = await signUpWithEmail(name, email, password);
             if (error) {
@@ -94,7 +93,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode }) => {
                     />
                 </div>
                 <div>
-                    <label htmlFor="password"className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Password</label>
+                    <label htmlFor="password" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Password</label>
                     <input
                         type="password"
                         id="password"
@@ -105,7 +104,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode }) => {
                         minLength={6}
                     />
                 </div>
-                
+
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
                 <div className="pt-2">
@@ -115,7 +114,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode }) => {
                         className="w-full flex justify-center bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
                     >
                         {isLoading ? (
-                             <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>

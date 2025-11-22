@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../App';
 import { XMarkIcon } from './Icons';
-import { updateUserWeight } from '../services/firebaseService';
+import { updateUserWeight } from '../services/userService';
 import { User } from '../types';
 
 interface UpdateWeightModalProps {
@@ -11,7 +11,7 @@ interface UpdateWeightModalProps {
 const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
     const context = useContext(AppContext);
     const { currentUser, updateCurrentUser } = context || {};
-    
+
     const [weight, setWeight] = useState<string>(currentUser?.currentWeight?.toString() || '');
     const [unit, setUnit] = useState<'lbs' | 'kg'>(currentUser?.weightUnit || 'lbs');
     const [isLoading, setIsLoading] = useState(false);
@@ -33,9 +33,9 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
 
             const newHistoryEntry = { value: weightValue, timestamp: new Date() };
             const updatedHistory = [...(currentUser.weightHistory || []), newHistoryEntry];
-            
-            updateCurrentUser({ 
-                currentWeight: weightValue, 
+
+            updateCurrentUser({
+                currentWeight: weightValue,
                 weightUnit: unit,
                 weightHistory: updatedHistory,
             });
@@ -84,7 +84,7 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
                         </div>
 
                         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                        
+
                         <div className="pt-2">
                             <button
                                 type="submit"
@@ -97,7 +97,7 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
                     </form>
                 </div>
             </div>
-             <style>{`
+            <style>{`
                 @keyframes fade-in-up {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }

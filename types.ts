@@ -13,6 +13,7 @@ export interface User {
     weightUnit?: 'lbs' | 'kg';
     weightHistory?: { value: number; timestamp: Date }[];
     notificationTokens?: string[];
+    lastReadMessageCount?: number;
 }
 
 export interface Badge {
@@ -77,6 +78,7 @@ export interface FamilyCircle {
     inviteCode: string;
     members: User[];
     challenges?: Challenge[]; // Kept for potential future use or old data structures
+    messageCount?: number;
 }
 
 export type View = 'feed' | 'history' | 'profile' | 'chat';

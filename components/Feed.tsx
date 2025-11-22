@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
 import ChallengeCard from './ChallengeCard';
 import { Challenge } from '../types';
-import { onChallengesUpdate } from '../services/firebaseService';
+import { onChallengesUpdate } from '../services/challengeService';
 
 const Feed: React.FC = () => {
     const context = useContext(AppContext);

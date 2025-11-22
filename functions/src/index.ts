@@ -70,7 +70,7 @@ const getTokensForUsers = async (userIds: string[]): Promise<TokenRecord[]> => {
           return;
         }
         seenTokens.add(token);
-        tokenRecords.push({token, userId: doc.id});
+        tokenRecords.push({ token, userId: doc.id });
       });
     });
   }
@@ -90,11 +90,11 @@ const removeInvalidTokens = async (
 
   console.log(
     `[${logContext}] Removing ${invalidRecords.length}` +
-      " invalid tokens from Firestore."
+    " invalid tokens from Firestore."
   );
 
   await Promise.all(
-    invalidRecords.map(({token, userId}) =>
+    invalidRecords.map(({ token, userId }) =>
       db
         .collection("users")
         .doc(userId)
@@ -175,7 +175,7 @@ export const onChallengeCreated = functions
         return;
       }
 
-      const {familyCircleId, challenger, exercise} = challengeData;
+      const { familyCircleId, challenger, exercise } = challengeData;
       if (!familyCircleId || !challenger?.id || !exercise?.name) {
         console.warn(
           `[${logContext}] Missing required fields on challenge document.`,
@@ -262,7 +262,7 @@ export const onReplyCreated = functions
         return;
       }
 
-      const {user, challengeId, parentId, text} = replyData;
+      const { user, challengeId, parentId, text } = replyData;
       if (!user?.id || !user?.name) {
         console.warn(
           `[${logContext}] Reply is missing user information.`,
@@ -333,6 +333,99 @@ export const onReplyCreated = functions
     } catch (error) {
       console.error(
         `[${logContext}] Failed to process reply notification.`,
+        error
+      );
+    }
+  });
+
+/**
+ * Cloud Function that triggers when a new chat message is created.
+ * It sends a push notification to all other members of the family circle.
+ */
+export const onMessageCreated = functions
+  .region(REGION)
+  .firestore.document("messages/{messageId}")
+  .onCreate(async (snapshot: functions.firestore.QueryDocumentSnapshot) => {
+    const logContext = `message:${snapshot.id}`;
+
+    try {
+      const messageData = snapshot.data();
+      if (!messageData) {
+        console.log(`[${logContext}] No data associated with the event.`);
+        return;
+      }
+
+      const { familyCircleId, senderId, senderName, text, type } = messageData;
+
+      // Only send notifications for text messages, not system messages
+      if (type !== 'text') {
+        return;
+      }
+
+      if (!familyCircleId || !senderId) {
+        console.warn(
+          `[${logContext}] Missing required fields on message document.`,
+          messageData
+        );
+        return;
+      }
+
+      // 1. Get the family circle to find all members and chat name
+      const circleDoc = await db
+        .collection("familyCircles")
+        .doc(familyCircleId)
+        .get();
+      if (!circleDoc.exists) {
+        console.log(
+          `[${logContext}] Family circle ${familyCircleId} not found.`
+        );
+        return;
+      }
+
+      const circleData = circleDoc.data();
+      const chatName = circleData?.chatName || "Family Chat";
+      const memberIds: string[] = circleData?.memberIds || [];
+
+      // 2. Get recipient IDs (all members except the sender)
+      const recipientIds = memberIds.filter(
+        (id) => Boolean(id) && id !== senderId
+      );
+
+      if (recipientIds.length === 0) {
+        console.log(
+          `[${logContext}] No other members in the circle to notify.`
+        );
+        return;
+      }
+
+      // 3. Get the notification tokens for the recipients
+      const tokenRecords = await getTokensForUsers(recipientIds);
+      if (tokenRecords.length === 0) {
+        console.log(
+          `[${logContext}] No notification tokens found for recipients.`
+        );
+        return;
+      }
+
+      await sendNotifications(
+        tokenRecords,
+        (tokens) => ({
+          notification: {
+            title: chatName,
+            body: `${senderName}: ${text}`,
+          },
+          tokens,
+          webpush: {
+            notification: {
+              icon: "https://familigo-11643.web.app/assets/FamiliGo_logo.png",
+            },
+          },
+        }),
+        logContext
+      );
+    } catch (error) {
+      console.error(
+        `[${logContext}] Failed to process message notification.`,
         error
       );
     }

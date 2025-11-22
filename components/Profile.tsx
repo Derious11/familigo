@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
 import { FireIcon, PencilIcon, LinkIcon, CheckIcon, ScaleIcon, BellIcon } from './Icons';
 import { Badge } from '../types';
-import { getBadges } from '../services/firebaseService';
+import { getBadges } from '../services/userService';
 import EditProfilePictureModal from './EditProfilePictureModal';
 import UpdateWeightModal from './UpdateWeightModal';
 import WeightChart from './WeightChart';
@@ -173,8 +173,8 @@ const Profile: React.FC = () => {
                             <button
                                 onClick={handleShareInviteLink}
                                 className={`flex items-center justify-center gap-1.5 font-semibold py-2 px-3 rounded-md transition-all duration-200 text-sm w-32 ${isLinkCopied
-                                        ? 'bg-brand-green text-white'
-                                        : 'bg-brand-blue hover:bg-blue-600 text-white'
+                                    ? 'bg-brand-green text-white'
+                                    : 'bg-brand-blue hover:bg-blue-600 text-white'
                                     }`}
                                 aria-live="polite"
                             >

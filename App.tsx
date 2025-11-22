@@ -1,7 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { User, FamilyCircle, AuthState, Exercise, AddReplyPayload } from './types';
-import { onAuthStateChanged, getUserFamilyCircle, signOutUser, addChallengeToFamily, addReplyToChallenge, deleteReply as deleteReplyFromFirestore, uploadReplyImage, deleteChallengeAndReplies, onFamilyCircleUpdate } from './services/firebaseService';
+import { onAuthStateChanged, signOutUser } from './services/authService';
+import { onUserUpdate } from './services/userService';
+import { getUserFamilyCircle, onFamilyCircleUpdate } from './services/familyService';
+import { addChallengeToFamily, addReplyToChallenge, deleteReply as deleteReplyFromFirestore, deleteChallengeAndReplies } from './services/challengeService';
+import { uploadReplyImage } from './services/storageService';
 import MainApp from './components/MainApp';
 import AuthFlow from './components/AuthFlow';
 import OnboardingFlow from './components/OnboardingFlow';
@@ -40,36 +44,81 @@ const App: React.FC = () => {
 
     useEffect(() => {
         // Initialize Firebase Cloud Messaging to listen for foreground notifications
-        initializeFCM();
+        const unsubscribe = initializeFCM();
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     useEffect(() => {
         if (typeof auth === 'undefined') return;
 
-        const unsubscribeAuth = onAuthStateChanged(async (user) => {
-            if (user) {
-                setCurrentUser(user);
+        let unsubscribeUser: (() => void) | null = null;
+        let unsubscribeFamily: (() => void) | null = null;
+
+        const unsubscribeAuth = onAuthStateChanged(async (initialUser) => {
+            // Clean up previous listeners if auth state changes
+            if (unsubscribeUser) {
+                unsubscribeUser();
+                unsubscribeUser = null;
+            }
+            if (unsubscribeFamily) {
+                unsubscribeFamily();
+                unsubscribeFamily = null;
+            }
+
+            if (initialUser) {
+                // Set initial user state
+                setCurrentUser(initialUser);
                 setAuthState('loading');
-                if (user.familyCircleId) {
-                    // Use real-time listener for family circle
-                    const unsubscribeFamily = onFamilyCircleUpdate(user.familyCircleId, (circle) => {
+
+                // Subscribe to real-time user updates
+                // We import onUserUpdate dynamically or assume it's imported
+                unsubscribeUser = onUserUpdate(initialUser.id, (updatedUser) => {
+                    if (updatedUser) {
+                        // Preserve emailVerified from initial auth if not in firestore (it usually isn't)
+                        setCurrentUser(prev => ({ ...updatedUser, emailVerified: initialUser.emailVerified }));
+
+                        // Handle family circle subscription changes if familyCircleId changes
+                        if (updatedUser.familyCircleId && (!currentUser?.familyCircleId || updatedUser.familyCircleId !== currentUser.familyCircleId)) {
+                            if (unsubscribeFamily) unsubscribeFamily();
+                            unsubscribeFamily = onFamilyCircleUpdate(updatedUser.familyCircleId, (circle) => {
+                                setFamilyCircle(circle);
+                                setAuthState('authenticated');
+                            });
+                        } else if (!updatedUser.familyCircleId) {
+                            if (unsubscribeFamily) {
+                                unsubscribeFamily();
+                                unsubscribeFamily = null;
+                            }
+                            setFamilyCircle(null);
+                            setAuthState('authenticated');
+                        }
+                    }
+                });
+
+                // Initial Family Circle Setup (if already present in initialUser)
+                if (initialUser.familyCircleId) {
+                    unsubscribeFamily = onFamilyCircleUpdate(initialUser.familyCircleId, (circle) => {
                         setFamilyCircle(circle);
                         setAuthState('authenticated');
                     });
-                    // Store the unsubscribe function to clean it up later if needed
-                    // (In this simple effect, we rely on the auth listener re-running if user changes)
-                    return () => unsubscribeFamily();
                 } else {
                     setFamilyCircle(null);
                     setAuthState('authenticated');
                 }
+
             } else {
                 setCurrentUser(null);
                 setFamilyCircle(null);
                 setAuthState('unauthenticated');
             }
         });
-        return () => unsubscribeAuth();
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeUser) unsubscribeUser();
+            if (unsubscribeFamily) unsubscribeFamily();
+        };
     }, []);
 
     const signOut = () => {

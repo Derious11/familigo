@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AppContext } from '../App';
-import { onMessagesUpdate, sendMessage, updateFamilyCircleChatName, deleteMessage } from '../services/firebaseService';
+import { onMessagesUpdate, sendMessage, updateFamilyCircleChatName, deleteMessage, markChatAsRead } from '../services/chatService';
 import { Message } from '../types';
 import { PaperAirplaneIcon, PencilIcon, CheckIcon, XMarkIcon, TrashIcon } from './Icons';
+import { requestNotificationPermission } from '../services/pushNotificationService';
 
 const Chat: React.FC = () => {
     const context = useContext(AppContext);
@@ -14,16 +15,26 @@ const Chat: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!familyCircle) return;
+        if (!familyCircle || !currentUser) return;
 
         setChatName(familyCircle.chatName || 'Family Chat');
 
+        // Request notification permission when entering chat
+        requestNotificationPermission(currentUser.id);
+
+        // Mark chat as read
+        markChatAsRead(currentUser.id, familyCircle.id);
+
         const unsubscribe = onMessagesUpdate(familyCircle.id, (updatedMessages) => {
             setMessages(updatedMessages);
+            // Also mark as read when new messages arrive if we are in the chat view
+            if (currentUser.familyCircleId) {
+                markChatAsRead(currentUser.id, currentUser.familyCircleId);
+            }
         });
 
         return () => unsubscribe();
-    }, [familyCircle]);
+    }, [familyCircle, currentUser]);
 
     useEffect(() => {
         scrollToBottom();
@@ -138,8 +149,8 @@ const Chat: React.FC = () => {
                             )}
 
                             <div className={`max-w-[75%] px-4 py-2 rounded-2xl shadow-sm ${isMe
-                                    ? 'bg-brand-blue text-white rounded-br-none'
-                                    : 'bg-white dark:bg-gray-800 text-brand-text-primary dark:text-gray-100 rounded-bl-none'
+                                ? 'bg-brand-blue text-white rounded-br-none'
+                                : 'bg-white dark:bg-gray-800 text-brand-text-primary dark:text-gray-100 rounded-bl-none'
                                 }`}>
                                 {!isMe && showAvatar && (
                                     <p className="text-xs font-bold text-brand-blue mb-1">{msg.senderName}</p>
