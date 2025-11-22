@@ -2,7 +2,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AppContext } from '../App';
 import { View, FamilyCircle } from '../types';
-import { FireIcon, UserCircleIcon, NewspaperIcon, SunIcon, MoonIcon, ClipboardIcon, ChatBubbleIcon } from './Icons';
+import { FireIcon, UserCircleIcon, NewspaperIcon, SunIcon, MoonIcon, ClipboardIcon, ChatBubbleIcon, TrophyIcon } from './Icons';
 import { onFamilyCircleUpdate } from '../services/familyService';
 
 interface HeaderProps {
@@ -100,8 +100,8 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
                         badgeCount={unreadCount > 0 ? unreadCount : undefined}
                     />
                     <NavButton
-                        icon={<ClipboardIcon className="w-6 h-6" />}
-                        label="History"
+                        icon={<TrophyIcon className="w-6 h-6" />}
+                        label="Leaderboard"
                         isActive={activeView === 'history'}
                         onClick={() => setActiveView('history')}
                     />

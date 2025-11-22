@@ -17,7 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from '../firebaseConfig';
 import { User, Challenge, Reply, Exercise } from '../types';
-import { getUserTokens } from './userService';
+import { getUserTokens, addXp } from './userService';
 import { sendPushNotification } from "./pushNotificationService";
 
 export const getExercises = async (): Promise<Exercise[]> => {
@@ -194,35 +194,14 @@ export const addReplyToChallenge = async (
 
     await batch.commit();
 
-    // Send notifications for the new reply
-    // Notifications are now handled by Cloud Functions
-    // let recipientId: string | undefined;
-    // let title = 'New Reply!';
-    // const body = `${user.name}: ${text || 'posted a photo'}`;
-
-    // if (parentId) {
-    //     // It's a nested reply, notify the parent commenter
-    //     const parentReplyDoc = await getDoc(doc(db, 'replies', parentId));
-    //     if (parentReplyDoc.exists()) {
-    //         recipientId = parentReplyDoc.data().user.id;
-    //         title = 'New reply to your comment';
-    //     }
-    // } else {
-    //     // It's a top-level comment, notify the challenge creator
-    //     const challengeDoc = await getDoc(doc(db, 'challenges', challengeId));
-    //     if (challengeDoc.exists()) {
-    //         recipientId = challengeDoc.data().challenger.id;
-    //         title = `New comment on your challenge`;
-    //     }
-    // }
-
-    // // Don't send a notification to the user who wrote the reply
-    // if (recipientId && recipientId !== user.id) {
-    //     const tokens = await getUserTokens([recipientId]);
-    //     if (tokens.length > 0) {
-    //         sendPushNotification(tokens, title, body);
-    //     }
-    // }
+    // Award XP to the user
+    // +10 XP for a reply
+    // +1 XP per unit if contributionValue is present
+    let xpAmount = 10;
+    if (contributionValue) {
+        xpAmount += contributionValue; // Simple 1:1 ratio for now, can be tuned
+    }
+    await addXp(user.id, xpAmount);
 };
 
 export const deleteReply = async (replyId: string): Promise<void> => {

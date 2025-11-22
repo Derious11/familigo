@@ -8,7 +8,10 @@ import {
     addDoc,
     getDocs,
     writeBatch,
-    documentId
+    documentId,
+    arrayUnion,
+    arrayRemove,
+    deleteField
 } from "firebase/firestore";
 import { db } from '../firebaseConfig';
 import { User, FamilyCircle } from '../types';
@@ -18,7 +21,7 @@ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircl
     const circleDoc = await getDoc(circleDocRef);
     if (!circleDoc.exists()) return null;
 
-    const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number };
+    const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
 
     let members: User[] = [];
     if (circleData.memberIds?.length) {
@@ -33,7 +36,10 @@ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircl
         inviteCode: circleData.inviteCode,
         members,
         chatName: circleData.chatName,
-        messageCount: circleData.messageCount
+        messageCount: circleData.messageCount,
+        avatarUrl: circleData.avatarUrl,
+        motto: circleData.motto,
+        adminIds: circleData.adminIds || []
     };
 };
 
@@ -47,6 +53,7 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
         name: familyName,
         inviteCode: inviteCode,
         memberIds: [userId],
+        adminIds: [userId], // Creator is the first admin
         messageCount: 0,
     };
 
@@ -94,7 +101,7 @@ export const onFamilyCircleUpdate = (familyCircleId: string, callback: (circle: 
     const circleRef = doc(db, 'familyCircles', familyCircleId);
     return onSnapshot(circleRef, async (docSnapshot) => {
         if (docSnapshot.exists()) {
-            const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number };
+            const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
 
             // We need to fetch member details to construct the full FamilyCircle object
             // This is a bit expensive to do on every update, but necessary if we want the full object.
@@ -112,10 +119,40 @@ export const onFamilyCircleUpdate = (familyCircleId: string, callback: (circle: 
                 inviteCode: circleData.inviteCode,
                 members,
                 messageCount: circleData.messageCount || 0,
+                avatarUrl: circleData.avatarUrl,
+                motto: circleData.motto,
+                adminIds: circleData.adminIds || [],
             };
             callback(circle);
         } else {
             callback(null);
         }
     });
+};
+export const updateFamilyProfile = async (familyId: string, data: { avatarUrl?: string; motto?: string }): Promise<void> => {
+    const familyRef = doc(db, 'familyCircles', familyId);
+    await updateDoc(familyRef, data);
+};
+
+export const promoteToAdmin = async (familyId: string, userId: string): Promise<void> => {
+    const familyRef = doc(db, 'familyCircles', familyId);
+    await updateDoc(familyRef, {
+        adminIds: arrayUnion(userId)
+    });
+};
+
+export const removeFromFamily = async (familyId: string, userId: string): Promise<void> => {
+    const batch = writeBatch(db);
+    const familyRef = doc(db, 'familyCircles', familyId);
+    const userRef = doc(db, 'users', userId);
+
+    batch.update(familyRef, {
+        memberIds: arrayRemove(userId),
+        adminIds: arrayRemove(userId)
+    });
+    batch.update(userRef, {
+        familyCircleId: deleteField()
+    });
+
+    await batch.commit();
 };

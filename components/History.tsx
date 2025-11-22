@@ -11,7 +11,7 @@ const History: React.FC = () => {
     const { familyCircle } = context || {};
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isLogbookOpen, setIsLogbookOpen] = useState(true);
+    const [isLogbookOpen, setIsLogbookOpen] = useState(false); // Default closed to focus on leaderboard
 
     useEffect(() => {
         if (!context?.familyCircle) return;
@@ -32,14 +32,14 @@ const History: React.FC = () => {
     if (isLoading) {
         return (
             <div className="text-center py-12 text-brand-text-secondary dark:text-gray-400">
-                <p>Loading history...</p>
+                <p>Loading...</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {familyCircle && <Leaderboard challenges={challenges} members={familyCircle.members} />}
+        <div className="space-y-8">
+            <Leaderboard />
 
             <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md">
                 <button
@@ -47,7 +47,7 @@ const History: React.FC = () => {
                     onClick={() => setIsLogbookOpen(!isLogbookOpen)}
                     aria-expanded={isLogbookOpen}
                 >
-                    <h2 className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">Challenge Logbook</h2>
+                    <h2 className="text-xl font-bold text-brand-text-primary dark:text-gray-100">Past Challenges</h2>
                     <ChevronDownIcon className={`w-6 h-6 text-brand-text-secondary dark:text-gray-400 transition-transform duration-300 ${isLogbookOpen ? 'rotate-180' : ''}`} />
                 </button>
 

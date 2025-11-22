@@ -1,21 +1,25 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
-import { FireIcon, PencilIcon, LinkIcon, CheckIcon, ScaleIcon, BellIcon } from './Icons';
+import { FireIcon, PencilIcon, LinkIcon, CheckIcon, ScaleIcon, BellIcon, CameraIcon, ShieldCheckIcon } from './Icons';
 import { Badge } from '../types';
-import { getBadges } from '../services/userService';
+import { getBadges, updateCoverPhoto } from '../services/userService';
 import EditProfilePictureModal from './EditProfilePictureModal';
 import UpdateWeightModal from './UpdateWeightModal';
 import WeightChart from './WeightChart';
+import FamilySettingsModal from './FamilySettingsModal';
 import { requestNotificationPermission, revokeNotificationPermission } from '../services/pushNotificationService';
 
 const Profile: React.FC = () => {
     const context = useContext(AppContext);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
+    const [isFamilySettingsOpen, setIsFamilySettingsOpen] = useState(false);
     const [isLinkCopied, setIsLinkCopied] = useState(false);
     const [allBadges, setAllBadges] = useState<Omit<Badge, 'unlocked'>[]>([]);
     const [isLoadingBadges, setIsLoadingBadges] = useState(true);
     const [isNotificationToggleLoading, setIsNotificationToggleLoading] = useState(false);
+    const [isEditingCover, setIsEditingCover] = useState(false);
+    const [coverPhotoInput, setCoverPhotoInput] = useState('');
 
     if (!context || !context.currentUser) {
         return <div>Loading profile...</div>;
@@ -48,7 +52,7 @@ const Profile: React.FC = () => {
             const inviteLink = `${window.location.origin}${window.location.pathname}?inviteCode=${familyCircle.inviteCode}`;
             navigator.clipboard.writeText(inviteLink);
             setIsLinkCopied(true);
-            setTimeout(() => setIsLinkCopied(false), 2000); // Reset after 2 seconds
+            setTimeout(() => setIsLinkCopied(false), 2000);
         }
     };
 
@@ -77,52 +81,198 @@ const Profile: React.FC = () => {
             console.error("Failed to toggle notifications:", error);
             alert("An unexpected error occurred. Please try again.");
         } finally {
-            // The onAuthStateChanged listener in App.tsx will eventually receive the
-            // updated user data from Firestore and trigger a re-render with the correct toggle state.
             setIsNotificationToggleLoading(false);
         }
     };
 
+    const handleSaveCoverPhoto = async () => {
+        if (!coverPhotoInput) return;
+        try {
+            await updateCoverPhoto(currentUser.id, coverPhotoInput);
+            setIsEditingCover(false);
+            setCoverPhotoInput('');
+        } catch (error) {
+            console.error("Failed to update cover photo:", error);
+            alert("Failed to update cover photo.");
+        }
+    };
+
+    // Calculate XP Progress
+    const currentLevel = currentUser.level || 1;
+    const currentXp = currentUser.xp || 0;
+    const xpForNextLevel = currentLevel * 500; // Simple formula
+    const xpProgress = Math.min((currentXp % 500) / 500 * 100, 100); // Simplified visualization
+
+    // Heatmap Data Generation (Last 365 days or just current month?)
+    // Let's show last 28 days for simplicity in mobile view
+    const heatmapDays = Array.from({ length: 28 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (27 - i));
+        return d.toISOString().split('T')[0];
+    });
+
     return (
-        <div className="space-y-6">
-            <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6 flex flex-col items-center">
-                <div className="relative">
-                    <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-24 h-24 rounded-full border-4 border-brand-blue shadow-lg mb-4" />
+        <div className="space-y-6 pb-20">
+            {/* Profile Header with Cover Photo */}
+            <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+                <div className="h-32 bg-gray-300 dark:bg-gray-700 relative">
+                    {currentUser.coverPhotoUrl && (
+                        <img src={currentUser.coverPhotoUrl} alt="Cover" className="w-full h-full object-cover" />
+                    )}
                     <button
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="absolute bottom-4 -right-1 bg-brand-blue hover:bg-blue-600 text-white p-2 rounded-full shadow-md transition-transform transform hover:scale-110"
-                        aria-label="Change profile picture"
+                        onClick={() => setIsEditingCover(!isEditingCover)}
+                        className="absolute top-2 right-2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
                     >
-                        <PencilIcon className="w-5 h-5" />
+                        <CameraIcon className="w-5 h-5" />
                     </button>
+                    {isEditingCover && (
+                        <div className="absolute top-12 right-2 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-xl flex gap-2 z-10">
+                            <input
+                                type="text"
+                                placeholder="Image URL..."
+                                value={coverPhotoInput}
+                                onChange={(e) => setCoverPhotoInput(e.target.value)}
+                                className="px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                            />
+                            <button onClick={handleSaveCoverPhoto} className="text-xs bg-brand-blue text-white px-2 py-1 rounded">Save</button>
+                        </div>
+                    )}
                 </div>
 
-                <h2 className="text-3xl font-bold text-brand-text-primary dark:text-gray-100">{currentUser.name}</h2>
-                <div className="mt-4 flex items-center gap-4 text-center">
-                    <div>
-                        <p className="text-2xl font-bold text-orange-500 dark:text-orange-400 flex items-center justify-center gap-1">
-                            <FireIcon className="w-6 h-6" /> {currentUser.streak}
-                        </p>
-                        <p className="text-sm text-brand-text-secondary dark:text-gray-400">Day Streak</p>
+                <div className="px-6 pb-6 relative">
+                    <div className="flex justify-between items-end -mt-12 mb-4">
+                        <div className="relative">
+                            <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-24 h-24 rounded-full border-4 border-white dark:border-gray-800 shadow-lg bg-white" />
+                            <button
+                                onClick={() => setIsEditModalOpen(true)}
+                                className="absolute bottom-0 right-0 bg-brand-blue hover:bg-blue-600 text-white p-1.5 rounded-full shadow-md border-2 border-white dark:border-gray-800"
+                            >
+                                <PencilIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="text-right mb-1">
+                            <div className="text-sm font-bold text-brand-blue dark:text-blue-400">Level {currentLevel}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{currentXp} XP</div>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-2xl font-bold text-brand-green">{currentUser.badges.filter(b => b.unlocked).length}</p>
-                        <p className="text-sm text-brand-text-secondary dark:text-gray-400">Badges</p>
+
+                    <div className="mb-6">
+                        <h2 className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">{currentUser.name}</h2>
+                        {/* XP Bar */}
+                        <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                            <div className="bg-brand-blue h-2.5 rounded-full transition-all duration-500" style={{ width: `${xpProgress}%` }}></div>
+                        </div>
+                        <p className="text-xs text-right text-gray-400 mt-1">{500 - (currentXp % 500)} XP to next level</p>
+                    </div>
+
+                    <div className="flex items-center justify-around text-center border-t border-gray-100 dark:border-gray-700 pt-4">
+                        <div>
+                            <p className="text-2xl font-bold text-orange-500 dark:text-orange-400 flex items-center justify-center gap-1">
+                                <FireIcon className="w-6 h-6" /> {currentUser.streak}
+                            </p>
+                            <p className="text-xs text-brand-text-secondary dark:text-gray-400 uppercase tracking-wide">Streak</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-brand-green">{currentUser.badges.filter(b => b.unlocked).length}</p>
+                            <p className="text-xs text-brand-text-secondary dark:text-gray-400 uppercase tracking-wide">Badges</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-blue-500">{currentUser.currentWeight || '-'}</p>
+                            <p className="text-xs text-brand-text-secondary dark:text-gray-400 uppercase tracking-wide">{currentUser.weightUnit || 'lbs'}</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            {/* Activity Heatmap */}
+            <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-bold mb-4 text-brand-text-primary dark:text-gray-100">Activity (Last 28 Days)</h3>
+                <div className="grid grid-cols-7 gap-2">
+                    {heatmapDays.map(date => {
+                        const count = currentUser.activityMap?.[date] || 0;
+                        let bgClass = 'bg-gray-100 dark:bg-gray-700';
+                        if (count > 0) bgClass = 'bg-green-200 dark:bg-green-900/40';
+                        if (count > 2) bgClass = 'bg-green-300 dark:bg-green-800/60';
+                        if (count > 5) bgClass = 'bg-green-500 dark:bg-green-600';
+
+                        return (
+                            <div key={date} className={`aspect-square rounded-md ${bgClass} flex items-center justify-center text-[10px] text-transparent hover:text-gray-500 transition-colors cursor-default`} title={`${date}: ${count} activities`}>
+                                {count}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Family Circle Section */}
+            {familyCircle && (
+                <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold text-brand-text-primary dark:text-gray-100">Family Circle</h3>
+                        <button
+                            onClick={() => setIsFamilySettingsOpen(true)}
+                            className="text-sm text-brand-blue font-semibold hover:underline"
+                        >
+                            Manage
+                        </button>
+                    </div>
+
+                    <div className="mb-6 bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg flex items-center gap-4">
+                        {familyCircle.avatarUrl ? (
+                            <img src={familyCircle.avatarUrl} alt={familyCircle.name} className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm" />
+                        ) : (
+                            <div className="w-16 h-16 rounded-full bg-brand-blue/10 flex items-center justify-center text-2xl">🏠</div>
+                        )}
+                        <div>
+                            <h4 className="font-bold text-lg text-gray-900 dark:text-white">{familyCircle.name}</h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">"{familyCircle.motto || 'Family Fitness Goals'}"</p>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        <p className="text-sm font-medium text-brand-text-secondary dark:text-gray-400 mb-2">Invite Code:</p>
+                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/60 p-2 rounded-lg">
+                            <p className="font-mono text-lg font-bold text-brand-blue dark:text-blue-300 tracking-widest flex-grow truncate">{familyCircle.inviteCode}</p>
+                            <button
+                                onClick={handleShareInviteLink}
+                                className={`p-2 rounded-md transition-all duration-200 ${isLinkCopied ? 'text-green-600 bg-green-100' : 'text-gray-600 hover:bg-gray-200'}`}
+                            >
+                                {isLinkCopied ? <CheckIcon className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 className="text-sm font-semibold mb-3 text-brand-text-secondary dark:text-gray-400 uppercase tracking-wide">Members</h4>
+                        <div className="flex -space-x-2 overflow-hidden py-2">
+                            {familyCircle.members.map(member => (
+                                <img
+                                    key={member.id}
+                                    src={member.avatarUrl}
+                                    alt={member.name}
+                                    className="inline-block h-10 w-10 rounded-full ring-2 ring-white dark:ring-gray-800"
+                                    title={member.name}
+                                />
+                            ))}
+                            <button
+                                onClick={() => setIsFamilySettingsOpen(true)}
+                                className="inline-block h-10 w-10 rounded-full ring-2 ring-white dark:ring-gray-800 bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 text-xs font-bold"
+                            >
+                                +{familyCircle.members.length}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Settings & Other */}
             <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
                 <h3 className="text-xl font-bold mb-4 text-brand-text-primary dark:text-gray-100">Settings</h3>
-                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-blue-100 dark:bg-blue-900/40 p-3 rounded-full">
-                            <BellIcon className="w-6 h-6 text-brand-blue dark:text-blue-300" />
-                        </div>
-                        <div>
-                            <p className="font-semibold text-brand-text-primary dark:text-gray-100">Push Notifications</p>
-                            <p className="text-sm text-brand-text-secondary dark:text-gray-400">For new challenges and replies</p>
-                        </div>
+
+                <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-3">
+                        <BellIcon className="w-5 h-5 text-gray-500" />
+                        <span className="text-gray-700 dark:text-gray-300">Push Notifications</span>
                     </div>
                     <label htmlFor="notification-toggle" className="relative inline-flex items-center cursor-pointer">
                         <input
@@ -136,111 +286,28 @@ const Profile: React.FC = () => {
                         <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-blue"></div>
                     </label>
                 </div>
-            </div>
 
-            <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
-                <div className="flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-brand-text-primary dark:text-gray-100">Health Stats</h3>
+                <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-3">
+                        <ScaleIcon className="w-5 h-5 text-gray-500" />
+                        <span className="text-gray-700 dark:text-gray-300">Update Weight</span>
+                    </div>
+                    <button onClick={() => setIsWeightModalOpen(true)} className="text-brand-blue font-semibold text-sm">Update</button>
+                </div>
+
+                <div className="pt-4">
                     <button
-                        onClick={() => setIsWeightModalOpen(true)}
-                        className="text-sm bg-gray-200/60 hover:bg-gray-300/80 dark:bg-gray-700/70 dark:hover:bg-gray-600/90 text-brand-text-secondary dark:text-gray-300 font-semibold py-2 px-3 rounded-lg transition-colors"
+                        onClick={signOut}
+                        className="w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
                     >
-                        Update Weight
+                        Sign Out
                     </button>
                 </div>
-                <div className="mt-4 bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg flex items-center gap-4">
-                    <div className="bg-blue-100 dark:bg-blue-900/40 p-3 rounded-full">
-                        <ScaleIcon className="w-6 h-6 text-brand-blue dark:text-blue-300" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-brand-text-secondary dark:text-gray-400">Current Weight</p>
-                        <p className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">
-                            {currentUser.currentWeight ? `${currentUser.currentWeight} ${currentUser.weightUnit || 'lbs'}` : 'Not set'}
-                        </p>
-                    </div>
-                </div>
-                <WeightChart data={currentUser.weightHistory} unit={currentUser.weightUnit} />
-            </div>
-
-            {familyCircle && (
-                <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
-                    <h3 className="text-xl font-bold mb-4 text-brand-text-primary dark:text-gray-100">Family Circle</h3>
-
-                    <div className="mb-6">
-                        <p className="text-sm font-medium text-brand-text-secondary dark:text-gray-400 mb-2">Share this link to invite family:</p>
-                        <div className="flex items-center gap-2 mt-1 bg-gray-100 dark:bg-gray-700/60 p-2 rounded-lg">
-                            <p className="font-mono text-lg font-bold text-brand-blue dark:text-blue-300 tracking-widest flex-grow truncate">{familyCircle.inviteCode}</p>
-                            <button
-                                onClick={handleShareInviteLink}
-                                className={`flex items-center justify-center gap-1.5 font-semibold py-2 px-3 rounded-md transition-all duration-200 text-sm w-32 ${isLinkCopied
-                                    ? 'bg-brand-green text-white'
-                                    : 'bg-brand-blue hover:bg-blue-600 text-white'
-                                    }`}
-                                aria-live="polite"
-                            >
-                                {isLinkCopied ? (
-                                    <>
-                                        <CheckIcon className="w-4 h-4" />
-                                        <span>Copied!</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <LinkIcon className="w-4 h-4" />
-                                        <span>Copy Link</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 className="text-lg font-semibold mb-3 text-brand-text-primary dark:text-gray-100">Members ({familyCircle.members.length})</h4>
-                        <ul className="space-y-3">
-                            {familyCircle.members.map(member => (
-                                <li key={member.id} className="flex items-center gap-3">
-                                    <img src={member.avatarUrl} alt={member.name} className="w-10 h-10 rounded-full" />
-                                    <span className="font-medium text-brand-text-primary dark:text-gray-200">{member.name}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
-            )}
-
-            <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-bold mb-4 text-brand-text-primary dark:text-gray-100">Badges</h3>
-                {isLoadingBadges ? (
-                    <p className="text-brand-text-secondary dark:text-gray-400">Loading badges...</p>
-                ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {allBadges.map(badge => (
-                            <BadgeItem key={badge.id} badge={{ ...badge, unlocked: unlockedBadgeIds.has(badge.id) }} />
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            <div className="pt-4">
-                <button
-                    onClick={signOut}
-                    className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                    Sign Out
-                </button>
             </div>
 
             {isEditModalOpen && <EditProfilePictureModal onClose={() => setIsEditModalOpen(false)} />}
             {isWeightModalOpen && <UpdateWeightModal onClose={() => setIsWeightModalOpen(false)} />}
-        </div>
-    );
-};
-
-const BadgeItem: React.FC<{ badge: Badge }> = ({ badge }) => {
-    return (
-        <div className={`p-4 rounded-lg text-center transition-opacity ${badge.unlocked ? 'bg-green-100/70 dark:bg-green-500/20' : 'bg-gray-100 dark:bg-gray-700 opacity-60'}`}>
-            <div className={`text-4xl mx-auto mb-2 ${!badge.unlocked && 'filter grayscale'}`}>{badge.icon}</div>
-            <p className="font-semibold text-sm text-brand-text-primary dark:text-gray-100">{badge.name}</p>
-            <p className="text-xs text-brand-text-secondary dark:text-gray-400">{badge.description}</p>
+            {isFamilySettingsOpen && <FamilySettingsModal onClose={() => setIsFamilySettingsOpen(false)} />}
         </div>
     );
 };

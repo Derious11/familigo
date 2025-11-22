@@ -14,6 +14,10 @@ export interface User {
     weightHistory?: { value: number; timestamp: Date }[];
     notificationTokens?: string[];
     lastReadMessageCount?: number;
+    coverPhotoUrl?: string;
+    xp?: number;
+    level?: number;
+    activityMap?: Record<string, number>; // Date string (YYYY-MM-DD) -> count
 }
 
 export interface Badge {
@@ -79,6 +83,9 @@ export interface FamilyCircle {
     members: User[];
     challenges?: Challenge[]; // Kept for potential future use or old data structures
     messageCount?: number;
+    avatarUrl?: string;
+    motto?: string;
+    adminIds?: string[];
 }
 
 export type View = 'feed' | 'history' | 'profile' | 'chat';

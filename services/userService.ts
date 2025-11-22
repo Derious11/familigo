@@ -12,7 +12,8 @@ import {
     arrayRemove,
     orderBy,
     onSnapshot,
-    Timestamp
+    Timestamp,
+    getDoc
 } from "firebase/firestore";
 import { db } from '../firebaseConfig';
 import { User, Badge } from '../types';
@@ -42,6 +43,7 @@ export const onUserUpdate = (userId: string, callback: (user: User | null) => vo
                 // Note: emailVerified is usually on Auth object, but we might store it or not. 
                 // For now, assume it's merged in App.tsx or we just take what's in Firestore + ID.
                 ...userData,
+                activityMap: userData.activityMap || {}, // Ensure activityMap is initialized
             } as User;
             callback(user);
         } else {
@@ -84,12 +86,14 @@ export const checkAndUpdateStreak = async (user: User) => {
             streak: increment(1),
             lastActiveDate: serverTimestamp()
         });
+        await addXp(user.id, 10); // +10 XP for maintaining streak
     } else {
         // Missed a day (or more), reset streak
         await updateDoc(doc(db, 'users', user.id), {
             streak: 1,
             lastActiveDate: serverTimestamp()
         });
+        await addXp(user.id, 5); // +5 XP for coming back
     }
 };
 
@@ -154,4 +158,44 @@ export const getUserTokens = async (userIds: string[]): Promise<string[]> => {
         }
     });
     return tokens;
+};
+
+export const updateCoverPhoto = async (userId: string, coverPhotoUrl: string): Promise<void> => {
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, { coverPhotoUrl });
+};
+
+export const addXp = async (userId: string, amount: number): Promise<void> => {
+    const userDocRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) return;
+
+    const userData = userDoc.data() as User;
+    const currentXp = userData.xp || 0;
+    const currentLevel = userData.level || 1;
+    const newXp = currentXp + amount;
+
+    // Simple leveling formula: Level = floor(sqrt(XP / 100)) + 1
+    // or just every 1000 XP is a level? Let's go with a progressive curve.
+    // Level 1: 0-100
+    // Level 2: 101-300 (200 xp)
+    // Level 3: 301-600 (300 xp)
+    // Formula: XP = 50 * (Level^2 - Level)
+    // Inverse: Level = (1 + sqrt(1 + 8 * XP / 100)) / 2  <-- roughly
+
+    // Let's stick to a simpler one for now: Level * 500 XP required for next level.
+    // Actually, let's just use a fixed threshold for simplicity in MVP: 100 XP per level? Too fast.
+    // Let's say: Level = 1 + Math.floor(newXp / 500);
+    const newLevel = 1 + Math.floor(newXp / 500);
+
+    const today = new Date().toISOString().split('T')[0];
+    const activityMap = userData.activityMap || {};
+    const currentDayCount = activityMap[today] || 0;
+
+    await updateDoc(userDocRef, {
+        xp: newXp,
+        level: newLevel,
+        [`activityMap.${today}`]: currentDayCount + 1
+    });
 };
