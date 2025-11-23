@@ -195,16 +195,30 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
         }
     };
 
+    // Determine styling based on challenge type
+    const isTeamChallenge = challenge.type === 'team';
+    const cardGradient = isTeamChallenge
+        ? 'from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30'
+        : 'from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30';
+    const accentColor = isTeamChallenge
+        ? 'text-blue-600 dark:text-blue-400'
+        : 'text-green-600 dark:text-green-400';
+    const badgeBg = isTeamChallenge
+        ? 'bg-gradient-to-r from-blue-500 to-indigo-600'
+        : 'bg-gradient-to-r from-green-500 to-emerald-600';
+    const badgeIcon = isTeamChallenge ? '👥' : '🎯';
+
     return (
-        <div className={`bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all ${isActive ? 'shadow-lg' : 'opacity-75'}`}>
-            <div className="p-4">
-                <div className="flex justify-between items-start">
+        <div className={`bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md overflow-hidden transition-all ${isActive ? 'shadow-xl ring-2 ring-offset-2 ' + (isTeamChallenge ? 'ring-blue-200 dark:ring-blue-800' : 'ring-green-200 dark:ring-green-800') : 'opacity-75'}`}>
+            {/* Hero Header with Gradient Background */}
+            <div className={`bg-gradient-to-br ${cardGradient} p-6 border-b-4 ${isTeamChallenge ? 'border-blue-500' : 'border-green-500'}`}>
+                <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
-                        <img className="w-12 h-12 rounded-full" src={challenge.challenger.avatarUrl} alt={challenge.challenger.name} />
+                        <img className="w-12 h-12 rounded-full ring-4 ring-white dark:ring-gray-700 shadow-lg" src={challenge.challenger.avatarUrl} alt={challenge.challenger.name} />
                         <div>
-                            <p className="font-bold text-brand-text-primary dark:text-gray-100">{challenge.challenger.name}</p>
-                            <p className="text-sm text-brand-text-secondary dark:text-gray-400">
-                                challenged everyone to <span className="font-semibold">{challenge.exercise.name}!</span>
+                            <p className="font-bold text-gray-900 dark:text-gray-100">{challenge.challenger.name}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                created a challenge
                             </p>
                         </div>
                     </div>
@@ -221,14 +235,33 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                         {isActive && <Countdown expiryDate={challenge.expiresAt} />}
                     </div>
                 </div>
+
+                {/* Challenge Type Badge */}
+                <div className="flex items-center gap-2 mb-3">
+                    <span className={`${badgeBg} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5`}>
+                        <span className="text-sm">{badgeIcon}</span>
+                        {isTeamChallenge ? 'TEAM CHALLENGE' : 'INDIVIDUAL CHALLENGE'}
+                    </span>
+                </div>
+
+                {/* Prominent Challenge Title */}
+                <h2 className={`text-3xl font-black ${accentColor} mb-2 leading-tight tracking-tight`}>
+                    {challenge.exercise.name}
+                </h2>
+
+                {/* Challenge Target/Description */}
+                <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg p-4 border-2 border-white dark:border-gray-700 shadow-inner">
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-center">
+                        {challenge.target}
+                    </p>
+                </div>
             </div>
+
             {challenge.mediaUrl && (
                 <img className="w-full h-56 object-cover" src={challenge.mediaUrl} alt="Challenge media" />
             )}
+
             <div className="p-4">
-                <div className="bg-brand-blue/10 rounded-lg p-3 text-center">
-                    <p className="text-brand-blue dark:text-blue-300 font-bold text-2xl">{challenge.target}</p>
-                </div>
                 {familyCircle && isActive && <ProgressTracker challenge={challenge} members={familyCircle.members} />}
             </div>
 

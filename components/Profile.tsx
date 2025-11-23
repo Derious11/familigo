@@ -204,6 +204,49 @@ const Profile: React.FC = () => {
                 </div>
             </div>
 
+            {/* Badges Section */}
+            <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-bold mb-4 text-brand-text-primary dark:text-gray-100">Badges</h3>
+                {isLoadingBadges ? (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading badges...</div>
+                ) : allBadges.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">No badges available</div>
+                ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                        {allBadges.map(badge => {
+                            const isUnlocked = unlockedBadgeIds.has(badge.id);
+                            return (
+                                <div
+                                    key={badge.id}
+                                    className={`flex flex-col items-center p-3 rounded-lg transition-all ${isUnlocked
+                                            ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-yellow-300 dark:border-yellow-600'
+                                            : 'bg-gray-100 dark:bg-gray-700/50 opacity-60'
+                                        }`}
+                                    title={badge.description}
+                                >
+                                    <div className="relative">
+                                        <div className={`text-4xl mb-2 ${!isUnlocked && 'grayscale'}`}>
+                                            {badge.icon}
+                                        </div>
+                                        {isUnlocked && (
+                                            <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5">
+                                                <CheckIcon className="w-3 h-3 text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className={`text-xs font-semibold text-center ${isUnlocked
+                                            ? 'text-gray-900 dark:text-gray-100'
+                                            : 'text-gray-500 dark:text-gray-400'
+                                        }`}>
+                                        {badge.name}
+                                    </p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
             {/* Family Circle Section */}
             {familyCircle && (
                 <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md p-6">
