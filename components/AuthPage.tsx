@@ -4,6 +4,7 @@ import { signUpWithEmail, signInWithEmail, signInWithGoogle, onAuthStateChanged 
 interface AuthPageProps {
     mode: 'login' | 'signup';
     onSwitchMode: () => void;
+    onPrivacy: () => void;
 }
 
 const GoogleIcon: React.FC = () => (
@@ -13,7 +14,7 @@ const GoogleIcon: React.FC = () => (
 );
 
 
-const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode }) => {
+const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode, onPrivacy }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -152,6 +153,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode }) => {
                     {isLogin ? 'Sign up' : 'Log in'}
                 </button>
             </p>
+            <div className="mt-4 text-center">
+                <button
+                    onClick={onPrivacy}
+                    className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline"
+                >
+                    Privacy Policy
+                </button>
+            </div>
         </div>
     );
 };

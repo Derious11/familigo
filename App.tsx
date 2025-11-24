@@ -11,6 +11,7 @@ import AuthFlow from './components/AuthFlow';
 import OnboardingFlow from './components/OnboardingFlow';
 import { auth } from './firebaseConfig';
 import { initializeFCM } from './services/pushNotificationService';
+import PrivacyPolicy from './components/PrivacyPolicy';
 
 export const AppContext = React.createContext<{
     currentUser: User | null;
@@ -167,6 +168,27 @@ const App: React.FC = () => {
 
 
     const renderContent = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const path = window.location.pathname.toLowerCase();
+
+        if (urlParams.get('page') === 'privacy' || path === '/privacy') {
+            return (
+                <div className="min-h-screen bg-brand-background dark:bg-gray-900 flex items-center justify-center p-4">
+                    <PrivacyPolicy onBack={() => {
+                        // If we are on the dedicated route, go to root
+                        if (path === '/privacy') {
+                            window.location.href = '/';
+                        } else {
+                            // Remove the query param and reload/re-render
+                            const newUrl = window.location.pathname;
+                            window.history.pushState({}, '', newUrl);
+                            window.location.href = newUrl;
+                        }
+                    }} />
+                </div>
+            );
+        }
+
         if (authState === 'loading') {
             return (
                 <div className="flex items-center justify-center h-screen">

@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface LandingPageProps {
-    onNavigate: (view: 'login' | 'signup') => void;
+    onNavigate: (view: 'login' | 'signup' | 'privacy') => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
@@ -14,7 +14,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 Turn fitness into a fun, shared game for the whole family.
             </p>
             <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
-                 <img 
+                <img
                     src="/assets/FamiliGo_intro.gif"
                     className="rounded-lg w-full object-cover h-48"
                     alt="FamiliGo intro animation"
@@ -32,6 +32,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                     className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-3 px-4 rounded-lg transition-colors"
                 >
                     I Already Have an Account
+                </button>
+            </div>
+            <div className="mt-8">
+                <button
+                    onClick={() => onNavigate('privacy')}
+                    className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline"
+                >
+                    Privacy Policy
                 </button>
             </div>
         </div>

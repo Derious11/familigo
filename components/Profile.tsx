@@ -8,12 +8,14 @@ import UpdateWeightModal from './UpdateWeightModal';
 import WeightChart from './WeightChart';
 import FamilySettingsModal from './FamilySettingsModal';
 import { requestNotificationPermission, revokeNotificationPermission } from '../services/pushNotificationService';
+import PrivacyPolicy from './PrivacyPolicy';
 
 const Profile: React.FC = () => {
     const context = useContext(AppContext);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
     const [isFamilySettingsOpen, setIsFamilySettingsOpen] = useState(false);
+    const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
     const [isLinkCopied, setIsLinkCopied] = useState(false);
     const [allBadges, setAllBadges] = useState<Omit<Badge, 'unlocked'>[]>([]);
     const [isLoadingBadges, setIsLoadingBadges] = useState(true);
@@ -219,8 +221,8 @@ const Profile: React.FC = () => {
                                 <div
                                     key={badge.id}
                                     className={`flex flex-col items-center p-3 rounded-lg transition-all ${isUnlocked
-                                            ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-yellow-300 dark:border-yellow-600'
-                                            : 'bg-gray-100 dark:bg-gray-700/50 opacity-60'
+                                        ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-yellow-300 dark:border-yellow-600'
+                                        : 'bg-gray-100 dark:bg-gray-700/50 opacity-60'
                                         }`}
                                     title={badge.description}
                                 >
@@ -235,8 +237,8 @@ const Profile: React.FC = () => {
                                         )}
                                     </div>
                                     <p className={`text-xs font-semibold text-center ${isUnlocked
-                                            ? 'text-gray-900 dark:text-gray-100'
-                                            : 'text-gray-500 dark:text-gray-400'
+                                        ? 'text-gray-900 dark:text-gray-100'
+                                        : 'text-gray-500 dark:text-gray-400'
                                         }`}>
                                         {badge.name}
                                     </p>
@@ -338,6 +340,14 @@ const Profile: React.FC = () => {
                     <button onClick={() => setIsWeightModalOpen(true)} className="text-brand-blue font-semibold text-sm">Update</button>
                 </div>
 
+                <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-3">
+                        <ShieldCheckIcon className="w-5 h-5 text-gray-500" />
+                        <span className="text-gray-700 dark:text-gray-300">Privacy Policy</span>
+                    </div>
+                    <button onClick={() => setIsPrivacyOpen(true)} className="text-brand-blue font-semibold text-sm">View</button>
+                </div>
+
                 <div className="pt-4">
                     <button
                         onClick={signOut}
@@ -351,6 +361,13 @@ const Profile: React.FC = () => {
             {isEditModalOpen && <EditProfilePictureModal onClose={() => setIsEditModalOpen(false)} />}
             {isWeightModalOpen && <UpdateWeightModal onClose={() => setIsWeightModalOpen(false)} />}
             {isFamilySettingsOpen && <FamilySettingsModal onClose={() => setIsFamilySettingsOpen(false)} />}
+            {isPrivacyOpen && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setIsPrivacyOpen(false)}>
+                    <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl">
+                        <PrivacyPolicy onBack={() => setIsPrivacyOpen(false)} />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
