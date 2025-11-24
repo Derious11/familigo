@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" 
+          content="
+            viewport-fit=contain,
+            width=device-width, 
+            initial-scale=1.0, 
+            " />
+    <style>
+      :root {
+        --safe-top: env(safe-area-inset-top, 0px);
+      }
+
+      body {
+        padding-top: var(--safe-top);
+      }
+</style>
     <title>FamiliGo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
