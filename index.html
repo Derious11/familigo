@@ -1,91 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" 
-          content="
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="
             viewport-fit=contain,
             width=device-width, 
             initial-scale=1.0, 
             " />
-    <style>
-      :root {
-        --safe-top: env(safe-area-inset-top, 0px);
-      }
-
-      body {
-        padding-top: var(--safe-top);
-      }
-</style>
-    <title>FamiliGo</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              'brand-blue': '#3B82F6',
-              'brand-green': '#10B981',
-              'brand-yellow': '#F59E0B',
-              'brand-pink': '#EC4899',
-              'brand-background': '#F9FAFB',
-              'brand-surface': '#FFFFFF',
-              'brand-text-primary': '#1F2937',
-              'brand-text-secondary': '#6B7280',
-            },
-            animation: {
-              'wiggle': 'wiggle 1s ease-in-out infinite',
-              'float': 'float 3s ease-in-out infinite',
-              'pop': 'pop 0.3s ease-out forwards',
-            },
-            keyframes: {
-              wiggle: {
-                '0%, 100%': { transform: 'rotate(-3deg)' },
-                '50%': { transform: 'rotate(3deg)' },
-              },
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
-              },
-              pop: {
-                '0%': { transform: 'scale(0.9)', opacity: '0' },
-                '100%': { transform: 'scale(1)', opacity: '1' },
-              }
-            }
-          },
-        },
-      }
-    </script>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
-    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
-    "firebase/storage": "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js",
-    "firebase/analytics": "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js",
-    "firebase/messaging": "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.1"
-  }
-}
-</script>
-<script>
+  <title>FamiliGo</title>
+  <script>
     // Set theme on initial load to prevent flash
     if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-</script>
+  </script>
 </head>
-  <body class="bg-brand-background dark:bg-gray-900">
-    <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
-  </body>
+
+<body class="bg-brand-background dark:bg-gray-900">
+  <div id="root"></div>
+  <script type="module" src="/src/index.tsx"></script>
+</body>
+
 </html>

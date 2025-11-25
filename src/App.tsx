@@ -12,6 +12,7 @@ import OnboardingFlow from './components/OnboardingFlow';
 import { auth } from './firebaseConfig';
 import { initializeFCM } from './services/pushNotificationService';
 import PrivacyPolicy from './components/PrivacyPolicy';
+import DeleteAccount from './components/DeleteAccount';
 
 export const AppContext = React.createContext<{
     currentUser: User | null;
@@ -180,6 +181,22 @@ const App: React.FC = () => {
                             window.location.href = '/';
                         } else {
                             // Remove the query param and reload/re-render
+                            const newUrl = window.location.pathname;
+                            window.history.pushState({}, '', newUrl);
+                            window.location.href = newUrl;
+                        }
+                    }} />
+                </div>
+            );
+        }
+
+        if (urlParams.get('page') === 'delete-account' || path === '/delete-account') {
+            return (
+                <div className="min-h-screen bg-brand-background dark:bg-gray-900 flex items-center justify-center p-4">
+                    <DeleteAccount onBack={() => {
+                        if (path === '/delete-account') {
+                            window.location.href = '/';
+                        } else {
                             const newUrl = window.location.pathname;
                             window.history.pushState({}, '', newUrl);
                             window.location.href = newUrl;
