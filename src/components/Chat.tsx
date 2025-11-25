@@ -50,7 +50,31 @@ const Chat: React.FC = () => {
 
         const text = newMessage.trim();
         setNewMessage('');
-        await sendMessage(familyCircle.id, currentUser, text);
+
+        // Optimistic update
+        const tempId = `temp-${Date.now()}`;
+        const tempMessage: Message = {
+            id: tempId,
+            familyCircleId: familyCircle.id,
+            senderId: currentUser.id,
+            senderName: currentUser.name,
+            senderAvatarUrl: currentUser.avatarUrl,
+            text: text,
+            type: 'text',
+            timestamp: new Date(),
+        };
+
+        setMessages(prev => [...prev, tempMessage]);
+
+        try {
+            await sendMessage(familyCircle.id, currentUser, text);
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            // Revert optimistic update on failure
+            setMessages(prev => prev.filter(msg => msg.id !== tempId));
+            setNewMessage(text); // Restore text
+            alert("Failed to send message. Please try again.");
+        }
     };
 
     const handleRenameChat = async () => {

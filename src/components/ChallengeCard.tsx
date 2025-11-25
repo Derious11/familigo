@@ -158,6 +158,24 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     };
 
     const handleReaction = (replyId: string, emoji: string) => {
+        // Optimistic update
+        setReplies(currentReplies => {
+            return currentReplies.map(reply => {
+                if (reply.id === replyId) {
+                    const currentCount = reply.reactions[emoji] || 0;
+                    return {
+                        ...reply,
+                        reactions: {
+                            ...reply.reactions,
+                            [emoji]: currentCount + 1
+                        }
+                    };
+                }
+                // Also check nested replies if flattened, but here we only have flat list in state
+                // However, the state 'replies' contains ALL replies for the challenge, so this map works.
+                return reply;
+            });
+        });
         updateReaction(replyId, emoji);
     };
 
