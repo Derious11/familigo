@@ -7,7 +7,7 @@ const VAPID_KEY = "BMfIUjjBmlJPDzcYwv5czBovIThXoRlqD5o3qtaeeHNC4AkinV1If2t8AsB11
 let currentToken: string | null = null;
 
 // This function initializes the service worker and sets up a listener for foreground messages.
-export const initializeWebPush = (): (() => void) | undefined => {
+export const initializeWebPush = (onNotification?: (message: string) => void): (() => void) | undefined => {
     if ('serviceWorker' in navigator && typeof messaging !== 'undefined') {
         navigator.serviceWorker
             .register('/firebase-messaging-sw.js')
@@ -21,9 +21,17 @@ export const initializeWebPush = (): (() => void) | undefined => {
         // Listen for messages when the app is in the foreground
         return onMessage(messaging, (payload) => {
             console.log('Message received. ', payload);
-            // Display a toast or other in-app notification
-            // For simplicity, we'll just log it. A real app might use a toast library.
-            alert(`New Notification:\n${payload.notification?.title}\n${payload.notification?.body}`);
+
+            const title = payload.notification?.title;
+            const body = payload.notification?.body;
+            const message = title ? `${title}: ${body}` : body || "New Notification";
+
+            if (onNotification) {
+                onNotification(message);
+            } else {
+                // Fallback if no callback provided (though in our new architecture it always will be)
+                alert(`New Notification:\n${title}\n${body}`);
+            }
         });
     }
     return undefined;

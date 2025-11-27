@@ -14,14 +14,14 @@ import {
 /**
  * Called once from App.tsx on load.
  */
-export const initializePush = (): (() => void) | undefined => {
+export const initializePush = (onNotification?: (message: string) => void): (() => void) | undefined => {
     if (Capacitor.isNativePlatform()) {
         console.log("PushRouter: Initializing native push...");
-        initializeNativePush();
+        initializeNativePush(onNotification);
         return undefined;
     } else {
         console.log("PushRouter: Initializing web push...");
-        return initializeWebPush();
+        return initializeWebPush(onNotification);
     }
 };
 

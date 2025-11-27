@@ -10,7 +10,8 @@ import MainApp from './components/MainApp';
 import AuthFlow from './components/AuthFlow';
 import OnboardingFlow from './components/OnboardingFlow';
 import { auth } from './firebaseConfig';
-import { initializePush } from './services/pushRouter';
+
+import { NotificationProvider } from './contexts/NotificationContext';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import DeleteAccount from './components/DeleteAccount';
 
@@ -44,13 +45,7 @@ const App: React.FC = () => {
         }
     }, []);
 
-    useEffect(() => {
-        // Initialize Push Notifications (Web or Native)
-        const unsubscribe = initializePush();
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
-    }, []);
+
 
     useEffect(() => {
         if (typeof auth === 'undefined') return;
@@ -232,9 +227,11 @@ const App: React.FC = () => {
     };
 
     return (
-        <AppContext.Provider value={appContextValue}>
-            <div className="min-h-screen bg-brand-background dark:bg-gray-900 font-sans text-brand-text-primary dark:text-gray-100">{renderContent()}</div>
-        </AppContext.Provider>
+        <NotificationProvider>
+            <AppContext.Provider value={appContextValue}>
+                <div className="min-h-screen bg-brand-background dark:bg-gray-900 font-sans text-brand-text-primary dark:text-gray-100">{renderContent()}</div>
+            </AppContext.Provider>
+        </NotificationProvider>
     );
 };
 
