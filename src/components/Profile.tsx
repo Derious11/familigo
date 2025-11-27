@@ -7,7 +7,7 @@ import EditProfilePictureModal from './EditProfilePictureModal';
 import UpdateWeightModal from './UpdateWeightModal';
 import WeightChart from './WeightChart';
 import FamilySettingsModal from './FamilySettingsModal';
-import { requestNotificationPermission, revokeNotificationPermission } from '../services/pushNotificationService';
+import { requestNotificationPermission, revokeNotificationPermission } from '../services/pushRouter';
 import PrivacyPolicy from './PrivacyPolicy';
 
 const Profile: React.FC = () => {

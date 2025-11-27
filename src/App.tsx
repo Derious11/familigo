@@ -10,7 +10,7 @@ import MainApp from './components/MainApp';
 import AuthFlow from './components/AuthFlow';
 import OnboardingFlow from './components/OnboardingFlow';
 import { auth } from './firebaseConfig';
-import { initializeFCM } from './services/pushNotificationService';
+import { initializePush } from './services/pushRouter';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import DeleteAccount from './components/DeleteAccount';
 
@@ -45,8 +45,8 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        // Initialize Firebase Cloud Messaging to listen for foreground notifications
-        const unsubscribe = initializeFCM();
+        // Initialize Push Notifications (Web or Native)
+        const unsubscribe = initializePush();
         return () => {
             if (unsubscribe) unsubscribe();
         };

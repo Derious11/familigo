@@ -18,7 +18,7 @@ import {
 import { db } from '../firebaseConfig';
 import { User, Challenge, Reply, Exercise } from '../types';
 import { getUserTokens, addXp } from './userService';
-import { sendPushNotification } from "./pushNotificationService";
+import { sendPushNotification } from "./webPushService";
 
 export const getExercises = async (): Promise<Exercise[]> => {
     const exercisesCol = collection(db, 'exercises');

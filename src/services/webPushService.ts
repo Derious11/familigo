@@ -7,7 +7,7 @@ const VAPID_KEY = "BMfIUjjBmlJPDzcYwv5czBovIThXoRlqD5o3qtaeeHNC4AkinV1If2t8AsB11
 let currentToken: string | null = null;
 
 // This function initializes the service worker and sets up a listener for foreground messages.
-export const initializeFCM = (): (() => void) | undefined => {
+export const initializeWebPush = (): (() => void) | undefined => {
     if ('serviceWorker' in navigator && typeof messaging !== 'undefined') {
         navigator.serviceWorker
             .register('/firebase-messaging-sw.js')

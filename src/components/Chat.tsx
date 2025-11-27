@@ -3,7 +3,7 @@ import { AppContext } from '../App';
 import { onMessagesUpdate, sendMessage, updateFamilyCircleChatName, deleteMessage, markChatAsRead } from '../services/chatService';
 import { Message } from '../types';
 import { PaperAirplaneIcon, PencilIcon, CheckIcon, XMarkIcon, TrashIcon } from './Icons';
-import { requestNotificationPermission } from '../services/pushNotificationService';
+import { requestNotificationPermission } from '../services/webPushService';
 
 const Chat: React.FC = () => {
     const context = useContext(AppContext);
