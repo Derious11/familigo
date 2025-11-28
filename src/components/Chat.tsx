@@ -131,7 +131,7 @@ const Chat: React.FC = () => {
             </div>
 
             {/* Messages List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-brand-background dark:bg-gray-900">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-brand-background dark:bg-gray-900 scrollbar-hide">
                 {messages.length === 0 && (
                     <div className="text-center text-gray-400 mt-10">
                         <p>No messages yet. Start the conversation!</p>

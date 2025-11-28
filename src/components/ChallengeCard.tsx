@@ -107,7 +107,14 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
     useEffect(() => {
         const unsubscribe = onRepliesUpdate(challenge.id, setReplies);
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            try {
+                confetti.reset();
+            } catch (e) {
+                // Ignore confetti reset errors
+            }
+        };
     }, [challenge.id]);
 
     const { topLevelReplies, repliesByParent } = useMemo(() => {

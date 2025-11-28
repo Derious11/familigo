@@ -11,10 +11,16 @@ import {
     revokeNotificationPermission as revokeWebPermission,
 } from "./webPushService";
 
+export interface NotificationData {
+    title?: string;
+    body?: string;
+    data?: any;
+}
+
 /**
  * Called once from App.tsx on load.
  */
-export const initializePush = (onNotification?: (message: string) => void): (() => void) | undefined => {
+export const initializePush = (onNotification?: (notification: NotificationData) => void): (() => void) | undefined => {
     if (Capacitor.isNativePlatform()) {
         console.log("PushRouter: Initializing native push...");
         initializeNativePush(onNotification);

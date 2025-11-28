@@ -4,6 +4,7 @@ import { AppContext } from '../App';
 import { uploadProfileImage } from '../services/storageService';
 import { updateUserAvatar } from '../services/userService';
 import { CameraIcon, PhotoIcon, XMarkIcon } from './Icons';
+import confetti from 'canvas-confetti';
 
 interface EditProfilePictureModalProps {
     onClose: () => void;
@@ -35,9 +36,27 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
     const streamRef = useRef<MediaStream | null>(null);
 
     useEffect(() => {
+        // Clear any lingering confetti when the modal opens
+        try {
+            confetti.reset();
+        } catch (e) {
+            // Ignore errors if confetti isn't active
+        }
+
         const startCameraStream = async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setError("Camera API is not supported in this browser.");
+                return;
+            }
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1080 },
+                        height: { ideal: 1080 }
+                    }
+                });
                 streamRef.current = stream;
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;

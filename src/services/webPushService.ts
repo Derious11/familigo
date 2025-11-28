@@ -7,7 +7,7 @@ const VAPID_KEY = "BMfIUjjBmlJPDzcYwv5czBovIThXoRlqD5o3qtaeeHNC4AkinV1If2t8AsB11
 let currentToken: string | null = null;
 
 // This function initializes the service worker and sets up a listener for foreground messages.
-export const initializeWebPush = (onNotification?: (message: string) => void): (() => void) | undefined => {
+export const initializeWebPush = (onNotification?: (notification: { title?: string; body?: string; data?: any }) => void): (() => void) | undefined => {
     if ('serviceWorker' in navigator && typeof messaging !== 'undefined') {
         navigator.serviceWorker
             .register('/firebase-messaging-sw.js')
@@ -24,13 +24,17 @@ export const initializeWebPush = (onNotification?: (message: string) => void): (
 
             const title = payload.notification?.title;
             const body = payload.notification?.body;
-            const message = title ? `${title}: ${body}` : body || "New Notification";
 
             if (onNotification) {
-                onNotification(message);
+                onNotification({
+                    title,
+                    body,
+                    data: payload.data
+                });
             } else {
-                // Fallback if no callback provided (though in our new architecture it always will be)
-                alert(`New Notification:\n${title}\n${body}`);
+                // Fallback if no callback provided
+                const message = title ? `${title}: ${body}` : body || "New Notification";
+                alert(`New Notification:\n${message}`);
             }
         });
     }
@@ -44,6 +48,9 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
     }
 
     try {
+        if (typeof Notification === 'undefined') {
+            return { success: false, error: "Notifications not supported in this environment." };
+        }
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
             const token = await getToken(messaging, { vapidKey: VAPID_KEY });
@@ -89,7 +96,7 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
 export const revokeNotificationPermission = async (userId: string): Promise<void> => {
     // If permission is blocked, we can't get a specific token.
     // The only way to honor the user's request is to clear all tokens from the backend.
-    if (Notification.permission === 'denied') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
         console.log('Permission is denied. Clearing all user tokens from backend.');
         await removeNotificationToken(userId); // This uses the fallback to clear all tokens
         currentToken = null;

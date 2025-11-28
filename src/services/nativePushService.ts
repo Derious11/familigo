@@ -8,7 +8,7 @@ let currentUserId: string | null = null;
  * Called once on app startup (in App.tsx).
  * Sets up listeners immediately, then checks existing permission.
  */
-export const initializeNativePush = async (onNotification?: (message: string) => void) => {
+export const initializeNativePush = async (onNotification?: (notification: { title?: string; body?: string; data?: any }) => void) => {
   console.log("NativePush: Initializing...");
 
   // Always attach listeners before checking permission or registering
@@ -36,7 +36,7 @@ export const initializeNativePush = async (onNotification?: (message: string) =>
  * Wraps all listeners in a single controlled function.
  * Ensures no duplicates and consistent behavior.
  */
-const registerListeners = async (onNotification?: (message: string) => void) => {
+const registerListeners = async (onNotification?: (notification: { title?: string; body?: string; data?: any }) => void) => {
   console.log("NativePush: Registering listeners...");
 
   // Remove old listeners to prevent duplicate callbacks
@@ -69,12 +69,12 @@ const registerListeners = async (onNotification?: (message: string) => void) => 
     (notification) => {
       console.log("NativePush: Notification received (foreground):", notification);
 
-      const title = notification.title;
-      const body = notification.body;
-      const message = title ? `${title}: ${body}` : body || "New Notification";
-
       if (onNotification) {
-        onNotification(message);
+        onNotification({
+          title: notification.title,
+          body: notification.body,
+          data: notification.data
+        });
       }
     }
   );

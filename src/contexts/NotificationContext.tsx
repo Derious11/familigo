@@ -2,8 +2,13 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import NotificationBanner from '../components/NotificationBanner';
 import { initializePush } from '../services/pushRouter';
 
+export interface NotificationData {
+    title?: string;
+    body?: string;
+}
+
 interface NotificationContextType {
-    showBanner: (message: string) => void;
+    showBanner: (data: NotificationData) => void;
     hideBanner: () => void;
 }
 
@@ -18,20 +23,20 @@ export const useNotificationBanner = () => {
 };
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+    const [notification, setNotification] = useState<NotificationData | null>(null);
 
-    const showBanner = useCallback((message: string) => {
-        setBannerMessage(message);
+    const showBanner = useCallback((data: NotificationData) => {
+        setNotification(data);
     }, []);
 
     const hideBanner = useCallback(() => {
-        setBannerMessage(null);
+        setNotification(null);
     }, []);
 
     useEffect(() => {
         // Initialize push notifications and pass the showBanner callback
-        const unsubscribe = initializePush((message) => {
-            showBanner(message);
+        const unsubscribe = initializePush((data) => {
+            showBanner(data);
         });
 
         return () => {
@@ -42,9 +47,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return (
         <NotificationContext.Provider value={{ showBanner, hideBanner }}>
             {children}
-            {bannerMessage && (
+            {notification && (
                 <NotificationBanner
-                    message={bannerMessage}
+                    title={notification.title}
+                    body={notification.body}
                     onClose={hideBanner}
                 />
             )}

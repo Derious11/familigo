@@ -119,7 +119,7 @@ export const updateUserWeight = async (userId: string, weight: number, unit: 'lb
     await updateDoc(userDocRef, {
         currentWeight: weight,
         weightUnit: unit,
-        weightHistory: arrayUnion({ value: weight, timestamp: serverTimestamp() }),
+        weightHistory: arrayUnion({ value: weight, timestamp: new Date() }),
     });
 };
 

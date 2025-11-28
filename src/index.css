@@ -2,10 +2,281 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   1. Safe-area handling
+======================================== */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 body {
   padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  overscroll-behavior-y: none;
+  background-color: #000;
+}
+
+/* ========================================
+   2. Disable Autofill (fixes Android WebView NPE)
+======================================== */
+input,
+textarea,
+select {
+  autocomplete: off !important;
+  -webkit-autocomplete: off !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px #000 inset !important;
+  box-shadow: 0 0 0px 1000px #000 inset !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff !important;
+  transition: background-color 99999s ease-in-out 0s;
+}
+
+/* ========================================
+   3. Fix Android keyboard shifting layout
+======================================== */
+html,
+body {
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #000;
+}
+
+/* ========================================
+   4. Modal stability fixes
+======================================== */
+.modal-backdrop {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background-color: rgba(0, 0, 0, 0.55);
+  animation: fadeInBackdrop 200ms ease-out;
+}
+
+.modal-container {
+  animation: fadeInModal 180ms ease-out;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  background-color: #111;
+  border-radius: 16px;
+}
+
+/* ========================================
+   5. Animations
+======================================== */
+@keyframes fadeInBackdrop {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   6. Prevent pull-to-refresh on Android
+======================================== */
+body,
+#root {
+  overscroll-behavior: none;
+}
+
+/* ========================================
+   7. Prevent white flash when navigating
+======================================== */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ========================================
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   1. Safe-area handling
+======================================== */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+body {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  overscroll-behavior-y: none;
+  background-color: #000;
+}
+
+/* ========================================
+   2. Disable Autofill (fixes Android WebView NPE)
+======================================== */
+input,
+textarea,
+select {
+  autocomplete: off !important;
+  -webkit-autocomplete: off !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px #000 inset !important;
+  box-shadow: 0 0 0px 1000px #000 inset !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff !important;
+  transition: background-color 99999s ease-in-out 0s;
+}
+
+/* ========================================
+   3. Fix Android keyboard shifting layout
+======================================== */
+html,
+body {
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #000;
+}
+
+/* ========================================
+   4. Modal stability fixes
+======================================== */
+.modal-backdrop {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background-color: rgba(0, 0, 0, 0.55);
+  animation: fadeInBackdrop 200ms ease-out;
+}
+
+.modal-container {
+  animation: fadeInModal 180ms ease-out;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  background-color: #111;
+  border-radius: 16px;
+}
+
+/* ========================================
+   5. Animations
+======================================== */
+@keyframes fadeInBackdrop {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   6. Prevent pull-to-refresh on Android
+======================================== */
+body,
+#root {
+  overscroll-behavior: none;
+}
+
+/* ========================================
+   7. Prevent white flash when navigating
+======================================== */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ========================================
+   8. Utility Classes
+======================================== */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ========================================
+   9. Notification Animations
+======================================== */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

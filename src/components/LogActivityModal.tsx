@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../App';
-import { XMarkIcon } from './Icons';
 import { Challenge } from '../types';
+import Modal from './ui/Modal';
 
 interface LogActivityModalProps {
     onClose: () => void;
@@ -47,58 +47,47 @@ const LogActivityModal: React.FC<LogActivityModalProps> = ({ onClose, challenge 
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up border border-white/20" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <XMarkIcon className="w-6 h-6" />
-                </button>
-                <div className="p-6">
-                    <h2 className="text-2xl font-bold text-center mb-1 text-brand-text-primary dark:text-gray-100">Log Activity</h2>
-                    <p className="text-center text-sm text-brand-text-secondary dark:text-gray-400 mb-4">
-                        Contribute to the team goal! <br />
-                        <span className="font-semibold text-brand-blue">{challenge.currentTotal || 0} / {challenge.goalTotal} {challenge.unit}</span>
-                    </p>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="amount-log" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">
-                                Amount ({challenge.unit})
-                            </label>
-                            <input
-                                type="number"
-                                id="amount-log"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                placeholder={`e.g., 20`}
-                                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-brand-text-primary dark:text-gray-100 rounded-md focus:ring-brand-blue focus:border-brand-blue"
-                                step="any"
-                                autoFocus
-                            />
-                        </div>
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            title="Log Activity"
+        >
+            <div className="space-y-4">
+                <p className="text-center text-sm text-brand-text-secondary dark:text-gray-400">
+                    Contribute to the team goal! <br />
+                    <span className="font-semibold text-brand-blue">{challenge.currentTotal || 0} / {challenge.goalTotal} {challenge.unit}</span>
+                </p>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="amount-log" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">
+                            Amount ({challenge.unit})
+                        </label>
+                        <input
+                            type="number"
+                            id="amount-log"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder={`e.g., 20`}
+                            className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-brand-text-primary dark:text-gray-100 rounded-md focus:ring-brand-blue focus:border-brand-blue"
+                            step="any"
+                            autoFocus
+                        />
+                    </div>
 
-                        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
-                        <div className="pt-2">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full bg-gradient-to-r from-brand-green to-emerald-600 hover:from-brand-green/90 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:opacity-50"
-                            >
-                                {isLoading ? 'Submitting...' : 'Log Activity'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-gradient-to-r from-brand-green to-emerald-600 hover:from-brand-green/90 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:opacity-50"
+                        >
+                            {isLoading ? 'Submitting...' : 'Log Activity'}
+                        </button>
+                    </div>
+                </form>
             </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.3s ease-out forwards;
-                }
-            `}</style>
-        </div>
+        </Modal>
     );
 };
 
