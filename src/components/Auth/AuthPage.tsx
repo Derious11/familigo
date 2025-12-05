@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { signUpWithEmail, signInWithEmail, signInWithGoogle, onAuthStateChanged } from '../services/authService';
+import { signUpWithEmail, signInWithEmail, signInWithGoogle, onAuthStateChanged } from '../../services/authService';
+import { UserRole } from '../../types';
 
 interface AuthPageProps {
     mode: 'login' | 'signup';
@@ -18,10 +19,22 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode, onPrivacy }) =>
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [birthDate, setBirthDate] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const isLogin = mode === 'login';
+
+    const calculateAge = (birthDateString: string) => {
+        const today = new Date();
+        const birthDate = new Date(birthDateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -40,7 +53,24 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode, onPrivacy }) =>
                 setIsLoading(false);
                 return;
             }
-            const { error } = await signUpWithEmail(name, email, password);
+            if (!birthDate) {
+                setError('Please enter your date of birth.');
+                setIsLoading(false);
+                return;
+            }
+
+            const age = calculateAge(birthDate);
+            if (age < 13) {
+                setError("You must be at least 13 years old to create an account. Ask a parent to add you to their family!");
+                setIsLoading(false);
+                return;
+            }
+
+            const role: UserRole = age >= 18 ? 'adult' : 'teen';
+
+            // Pass role and birthDate to signUpWithEmail (need to update service)
+            // @ts-ignore - Updating service next
+            const { error } = await signUpWithEmail(name, email, password, role, new Date(birthDate));
             if (error) {
                 setError(error);
                 setIsLoading(false);
@@ -70,17 +100,31 @@ const AuthPage: React.FC<AuthPageProps> = ({ mode, onSwitchMode, onPrivacy }) =>
             </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 {!isLogin && (
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Name</label>
-                        <input
-                            type="text"
-                            id="name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md focus:ring-brand-blue focus:border-brand-blue bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
-                            required
-                        />
-                    </div>
+                    <>
+                        <div>
+                            <label htmlFor="name" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Name</label>
+                            <input
+                                type="text"
+                                id="name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md focus:ring-brand-blue focus:border-brand-blue bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="birthDate" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Date of Birth</label>
+                            <input
+                                type="date"
+                                id="birthDate"
+                                value={birthDate}
+                                onChange={(e) => setBirthDate(e.target.value)}
+                                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 rounded-md focus:ring-brand-blue focus:border-brand-blue bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                                required
+                            />
+                            <p className="text-xs text-gray-500 mt-1">We use this to verify your age and customize your experience.</p>
+                        </div>
+                    </>
                 )}
                 <div>
                     <label htmlFor="email" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Email Address</label>

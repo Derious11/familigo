@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
-import { AppContext } from '../App';
-import { Challenge } from '../types';
-import Modal from './ui/Modal';
+import { AppContext } from '../../App';
+import { Challenge } from '../../types';
+import Modal from '../ui/Modal';
 
 interface LogActivityModalProps {
     onClose: () => void;

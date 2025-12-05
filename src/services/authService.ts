@@ -15,7 +15,7 @@ import {
     Timestamp,
 } from "firebase/firestore";
 import { auth, db } from '../firebaseConfig';
-import { User } from '../types';
+import { User, UserRole } from '../types';
 import { checkAndUpdateStreak, getBadges } from './userService';
 
 export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
@@ -78,7 +78,7 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
     });
 };
 
-export const signUpWithEmail = async (name: string, email: string, pass: string): Promise<{ user: User | null, error: string | null }> => {
+export const signUpWithEmail = async (name: string, email: string, pass: string, role: UserRole = 'adult', birthDate?: Date): Promise<{ user: User | null, error: string | null }> => {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const { user } = userCredential;
@@ -90,6 +90,8 @@ export const signUpWithEmail = async (name: string, email: string, pass: string)
         const newUser: Omit<User, 'id' | 'emailVerified'> = {
             name,
             email: user.email!,
+            role,
+            birthDate,
             avatarUrl: `https://i.pravatar.cc/150?u=${user.uid}`,
             streak: 1,
             lastActiveDate: new Date(),
@@ -131,6 +133,8 @@ export const signInWithGoogle = async (): Promise<{ user: User | null, error: st
             const newUser: Omit<User, 'id' | 'emailVerified'> = {
                 name: user.displayName || 'New User',
                 email: user.email!,
+                role: 'adult', // Default to adult for Google Sign In for now
+                birthDate: new Date(), // Default to today or handle later
                 avatarUrl: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
                 streak: 1,
                 lastActiveDate: new Date(),

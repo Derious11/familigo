@@ -8,7 +8,7 @@ import History from './History';
 import Profile from './Profile';
 import { AppContext } from '../App';
 import { resendVerificationEmail } from '../services/authService';
-import CreateChallengeModal from './CreateChallengeModal';
+import CreateChallengeModal from './Challenges/CreateChallengeModal';
 import Chat from './Chat';
 import { PlusIcon } from './Icons';
 

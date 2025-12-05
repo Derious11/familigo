@@ -1,18 +1,16 @@
-
 import React, { useState, useContext } from 'react';
-import { AppContext } from '../App';
-import { XMarkIcon } from './Icons';
-import { updateUserWeight } from '../services/userService';
-import { Challenge } from '../types';
+import { AppContext } from '../../../App';
+import { XMarkIcon } from '../../Icons';
+import { updateUserWeight } from '../../../services/userService';
+import { User } from '../../../types';
 
-interface LogWeightReplyModalProps {
+interface UpdateWeightModalProps {
     onClose: () => void;
-    challenge: Challenge;
 }
 
-const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, challenge }) => {
+const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
     const context = useContext(AppContext);
-    const { currentUser, updateCurrentUser, addReply } = context || {};
+    const { currentUser, updateCurrentUser } = context || {};
 
     const [weight, setWeight] = useState<string>(currentUser?.currentWeight?.toString() || '');
     const [unit, setUnit] = useState<'lbs' | 'kg'>(currentUser?.weightUnit || 'lbs');
@@ -26,12 +24,11 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
             setError('Please enter a valid weight.');
             return;
         }
-        if (!currentUser || !updateCurrentUser || !addReply) return;
+        if (!currentUser || !updateCurrentUser) return;
 
         setIsLoading(true);
         setError('');
         try {
-            // 1. Update user's weight profile
             await updateUserWeight(currentUser.id, weightValue, unit);
 
             const newHistoryEntry = { value: weightValue, timestamp: new Date() };
@@ -40,18 +37,12 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
             updateCurrentUser({
                 currentWeight: weightValue,
                 weightUnit: unit,
-                weightHistory: updatedHistory
+                weightHistory: updatedHistory,
             });
-
-            // 2. Add a reply to the challenge with a generic message for privacy
-            const replyText = 'Logged their weight!';
-            // The third argument (parentId) is undefined.
-            // The fourth argument (isCompletion) is true, marking the challenge as done.
-            await addReply(challenge.id, { text: replyText }, undefined, true);
 
             onClose();
         } catch (err) {
-            setError('Failed to log weight. Please try again.');
+            setError('Failed to update weight. Please try again.');
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -59,21 +50,20 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up border border-white/20" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                     <XMarkIcon className="w-6 h-6" />
                 </button>
                 <div className="p-6">
-                    <h2 className="text-2xl font-bold text-center mb-1 text-brand-text-primary dark:text-gray-100">Log Your Weight</h2>
-                    <p className="text-center text-sm text-brand-text-secondary dark:text-gray-400 mb-4">Complete the challenge by entering your weight.</p>
+                    <h2 className="text-2xl font-bold text-center mb-4 text-brand-text-primary dark:text-gray-100">Update Weight</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label htmlFor="weight-log" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Your Weight</label>
+                            <label htmlFor="weight" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Your Weight</label>
                             <div className="mt-1">
                                 <input
                                     type="number"
-                                    id="weight-log"
+                                    id="weight"
                                     value={weight}
                                     onChange={(e) => setWeight(e.target.value)}
                                     placeholder="e.g., 150"
@@ -105,9 +95,9 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full bg-gradient-to-r from-brand-green to-emerald-600 hover:from-brand-green/90 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:opacity-50"
+                                className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
                             >
-                                {isLoading ? 'Submitting...' : 'Submit & Complete'}
+                                {isLoading ? 'Saving...' : 'Save Changes'}
                             </button>
                         </div>
                     </form>
@@ -126,4 +116,4 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
     );
 };
 
-export default LogWeightReplyModal;
+export default UpdateWeightModal;

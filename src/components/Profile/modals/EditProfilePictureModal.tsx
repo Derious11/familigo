@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import { AppContext } from '../App';
-import { uploadProfileImage } from '../services/storageService';
-import { updateUserAvatar } from '../services/userService';
-import { CameraIcon, PhotoIcon, XMarkIcon } from './Icons';
+import { AppContext } from '../../../App';
+import { uploadProfileImage } from '../../../services/storageService';
+import { updateUserAvatar } from '../../../services/userService';
+import { CameraIcon, PhotoIcon, XMarkIcon } from '../../Icons';
 import confetti from 'canvas-confetti';
 
 interface EditProfilePictureModalProps {

@@ -119,9 +119,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
                         <h1 className="text-4xl font-bold text-center mb-2 dark:text-gray-100">Welcome, {user.name}!</h1>
                         <p className="text-lg text-center text-brand-text-secondary dark:text-gray-400 mb-8">Let's get you set up.</p>
                         <div className="w-full space-y-4">
-                            <button onClick={() => setStep('create')} className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg">
-                                Create a Family Circle
-                            </button>
+                            {user.role !== 'teen' && (
+                                <button onClick={() => setStep('create')} className="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 px-4 rounded-lg transition-transform transform hover:scale-105 text-lg">
+                                    Create a Family Circle
+                                </button>
+                            )}
                             <button onClick={() => setStep('join')} className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-brand-text-secondary dark:text-gray-300 font-bold py-4 px-4 rounded-lg transition-colors text-lg">
                                 Join an Existing Circle
                             </button>

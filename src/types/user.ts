@@ -6,10 +6,15 @@ export interface Badge {
     unlocked: boolean;
 }
 
+export type UserRole = 'adult' | 'teen' | 'child';
+
 export interface User {
     id: string;
     name: string;
-    email: string;
+    email?: string; // Optional for child accounts
+    role?: UserRole;
+    birthDate?: Date;
+    parentId?: string; // For teens and children
     avatarUrl: string;
     streak: number;
     lastActiveDate?: Date;

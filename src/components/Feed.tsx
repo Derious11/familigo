@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../App';
-import ChallengeCard from './ChallengeCard';
+import ChallengeCard from './Challenges/ChallengeCard';
 import { Challenge } from '../types';
 import { onChallengesUpdate } from '../services/challengeService';
 

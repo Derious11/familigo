@@ -7,13 +7,13 @@ import { getUserFamilyCircle, onFamilyCircleUpdate } from './services/familyServ
 import { addChallengeToFamily, addReplyToChallenge, deleteReply as deleteReplyFromFirestore, deleteChallengeAndReplies } from './services/challengeService';
 import { uploadReplyImage } from './services/storageService';
 import MainApp from './components/MainApp';
-import AuthFlow from './components/AuthFlow';
+import AuthFlow from './components/Auth/AuthFlow';
 import OnboardingFlow from './components/OnboardingFlow';
 import { auth } from './firebaseConfig';
 
 import { NotificationProvider } from './contexts/NotificationContext';
-import PrivacyPolicy from './components/PrivacyPolicy';
-import DeleteAccount from './components/DeleteAccount';
+import PrivacyPolicy from './components/Auth/PrivacyPolicy';
+import DeleteAccount from './components/Auth/DeleteAccount';
 
 export const AppContext = React.createContext<{
     currentUser: User | null;
@@ -25,13 +25,18 @@ export const AppContext = React.createContext<{
     signOut: () => void;
     setFamilyCircle: (circle: FamilyCircle | null) => void;
     updateCurrentUser: (userData: Partial<User>) => void;
+    switchProfile: (userId: string) => void;
+    isImpersonating: boolean;
+    originalUserId?: string;
 } | null>(null);
 
 
 const App: React.FC = () => {
     const [authState, setAuthState] = useState<AuthState>('loading');
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [authUser, setAuthUser] = useState<User | null>(null); // The actual authenticated user
+    const [currentUser, setCurrentUser] = useState<User | null>(null); // The user currently being viewed/controlled
     const [familyCircle, setFamilyCircle] = useState<FamilyCircle | null>(null);
+    const [viewingAsUserId, setViewingAsUserId] = useState<string | null>(null);
 
     useEffect(() => {
         // This effect runs once on app load to check for an invite code in the URL
@@ -50,73 +55,83 @@ const App: React.FC = () => {
     useEffect(() => {
         if (typeof auth === 'undefined') return;
 
-        let unsubscribeUser: (() => void) | null = null;
-        let unsubscribeFamily: (() => void) | null = null;
-
         const unsubscribeAuth = onAuthStateChanged(async (initialUser) => {
-            // Clean up previous listeners if auth state changes
-            if (unsubscribeUser) {
-                unsubscribeUser();
-                unsubscribeUser = null;
-            }
-            if (unsubscribeFamily) {
-                unsubscribeFamily();
-                unsubscribeFamily = null;
-            }
-
             if (initialUser) {
-                // Set initial user state
-                setCurrentUser(initialUser);
-                setAuthState('loading');
-
-                // Subscribe to real-time user updates
-                // We import onUserUpdate dynamically or assume it's imported
-                unsubscribeUser = onUserUpdate(initialUser.id, (updatedUser) => {
-                    if (updatedUser) {
-                        // Preserve emailVerified from initial auth if not in firestore (it usually isn't)
-                        setCurrentUser(prev => ({ ...updatedUser, emailVerified: initialUser.emailVerified }));
-
-                        // Handle family circle subscription changes if familyCircleId changes
-                        if (updatedUser.familyCircleId && (!currentUser?.familyCircleId || updatedUser.familyCircleId !== currentUser.familyCircleId)) {
-                            if (unsubscribeFamily) unsubscribeFamily();
-                            unsubscribeFamily = onFamilyCircleUpdate(updatedUser.familyCircleId, (circle) => {
-                                setFamilyCircle(circle);
-                                setAuthState('authenticated');
-                            });
-                        } else if (!updatedUser.familyCircleId) {
-                            if (unsubscribeFamily) {
-                                unsubscribeFamily();
-                                unsubscribeFamily = null;
-                            }
-                            setFamilyCircle(null);
-                            setAuthState('authenticated');
-                        }
-                    }
-                });
-
-                // Initial Family Circle Setup (if already present in initialUser)
-                if (initialUser.familyCircleId) {
-                    unsubscribeFamily = onFamilyCircleUpdate(initialUser.familyCircleId, (circle) => {
-                        setFamilyCircle(circle);
-                        setAuthState('authenticated');
-                    });
-                } else {
-                    setFamilyCircle(null);
-                    setAuthState('authenticated');
-                }
-
+                setAuthUser(initialUser);
+                // If we were not authenticated before, we are now.
+                // We don't set 'authenticated' yet, we wait for the user data subscription.
             } else {
+                setAuthUser(null);
                 setCurrentUser(null);
                 setFamilyCircle(null);
+                setViewingAsUserId(null);
                 setAuthState('unauthenticated');
             }
         });
         return () => {
             unsubscribeAuth();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!authUser) return;
+
+        let unsubscribeUser: (() => void) | null = null;
+        let unsubscribeFamily: (() => void) | null = null;
+        let subscribedFamilyId: string | null = null;
+
+        const targetUserId = viewingAsUserId || authUser.id;
+
+        setAuthState('loading');
+
+        unsubscribeUser = onUserUpdate(targetUserId, (updatedUser) => {
+            if (updatedUser) {
+                // Preserve emailVerified from initial auth if not in firestore (it usually isn't)
+                // Only if we are viewing the auth user
+                const isAuthUser = updatedUser.id === authUser.id;
+                const userToSet = isAuthUser ? { ...updatedUser, emailVerified: authUser.emailVerified } : updatedUser;
+
+                setCurrentUser(userToSet);
+
+                // Handle family circle subscription
+                if (updatedUser.familyCircleId) {
+                    // Subscribe if we haven't yet, or if the ID changed
+                    if (!unsubscribeFamily || subscribedFamilyId !== updatedUser.familyCircleId) {
+                        if (unsubscribeFamily) unsubscribeFamily();
+
+                        subscribedFamilyId = updatedUser.familyCircleId;
+                        unsubscribeFamily = onFamilyCircleUpdate(updatedUser.familyCircleId, (circle) => {
+                            setFamilyCircle(circle);
+                            setAuthState('authenticated');
+                        });
+                    } else {
+                        // Already subscribed to this family, just ensure we are authenticated
+                        // This handles cases where user updates but family stays same
+                        setAuthState('authenticated');
+                    }
+                } else {
+                    if (unsubscribeFamily) {
+                        unsubscribeFamily();
+                        unsubscribeFamily = null;
+                        subscribedFamilyId = null;
+                    }
+                    setFamilyCircle(null);
+                    setAuthState('authenticated');
+                }
+            } else {
+                // User document not found? Should not happen for valid users.
+                // If we are impersonating and the user is gone, revert.
+                if (viewingAsUserId) {
+                    setViewingAsUserId(null);
+                }
+            }
+        });
+
+        return () => {
             if (unsubscribeUser) unsubscribeUser();
             if (unsubscribeFamily) unsubscribeFamily();
         };
-    }, []);
+    }, [authUser, viewingAsUserId]); // Re-run when authUser or viewingAsUserId changes
 
     const signOut = () => {
         signOutUser();
@@ -147,8 +162,19 @@ const App: React.FC = () => {
     }, []);
 
     const updateCurrentUser = useCallback((userData: Partial<User>) => {
+        // We only update the 'currentUser' state locally here for optimistic UI, 
+        // but the actual update should happen via service calls which will trigger the subscription.
+        // However, the context exposes this, so we keep it.
         setCurrentUser(prevUser => prevUser ? { ...prevUser, ...userData } : null);
     }, []);
+
+    const switchProfile = useCallback((userId: string) => {
+        if (authUser && userId === authUser.id) {
+            setViewingAsUserId(null);
+        } else {
+            setViewingAsUserId(userId);
+        }
+    }, [authUser]);
 
     const appContextValue = useMemo(() => ({
         currentUser,
@@ -160,7 +186,10 @@ const App: React.FC = () => {
         signOut,
         setFamilyCircle,
         updateCurrentUser,
-    }), [currentUser, familyCircle, addReply, deleteReply, addChallenge, deleteChallenge, updateCurrentUser]);
+        switchProfile,
+        isImpersonating: !!viewingAsUserId,
+        originalUserId: authUser?.id
+    }), [currentUser, familyCircle, addReply, deleteReply, addChallenge, deleteChallenge, updateCurrentUser, switchProfile, viewingAsUserId, authUser]);
 
 
     const renderContent = () => {

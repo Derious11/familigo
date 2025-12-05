@@ -2,26 +2,31 @@ import React from 'react';
 
 interface PrivacyPolicyProps {
     onBack: () => void;
+    className?: string;
+    hideHeader?: boolean;
+    hideFooter?: boolean;
 }
 
-const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
+const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack, className, hideHeader = false, hideFooter = false }) => {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-h-[85vh] overflow-y-auto w-full max-w-3xl border border-gray-100 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-8 sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm pb-4 border-b border-gray-100 dark:border-gray-700 z-10">
-                <div>
-                    <h2 className="text-3xl font-extrabold text-brand-blue tracking-tight">Privacy Policy</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last updated: 11/23/2025</p>
+        <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-h-[85vh] overflow-y-auto w-full max-w-3xl border border-gray-100 dark:border-gray-700 ${className || ''}`}>
+            {!hideHeader && (
+                <div className="flex justify-between items-center mb-8 sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm pb-4 border-b border-gray-100 dark:border-gray-700 z-10">
+                    <div>
+                        <h2 className="text-3xl font-extrabold text-brand-blue tracking-tight">Privacy Policy</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last updated: 11/23/2025</p>
+                    </div>
+                    <button
+                        onClick={onBack}
+                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        aria-label="Close"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
-                <button
-                    onClick={onBack}
-                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                    aria-label="Close"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+            )}
 
             <div className="prose dark:prose-invert max-w-none text-left text-gray-600 dark:text-gray-300">
                 <p className="mb-6 leading-relaxed">
@@ -190,14 +195,16 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
                 </section>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-                <button
-                    onClick={onBack}
-                    className="bg-brand-blue hover:bg-blue-600 text-white font-bold py-2.5 px-8 rounded-lg shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105 active:scale-95"
-                >
-                    Close
-                </button>
-            </div>
+            {!hideFooter && (
+                <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                    <button
+                        onClick={onBack}
+                        className="bg-brand-blue hover:bg-blue-600 text-white font-bold py-2.5 px-8 rounded-lg shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105 active:scale-95"
+                    >
+                        Close
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
