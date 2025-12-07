@@ -11,11 +11,11 @@ interface CreateChallengeModalProps {
 
 // --- VISUAL PRESETS ---
 const EXERCISE_PRESETS = [
-    { name: 'Pushups', emoji: '💪', defaultTarget: '20 Reps', defaultUnit: 'Reps' },
+    { name: 'Push-ups', emoji: '💪', defaultTarget: '20 Reps', defaultUnit: 'Reps' },
     { name: 'Squats', emoji: '🏋️', defaultTarget: '30 Reps', defaultUnit: 'Reps' },
     { name: 'Plank', emoji: '⏱️', defaultTarget: '1 Minute', defaultUnit: 'Minutes' },
     { name: 'Run', emoji: '🏃', defaultTarget: '1 Mile', defaultUnit: 'Miles' },
-    { name: 'Walk', emoji: '🚶', defaultTarget: '30 Minutes', defaultUnit: 'Minutes' },
+    { name: 'Go for a Walk', emoji: '🚶', defaultTarget: '30 Minutes', defaultUnit: 'Minutes' },
     { name: 'Burpees', emoji: '🔥', defaultTarget: '15 Reps', defaultUnit: 'Reps' },
 ];
 

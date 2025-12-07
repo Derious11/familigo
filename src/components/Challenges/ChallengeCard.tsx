@@ -44,8 +44,8 @@ const Countdown: React.FC<{ expiryDate: Date }> = ({ expiryDate }) => {
 
     return (
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isUrgent
-                ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
-                : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+            ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+            : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
             }`}>
             <ClockIcon className="w-3 h-3" />
             {timeLeft}
@@ -244,6 +244,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                     )}
                 </div>
 
+                {/* Right Side Thumbnail */}
                 {/* Right Side Thumbnail */}
                 {challenge.mediaUrl && (
                     <div className="w-24 h-24 flex-shrink-0">
@@ -447,8 +448,8 @@ const ReplyCard: React.FC<{
                                     key={emoji}
                                     onClick={() => onReact(reply.id, emoji)}
                                     className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${(reply.reactions[emoji] || 0) > 0
-                                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30'
-                                            : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30'
+                                        : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                                         }`}
                                 >
                                     {emoji} {(reply.reactions[emoji] || 0) > 0 && reply.reactions[emoji]}
