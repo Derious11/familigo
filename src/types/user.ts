@@ -12,6 +12,7 @@ export interface User {
     id: string;
     name: string;
     email?: string; // Optional for child accounts
+    isAdmin?: boolean; // From Firebase Custom Claims
     role?: UserRole;
     birthDate?: Date;
     parentId?: string; // For teens and children

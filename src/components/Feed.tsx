@@ -9,13 +9,24 @@ const Feed: React.FC = () => {
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const [error, setError] = useState<string | null>(null);
+
     useEffect(() => {
         if (!context?.familyCircle) return;
 
-        const unsubscribe = onChallengesUpdate(context.familyCircle.id, (newChallenges) => {
-            setChallenges(newChallenges);
-            setIsLoading(false);
-        });
+        // console.log("Feed: subscribing to challenges for family:", context.familyCircle.id);
+        const unsubscribe = onChallengesUpdate(
+            context.familyCircle.id,
+            (newChallenges) => {
+                setChallenges(newChallenges);
+                setIsLoading(false);
+            },
+            (err) => {
+                console.error("Feed: error loading challenges:", err);
+                setError(err.message);
+                setIsLoading(false);
+            }
+        );
 
         return () => unsubscribe();
     }, [context?.familyCircle]);

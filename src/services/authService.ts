@@ -55,9 +55,13 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
                     userData.lastActiveDate = userData.lastActiveDate.toDate();
                 }
 
+                const idTokenResult = await firebaseUser.getIdTokenResult(true);
+                const isAdmin = !!idTokenResult.claims.admin;
+
                 const user: User = {
                     id: firebaseUser.uid,
                     emailVerified: firebaseUser.emailVerified,
+                    isAdmin,
                     ...userData,
                 } as User;
 

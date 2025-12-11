@@ -18,8 +18,13 @@ import {
 import { db } from '../firebaseConfig';
 import { User, Badge } from '../types';
 
+import { auth } from '../firebaseConfig';
+
 export const onUserUpdate = (userId: string, callback: (user: User | null) => void): (() => void) => {
+    // console.log(`[UserService] Listening to user doc: ${userId}`);
+
     const userDocRef = doc(db, 'users', userId);
+
     return onSnapshot(userDocRef, (docSnapshot) => {
         if (docSnapshot.exists()) {
             const userData = docSnapshot.data();
@@ -39,7 +44,7 @@ export const onUserUpdate = (userId: string, callback: (user: User | null) => vo
 
             const user: User = {
                 id: docSnapshot.id,
-                emailVerified: userData.emailVerified, // Ensure this is preserved if in doc, else might need to merge from auth? 
+                emailVerified: userData.emailVerified,
                 // Note: emailVerified is usually on Auth object, but we might store it or not. 
                 // For now, assume it's merged in App.tsx or we just take what's in Firestore + ID.
                 ...userData,
@@ -49,6 +54,9 @@ export const onUserUpdate = (userId: string, callback: (user: User | null) => vo
         } else {
             callback(null);
         }
+    }, (error) => {
+        console.error(`[UserService] Error listening to user ${userId}:`, error);
+        // We might want to notify the UI or force a sign-out if permission is lost
     });
 };
 
@@ -173,7 +181,7 @@ export const addXp = async (userId: string, amount: number): Promise<void> => {
 
     const userData = userDoc.data() as User;
     const currentXp = userData.xp || 0;
-    const currentLevel = userData.level || 1;
+    // const currentLevel = userData.level || 1; // Unused variable
     const newXp = currentXp + amount;
 
     // Simple leveling formula: Level = floor(sqrt(XP / 100)) + 1

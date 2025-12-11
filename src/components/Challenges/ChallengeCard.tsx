@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { AppContext } from '../../App';
-import { Challenge, Reply, User } from '../../types';
+import { Challenge, Reply } from '../../types';
 import { onRepliesUpdate, updateReaction } from '../../services/challengeService';
 import LogWeightReplyModal from './LogWeightReplyModal';
 import LogActivityModal from './LogActivityModal';
@@ -86,12 +86,18 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
     // Load Replies
     useEffect(() => {
-        const unsubscribe = onRepliesUpdate(challenge.id, setReplies);
+        // FIX: Pass familyCircleId to satisfy the new query requirements
+        const unsubscribe = onRepliesUpdate(
+            challenge.id,
+            challenge.familyCircleId,
+            setReplies
+        );
+
         return () => {
             unsubscribe();
             try { confetti.reset(); } catch (e) { /* ignore */ }
         };
-    }, [challenge.id]);
+    }, [challenge.id, challenge.familyCircleId]);
 
     // Organize Replies (Threaded)
     const { topLevelReplies, repliesByParent } = useMemo(() => {
@@ -244,7 +250,6 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                     )}
                 </div>
 
-                {/* Right Side Thumbnail */}
                 {/* Right Side Thumbnail */}
                 {challenge.mediaUrl && (
                     <div className="w-24 h-24 flex-shrink-0">

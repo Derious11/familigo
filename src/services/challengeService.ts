@@ -4,7 +4,7 @@ import {
     updateDoc,
     collection,
     query,
-    where,
+    where, // <--- CRITICAL IMPORT
     addDoc,
     getDocs,
     serverTimestamp,
@@ -27,8 +27,13 @@ export const getExercises = async (): Promise<Exercise[]> => {
     return snapshot.docs.map(doc => doc.data() as Exercise);
 };
 
-export const onChallengesUpdate = (familyCircleId: string, callback: (challenges: Challenge[]) => void): (() => void) => {
-    const q = query(collection(db, 'challenges'), where('familyCircleId', '==', familyCircleId));
+export const onChallengesUpdate = (familyCircleId: string, callback: (challenges: Challenge[]) => void, onError?: (error: Error) => void): (() => void) => {
+    // SECURITY FIX: Added where('familyCircleId', '==', familyCircleId)
+    const q = query(
+        collection(db, 'challenges'),
+        where('familyCircleId', '==', familyCircleId),
+        // orderBy('timestamp', 'desc') // Ensure you have an index for familyCircleId + timestamp
+    );
 
     return onSnapshot(q, (querySnapshot) => {
         const challenges = querySnapshot.docs.map(doc => {
@@ -39,17 +44,27 @@ export const onChallengesUpdate = (familyCircleId: string, callback: (challenges
                 id: doc.id,
                 ...data,
                 timestamp: timestamp ? timestamp.toDate() : new Date(),
-                expiresAt: expiresAt ? expiresAt.toDate() : new Date(Date.now() + 48 * 60 * 60 * 1000), // Fallback
+                expiresAt: expiresAt ? expiresAt.toDate() : new Date(Date.now() + 48 * 60 * 60 * 1000),
                 completedBy: data.completedBy || [],
             } as Challenge
         });
+        // Client-side sort is safer if index is missing
         challenges.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
         callback(challenges);
+    }, (error) => {
+        console.error("[ChallengeService] Snapshot error:", error);
+        if (onError) onError(error);
     });
 };
 
-export const onRepliesUpdate = (challengeId: string, callback: (replies: Reply[]) => void): (() => void) => {
-    const q = query(collection(db, 'replies'), where('challengeId', '==', challengeId));
+// SECURITY FIX: Added familyCircleId parameter
+export const onRepliesUpdate = (challengeId: string, familyCircleId: string, callback: (replies: Reply[]) => void): (() => void) => {
+    // SECURITY FIX: Must filter by familyCircleId to satisfy rules
+    const q = query(
+        collection(db, 'replies'),
+        where('challengeId', '==', challengeId),
+        where('familyCircleId', '==', familyCircleId)
+    );
 
     return onSnapshot(q, (querySnapshot) => {
         const replies = querySnapshot.docs.map(doc => {
@@ -80,7 +95,11 @@ export const addChallengeToFamily = async (
     const batch = writeBatch(db);
     const challengesRef = collection(db, 'challenges');
 
-    const userChallengesQuery = query(challengesRef, where('challenger.id', '==', challenger.id));
+    const userChallengesQuery = query(
+        challengesRef,
+        where('challenger.id', '==', challenger.id),
+        where('familyCircleId', '==', familyCircleId)
+    );
     const userChallengesSnapshot = await getDocs(userChallengesQuery);
     const isFirstChallenge = userChallengesSnapshot.empty;
 
@@ -91,7 +110,7 @@ export const addChallengeToFamily = async (
             name: challenger.name,
             avatarUrl: challenger.avatarUrl
         },
-        familyCircleId,
+        familyCircleId, // This field allows the Read/Write
         exercise,
         target,
         type,
@@ -131,18 +150,6 @@ export const addChallengeToFamily = async (
     }
 
     await batch.commit();
-
-    // Send notifications to other family members
-    // Notifications are now handled by Cloud Functions
-    // const circleDoc = await getDoc(doc(db, 'familyCircles', familyCircleId));
-    // if (circleDoc.exists()) {
-    //     const memberIds = circleDoc.data().memberIds as string[];
-    //     const recipientIds = memberIds.filter(id => id !== challenger.id);
-    //     const tokens = await getUserTokens(recipientIds);
-    //     if (tokens.length > 0) {
-    //         sendPushNotification(tokens, 'New Challenge!', `${challenger.name} challenged you to ${exercise.name}!`);
-    //     }
-    // }
 };
 
 export const addReplyToChallenge = async (
@@ -165,7 +172,7 @@ export const addReplyToChallenge = async (
             avatarUrl: user.avatarUrl,
         },
         challengeId,
-        familyCircleId,
+        familyCircleId, // Essential for Security Rules
         reactions: {},
         timestamp: serverTimestamp(),
     };
@@ -178,14 +185,12 @@ export const addReplyToChallenge = async (
 
     const challengeRef = doc(db, 'challenges', challengeId);
 
-    // Only mark challenge as completed if it's an explicit completion action
     if (isCompletion) {
         batch.update(challengeRef, {
             completedBy: arrayUnion(user.id)
         });
     }
 
-    // If there is a contribution value, update the challenge total
     if (contributionValue) {
         batch.update(challengeRef, {
             currentTotal: increment(contributionValue)
@@ -194,56 +199,57 @@ export const addReplyToChallenge = async (
 
     await batch.commit();
 
-    // Award XP to the user
-    // +10 XP for a reply
-    // +1 XP per unit if contributionValue is present
     let xpAmount = 10;
     if (contributionValue) {
-        xpAmount += contributionValue; // Simple 1:1 ratio for now, can be tuned
+        xpAmount += contributionValue;
     }
     await addXp(user.id, xpAmount);
 };
 
-export const deleteReply = async (replyId: string): Promise<void> => {
-    // First, find all children of this reply
-    const childrenQuery = query(collection(db, 'replies'), where('parentId', '==', replyId));
+// SECURITY FIX: Added familyCircleId parameter
+export const deleteReply = async (replyId: string, familyCircleId: string): Promise<void> => {
+    // SECURITY FIX: Must filter children by familyCircleId too
+    const childrenQuery = query(
+        collection(db, 'replies'),
+        where('parentId', '==', replyId),
+        where('familyCircleId', '==', familyCircleId)
+    );
     const childrenSnapshot = await getDocs(childrenQuery);
 
     const batch = writeBatch(db);
 
-    // Delete all children recursively
     if (!childrenSnapshot.empty) {
         for (const childDoc of childrenSnapshot.docs) {
-            // This simple implementation deletes direct children.
-            // For deeply nested replies, a more complex recursive function would be needed.
-            // For this app's scope, deleting one level down is sufficient.
             batch.delete(childDoc.ref);
         }
     }
 
-    // Then delete the parent reply itself
     const replyRef = doc(db, 'replies', replyId);
     batch.delete(replyRef);
 
     await batch.commit();
 };
 
-
-export const deleteChallengeAndReplies = async (challengeId: string): Promise<void> => {
+// SECURITY FIX: Added familyCircleId parameter
+export const deleteChallengeAndReplies = async (challengeId: string, familyCircleId: string): Promise<void> => {
     const batch = writeBatch(db);
 
-    // 1. Delete the challenge document
+    // 1. Delete the challenge
     const challengeRef = doc(db, 'challenges', challengeId);
     batch.delete(challengeRef);
 
-    // 2. Find and delete all associated replies
-    const repliesQuery = query(collection(db, 'replies'), where('challengeId', '==', challengeId));
+    // 2. Delete replies (SECURELY)
+    const repliesQuery = query(
+        collection(db, 'replies'),
+        where('challengeId', '==', challengeId),
+        where('familyCircleId', '==', familyCircleId) // <--- THIS WAS THE MISSING KEY
+    );
+
     const repliesSnapshot = await getDocs(repliesQuery);
     repliesSnapshot.forEach(replyDoc => {
         batch.delete(replyDoc.ref);
     });
 
-    // 3. Commit the batch
     await batch.commit();
 };
 
