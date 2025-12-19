@@ -101,7 +101,8 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) =>
                 teenName,
                 parentName: currentUser.name,
                 inviteCode: familyCircle.inviteCode,
-                familyName: familyCircle.name
+                familyName: familyCircle.name,
+                familyCircleId: familyCircle.id,
             });
             alert(`Invite sent to ${teenName}!`);
             setTeenEmail('');

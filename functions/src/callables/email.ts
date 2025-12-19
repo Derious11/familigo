@@ -17,9 +17,9 @@ export const sendTeenInviteEmail = functions.https.onCall(
       );
     }
 
-    const { email, inviteCode, familyName, teenName, parentName } = data;
+    const { email, inviteCode, familyName, teenName, parentName, familyCircleId } = data;
 
-    if (!email || !inviteCode || !familyName || !teenName || !parentName) {
+    if (!email || !inviteCode || !familyName || !teenName || !parentName || !familyCircleId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
         "Missing required fields."
@@ -36,7 +36,7 @@ export const sendTeenInviteEmail = functions.https.onCall(
 
     const resend = new Resend(resendApiKey);
 
-    const inviteLink = `https://familigo-11643.web.app/join?inviteCode=${inviteCode}`;
+    const inviteLink = `https://familigo-11643.web.app/claim-invite?code=${inviteCode}`;
 
     try {
       const payload = {
@@ -50,6 +50,7 @@ export const sendTeenInviteEmail = functions.https.onCall(
             parentName,
             familyName,
             inviteLink,
+            familyCircleId,
           },
         },
       };

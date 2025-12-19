@@ -82,7 +82,15 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
     });
 };
 
-export const signUpWithEmail = async (name: string, email: string, pass: string, role: UserRole = 'adult', birthDate?: Date): Promise<{ user: User | null, error: string | null }> => {
+export const signUpWithEmail = async (
+    name: string,
+    email: string,
+    pass: string,
+    role: UserRole = 'adult',
+    birthDate?: Date,
+    earlyAccessData?: User['earlyAccessData'],
+    inviteContext?: User['inviteContext']
+): Promise<{ user: User | null, error: string | null }> => {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
         const { user } = userCredential;
@@ -103,14 +111,25 @@ export const signUpWithEmail = async (name: string, email: string, pass: string,
             weightUnit: 'lbs',
             weightHistory: [],
             notificationTokens: [],
+            // Default new parent signups to pending_approval if they have early access data
+            // or if we enforce it for all parents. For now, let's tie it to earlyAccessData presence or role.
+            status: role === 'adult' ? 'pending_approval' : 'active',
+            earlyAccessData,
+            inviteContext,
+            familyCircleId: inviteContext?.familyCircleId,
         };
 
         await setDoc(doc(db, 'users', user.uid), newUser);
 
         return { user: { id: user.uid, ...newUser, emailVerified: user.emailVerified }, error: null };
-    } catch (error: any) {
-        return { user: null, error: error.message };
     }
+    catch (error: any) {
+        if (error.code === "auth/email-already-in-use") {
+            return { user: null, error: "An account with this email already exists." };
+        }
+        return { user: null, error: "Unable to create account. Please try again." };
+    }
+
 };
 
 export const signInWithEmail = async (email: string, pass: string): Promise<{ user: User | null, error: string | null }> => {
@@ -123,7 +142,10 @@ export const signInWithEmail = async (email: string, pass: string): Promise<{ us
     }
 };
 
-export const signInWithGoogle = async (): Promise<{ user: User | null, error: string | null }> => {
+export const signInWithGoogle = async (
+    role: UserRole = 'adult',
+    earlyAccessData?: User['earlyAccessData']
+): Promise<{ user: User | null, error: string | null }> => {
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);
@@ -137,7 +159,7 @@ export const signInWithGoogle = async (): Promise<{ user: User | null, error: st
             const newUser: Omit<User, 'id' | 'emailVerified'> = {
                 name: user.displayName || 'New User',
                 email: user.email!,
-                role: 'adult', // Default to adult for Google Sign In for now
+                role: role,
                 birthDate: new Date(), // Default to today or handle later
                 avatarUrl: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
                 streak: 1,
@@ -146,8 +168,16 @@ export const signInWithGoogle = async (): Promise<{ user: User | null, error: st
                 weightUnit: 'lbs',
                 weightHistory: [],
                 notificationTokens: [],
+                // Default new parent signups to pending_approval if they have early access data
+                status: role === 'adult' ? 'pending_approval' : 'active',
+                earlyAccessData: earlyAccessData
             };
             await setDoc(doc(db, 'users', user.uid), newUser);
+        } else {
+            // Existing user - logic is handled by onAuthStateChanged
+            // If we assume account linking is automatic, we don't need to do manual linking here.
+            // However, we might want to update early access data if it's missing? 
+            // For now, let's keep it simple: existing users just log in.
         }
 
         // onAuthStateChanged will handle the rest

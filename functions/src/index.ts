@@ -3,8 +3,10 @@ import {
   onReplyCreated,
   onMessageCreated,
 } from "./triggers/notifications";
-import {generateThumbnail} from "./triggers/storage";
-import {sendTeenInviteEmail} from "./callables/email";
+import { generateThumbnail } from "./triggers/storage";
+import { onUserStatusChanged } from "./triggers/users";
+import { sendTeenInviteEmail } from "./callables/email";
+import { validateTeenInvite } from "./callables/validateTeenInvite";
 
 // Export triggers
 export {
@@ -12,9 +14,11 @@ export {
   onReplyCreated,
   onMessageCreated,
   generateThumbnail,
+  onUserStatusChanged,
 };
 
 // Export callables
 export {
   sendTeenInviteEmail,
+  validateTeenInvite,
 };

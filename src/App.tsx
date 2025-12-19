@@ -18,7 +18,6 @@ import { onFamilyCircleUpdate } from './services/familyService';
 import {
     addChallengeToFamily,
     addReplyToChallenge,
-    // Alias the import to avoid naming conflicts with the local function
     deleteReply as deleteReplyFromFirestore,
     deleteChallengeAndReplies
 } from './services/challengeService';
@@ -33,6 +32,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 
 import PrivacyPolicy from './components/Auth/PrivacyPolicy';
 import DeleteAccount from './components/Auth/DeleteAccount';
+import PendingApproval from './components/Auth/PendingApproval';
 
 import LandingPageA from './components/Auth/LandingPageA';
 import LandingPageB from './components/Auth/LandingPageB';
@@ -42,13 +42,14 @@ import ParentsLanding from './pages/ParentsLanding';
 import TeensLanding from './pages/TeensLanding';
 import EarlyAccess from './pages/EarlyAccess';
 import AdminPage from './pages/AdminPage';
+import InviteParent from './pages/InviteParent';
+import ClaimInvite from './pages/ClaimInvite';
 
 export const AppContext = React.createContext(null);
 
-
 /* ============================================================================
    ROUTING HELPER
-   ============================================================================ */
+============================================================================ */
 const getPublicRoute = () => {
     const path = window.location.pathname.toLowerCase();
 
@@ -61,20 +62,19 @@ const getPublicRoute = () => {
     if (path === '/') return 'role-gate';
     if (path === '/parents') return 'parents';
     if (path === '/teens') return 'teens';
+    if (path === '/invite-parent') return 'invite-parent';
     if (path === '/early-access') return 'early-access';
     if (path === '/login') return 'login';
+    if (path === '/claim-invite') return 'claim-invite';
 
-    // Authenticated section
     if (path.startsWith('/app')) return 'app';
 
     return 'unknown';
 };
 
-
 /* ============================================================================
    MAIN APP
-   ============================================================================ */
-
+============================================================================ */
 const App: React.FC = () => {
     const [authState, setAuthState] = useState<AuthState>('loading');
     const [authUser, setAuthUser] = useState<User | null>(null);
@@ -82,12 +82,11 @@ const App: React.FC = () => {
     const [familyCircle, setFamilyCircle] = useState<FamilyCircle | null>(null);
     const [viewingAsUserId, setViewingAsUserId] = useState<string | null>(null);
 
-
     /* ------------------------------------------------------------------------
        AUTH LISTENER
-       ------------------------------------------------------------------------ */
+    ------------------------------------------------------------------------ */
     useEffect(() => {
-        const unsub = onAuthStateChanged(async (firebaseUser) => {
+        const unsub = onAuthStateChanged((firebaseUser) => {
             if (firebaseUser) {
                 setAuthUser(firebaseUser);
             } else {
@@ -101,15 +100,14 @@ const App: React.FC = () => {
         return () => unsub();
     }, []);
 
-
     /* ------------------------------------------------------------------------
        USER + FAMILY SUBSCRIPTIONS
-       ------------------------------------------------------------------------ */
+    ------------------------------------------------------------------------ */
     useEffect(() => {
         if (!authUser) return;
 
-        let unsubUser = null;
-        let unsubFamily = null;
+        let unsubUser: (() => void) | null = null;
+        let unsubFamily: (() => void) | null = null;
         let subscribedFamilyId: string | null = null;
 
         const targetUserId = viewingAsUserId || authUser.id;
@@ -129,7 +127,6 @@ const App: React.FC = () => {
 
             setCurrentUser(mergedUser);
 
-            // Family circle subscription
             if (updatedUser.familyCircleId) {
                 if (!unsubFamily || subscribedFamilyId !== updatedUser.familyCircleId) {
                     if (unsubFamily) unsubFamily();
@@ -158,17 +155,26 @@ const App: React.FC = () => {
         };
     }, [authUser, viewingAsUserId]);
 
-
     /* ------------------------------------------------------------------------
        CLEAN URL REDIRECTS
-       ------------------------------------------------------------------------ */
+    ------------------------------------------------------------------------ */
     useEffect(() => {
         if (authState !== 'authenticated') return;
 
         const path = window.location.pathname.toLowerCase();
 
+        // Approved users should never see auth/funnel pages
+        if (
+            currentUser?.status === 'active' &&
+            (path === '/login' ||
+                path === '/early-access' ||
+                path === '/invite-parent')
+        ) {
+            window.history.replaceState({}, '', '/app');
+        }
+
         // After login → redirect into app
-        if (path === '/login' || path === '/signin' || path === '/auth') {
+        if (path === '/login') {
             window.history.replaceState({}, '', '/app');
         }
 
@@ -178,100 +184,86 @@ const App: React.FC = () => {
         }
     }, [authState, currentUser, familyCircle]);
 
-
     /* ------------------------------------------------------------------------
        CONTEXT ACTIONS
-       ------------------------------------------------------------------------ */
-
+    ------------------------------------------------------------------------ */
     const signOut = () => signOutUser();
 
-    const addReply = useCallback(
-        async (
-            challengeId: string,
-            payload: AddReplyPayload,
-            parentId?: string,
-            isCompletion: boolean = false,
-            contributionValue?: number
-        ) => {
-            if (!currentUser || !familyCircle) return;
+    const addReply = useCallback(async (
+        challengeId: string,
+        payload: AddReplyPayload,
+        parentId?: string,
+        isCompletion = false,
+        contributionValue?: number
+    ) => {
+        if (!currentUser || !familyCircle) return;
 
-            let mediaUrl: string | undefined;
-            if (payload.image) {
-                mediaUrl = await uploadReplyImage(payload.image);
-            }
+        let mediaUrl: string | undefined;
+        if (payload.image) {
+            mediaUrl = await uploadReplyImage(payload.image);
+        }
 
-            await addReplyToChallenge(
-                currentUser,
-                challengeId,
-                familyCircle.id,
-                mediaUrl,
-                payload.text,
-                parentId,
-                isCompletion,
-                contributionValue
-            );
-        },
-        [currentUser, familyCircle]
-    );
+        await addReplyToChallenge(
+            currentUser,
+            challengeId,
+            familyCircle.id,
+            mediaUrl,
+            payload.text,
+            parentId,
+            isCompletion,
+            contributionValue
+        );
+    }, [currentUser, familyCircle]);
 
-    // FIX: Uses the alias 'deleteReplyFromFirestore' and passes familyCircle.id
     const deleteReply = useCallback(async (replyId: string) => {
         if (!familyCircle) return;
         await deleteReplyFromFirestore(replyId, familyCircle.id);
     }, [familyCircle]);
 
-    const addChallenge = useCallback(
-        async (
-            exercise: Exercise,
-            target: string,
-            mediaUrl?: string,
-            type: 'individual' | 'team' = 'individual',
-            goalTotal?: number,
-            unit?: string,
-            durationDays?: number
-        ) => {
-            if (!currentUser || !familyCircle) return;
+    const addChallenge = useCallback(async (
+        exercise: Exercise,
+        target: string,
+        mediaUrl?: string,
+        type: 'individual' | 'team' = 'individual',
+        goalTotal?: number,
+        unit?: string,
+        durationDays?: number
+    ) => {
+        if (!currentUser || !familyCircle) return;
 
-            await addChallengeToFamily(
-                currentUser,
-                familyCircle.id,
-                exercise,
-                target,
-                mediaUrl,
-                type,
-                goalTotal,
-                unit,
-                durationDays
-            );
-        },
-        [currentUser, familyCircle]
-    );
+        await addChallengeToFamily(
+            currentUser,
+            familyCircle.id,
+            exercise,
+            target,
+            mediaUrl,
+            type,
+            goalTotal,
+            unit,
+            durationDays
+        );
+    }, [currentUser, familyCircle]);
 
-    // FIX: Added safety check and dependency
     const deleteChallenge = useCallback(async (challengeId: string) => {
         if (!familyCircle) return;
         await deleteChallengeAndReplies(challengeId, familyCircle.id);
     }, [familyCircle]);
 
     const updateCurrentUser = useCallback((data: Partial<User>) => {
-        setCurrentUser((prev) => (prev ? { ...prev, ...data } : null));
+        setCurrentUser(prev => (prev ? { ...prev, ...data } : null));
     }, []);
 
-    const switchProfile = useCallback(
-        (userId: string) => {
-            if (authUser && userId === authUser.id) {
-                setViewingAsUserId(null);
-            } else {
-                setViewingAsUserId(userId);
-            }
-        },
-        [authUser]
-    );
-
+    const switchProfile = useCallback((userId: string) => {
+        if (authUser && userId === authUser.id) {
+            setViewingAsUserId(null);
+        } else {
+            setViewingAsUserId(userId);
+        }
+    }, [authUser]);
 
     /* ------------------------------------------------------------------------
        CONTEXT VALUE
-       ------------------------------------------------------------------------ */
+    ------------------------------------------------------------------------ */
     const contextValue = useMemo(() => ({
         currentUser,
         familyCircle,
@@ -285,37 +277,30 @@ const App: React.FC = () => {
         switchProfile,
         isImpersonating: !!viewingAsUserId,
         originalUserId: authUser?.id
-    }),
-        [
-            currentUser,
-            familyCircle,
-            addReply,
-            deleteReply,
-            addChallenge,
-            deleteChallenge,
-            updateCurrentUser,
-            switchProfile,
-            viewingAsUserId,
-            authUser
-        ]);
-
+    }), [
+        currentUser,
+        familyCircle,
+        addReply,
+        deleteReply,
+        addChallenge,
+        deleteChallenge,
+        updateCurrentUser,
+        switchProfile,
+        viewingAsUserId,
+        authUser
+    ]);
 
     /* ------------------------------------------------------------------------
        ROUTING
-       ------------------------------------------------------------------------ */
-
+    ------------------------------------------------------------------------ */
     const route = getPublicRoute();
     let content = null;
 
     // PUBLIC ROUTES
     if (route === 'privacy') {
-        content = (
-            <PrivacyPolicy onBack={() => (window.location.href = '/')} />
-        );
+        content = <PrivacyPolicy onBack={() => (window.location.href = '/')} />;
     } else if (route === 'delete-account') {
-        content = (
-            <DeleteAccount onBack={() => (window.location.href = '/')} />
-        );
+        content = <DeleteAccount onBack={() => (window.location.href = '/')} />;
     } else if (route === 'landing-a') {
         content = <LandingPageA />;
     } else if (route === 'landing-b') {
@@ -326,6 +311,10 @@ const App: React.FC = () => {
         content = <ParentsLanding />;
     } else if (route === 'teens') {
         content = <TeensLanding />;
+    } else if (route === 'invite-parent') {
+        content = <InviteParent />;
+    } else if (route === 'claim-invite') {
+        content = <ClaimInvite />;
     } else if (route === 'early-access') {
         content = <EarlyAccess />;
     } else if (authState === 'unauthenticated' && route === 'login') {
@@ -343,17 +332,16 @@ const App: React.FC = () => {
 
     // AUTHENTICATED ROUTES
     else if (authState === 'authenticated') {
-        const path = window.location.pathname.toLowerCase();
-
-        if (currentUser && !familyCircle) {
-            // onboarding
+        if (currentUser?.status === 'pending_approval') {
+            content = <PendingApproval />;
+        } else if (currentUser && !familyCircle) {
             content = (
                 <OnboardingFlow
                     user={currentUser}
                     setFamilyCircle={setFamilyCircle}
                 />
             );
-        } else if (path === '/app/admin') {
+        } else if (window.location.pathname.toLowerCase() === '/app/admin') {
             content = <AdminPage />;
         } else {
             content = <MainApp />;
@@ -372,10 +360,9 @@ const App: React.FC = () => {
     );
 };
 
-
 /* ============================================================================
-   FINAL EXPORT WRAPPER
-   ============================================================================ */
+   FINAL EXPORT
+============================================================================ */
 export default function WrappedApp() {
     return (
         <NotificationProvider>

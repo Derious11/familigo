@@ -201,9 +201,26 @@ export const addXp = async (userId: string, amount: number): Promise<void> => {
     const activityMap = userData.activityMap || {};
     const currentDayCount = activityMap[today] || 0;
 
+
     await updateDoc(userDocRef, {
         xp: newXp,
         level: newLevel,
         [`activityMap.${today}`]: currentDayCount + 1
+    });
+};
+
+export const getPendingUsers = async (): Promise<User[]> => {
+    const usersCol = collection(db, 'users');
+    const q = query(usersCol, where('status', '==', 'pending_approval'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+};
+
+export const approveUser = async (userId: string, adminId: string): Promise<void> => {
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, {
+        status: 'active',
+        approvedAt: serverTimestamp(),
+        approvedBy: adminId
     });
 };
