@@ -1,0 +1,44 @@
+diff --git a/storage.rules b/storage.rules
+index 2a8bb12efb39cae3337851dcb162255a2b66f9f9..b50851139302495010728d72a570517e5b709627 100644
+--- a/storage.rules
++++ b/storage.rules
+@@ -1,19 +1,36 @@
+ rules_version = '2';
+ service firebase.storage {
+   match /b/{bucket}/o {
++    function isSignedIn() {
++      return request.auth != null;
++    }
++
++    function getUser(userId) {
++      return get(/databases/(default)/documents/users/$(userId)).data;
++    }
++
++    function canWriteProfilePicture(userId) {
++      // Allow the user themself
++      if (!isSignedIn()) return false;
++      if (request.auth.uid == userId) return true;
++
++      // Allow a parent to write their child's profile picture
++      return getUser(userId).parentId == request.auth.uid;
++    }
++
+     match /profile-pictures/{userId} {
+       // Allow anyone to read profile pictures
+       allow read;
+-      // Only allow a user to write to their own profile picture path
+-      allow write: if request.auth != null && request.auth.uid == userId;
++      // Allow a user to write their own profile picture or a parent to write their child's
++      allow write: if canWriteProfilePicture(userId);
+     }
+ 
+     match /reply-images/{fileId} {
+-      allow read, write: if request.auth != null;
++      allow read, write: if isSignedIn();
+     }
+ 
+     match /{allPaths=**} {
+       allow read, write: if false;
+     }
+   }
+ }
