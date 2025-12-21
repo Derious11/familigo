@@ -43,20 +43,23 @@ const MainApp: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-brand-background dark:bg-gray-900 font-sans text-brand-text-primary dark:text-gray-100">
-            {currentUser && !currentUser.emailVerified && (
-                <div className="bg-yellow-100 border-b-2 border-yellow-300 dark:bg-yellow-900/50 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 p-3 text-center text-sm sticky top-0 z-50">
-                    {verificationEmailSent ? (
-                        <span>Verification email sent! Check your inbox.</span>
-                    ) : (
-                        <>
-                            Please check your email to verify your account.
-                            <button onClick={handleResendEmail} className="font-bold underline ml-2 hover:text-yellow-900 dark:hover:text-yellow-100">
-                                Resend email
-                            </button>
-                        </>
-                    )}
-                </div>
-            )}
+            {currentUser &&
+                currentUser.email &&
+                currentUser.role !== 'child' &&
+                !currentUser.emailVerified && (
+                    <div className="bg-yellow-100 border-b-2 border-yellow-300 dark:bg-yellow-900/50 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 p-3 text-center text-sm sticky top-0 z-50">
+                        {verificationEmailSent ? (
+                            <span>Verification email sent! Check your inbox.</span>
+                        ) : (
+                            <>
+                                Please check your email to verify your account.
+                                <button onClick={handleResendEmail} className="font-bold underline ml-2 hover:text-yellow-900 dark:hover:text-yellow-100">
+                                    Resend email
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
             <div className="max-w-2xl mx-auto pb-24">
                 <Header activeView={activeView} setActiveView={setActiveView} />
                 <main className="p-4">

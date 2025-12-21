@@ -45,7 +45,7 @@ import AdminPage from './pages/AdminPage';
 import InviteParent from './pages/InviteParent';
 import ClaimInvite from './pages/ClaimInvite';
 
-export const AppContext = React.createContext(null);
+export const AppContext = React.createContext<any>(null);
 
 /* ============================================================================
    ROUTING HELPER
@@ -101,7 +101,7 @@ const App: React.FC = () => {
     }, []);
 
     /* ------------------------------------------------------------------------
-       USER + FAMILY SUBSCRIPTIONS
+       USER + FAMILY SUBSCRIPTIONS (SAFE)
     ------------------------------------------------------------------------ */
     useEffect(() => {
         if (!authUser) return;
@@ -110,44 +110,68 @@ const App: React.FC = () => {
         let unsubFamily: (() => void) | null = null;
         let subscribedFamilyId: string | null = null;
 
-        const targetUserId = viewingAsUserId || authUser.id;
-        setAuthState('loading');
+        const startSubscriptions = (targetUserId: string) => {
+            // Reset state while switching
+            setAuthState('loading');
 
-        unsubUser = onUserUpdate(targetUserId, (updatedUser) => {
-            if (!updatedUser) return;
+            // Always clean old subs before starting new ones
+            if (unsubUser) unsubUser();
+            if (unsubFamily) unsubFamily();
+            unsubUser = null;
+            unsubFamily = null;
+            unsubUser = onUserUpdate(targetUserId, (updatedUser) => {
+                if (!updatedUser) {
+                    const isImpersonating = targetUserId !== authUser.id;
 
-            const isAuthUser = updatedUser.id === authUser.id;
-            const mergedUser = isAuthUser
-                ? {
-                    ...updatedUser,
-                    emailVerified: authUser.emailVerified,
-                    isAdmin: authUser.isAdmin
+                    if (isImpersonating) {
+                        setViewingAsUserId(null);
+                        return;
+                    }
+
+                    setCurrentUser(null);
+                    setFamilyCircle(null);
+                    setAuthState('authenticated');
+                    return;
                 }
-                : updatedUser;
 
-            setCurrentUser(mergedUser);
+                const isAuthUser = updatedUser.id === authUser.id;
+                const mergedUser = isAuthUser
+                    ? {
+                        ...updatedUser,
+                        emailVerified: authUser.emailVerified,
+                        isAdmin: (authUser as any).isAdmin,
+                    }
+                    : updatedUser;
 
-            if (updatedUser.familyCircleId) {
-                if (!unsubFamily || subscribedFamilyId !== updatedUser.familyCircleId) {
+                setCurrentUser(mergedUser);
+
+                const familyId = updatedUser.familyCircleId;
+
+                // 🔑 CASE 1: User has NO family → app is ready immediately
+                if (!familyId) {
+                    if (unsubFamily) unsubFamily();
+                    unsubFamily = null;
+                    subscribedFamilyId = null;
+                    setFamilyCircle(null);
+                    setAuthState('authenticated');
+                    return;
+                }
+
+                // 🔑 CASE 2: User HAS family → wait for family snapshot
+                if (!unsubFamily || subscribedFamilyId !== familyId) {
                     if (unsubFamily) unsubFamily();
 
-                    subscribedFamilyId = updatedUser.familyCircleId;
-                    unsubFamily = onFamilyCircleUpdate(
-                        updatedUser.familyCircleId,
-                        (circle) => {
-                            setFamilyCircle(circle);
-                            setAuthState('authenticated');
-                        }
-                    );
-                } else {
-                    setAuthState('authenticated');
+                    subscribedFamilyId = familyId;
+                    unsubFamily = onFamilyCircleUpdate(familyId, (circle) => {
+                        setFamilyCircle(circle);
+                        setAuthState('authenticated'); // ✅ ONLY HERE
+                    });
                 }
-            } else {
-                if (unsubFamily) unsubFamily();
-                setFamilyCircle(null);
-                setAuthState('authenticated');
-            }
-        });
+            });
+        };
+
+        const targetUserId = viewingAsUserId || authUser.id;
+        startSubscriptions(targetUserId);
 
         return () => {
             if (unsubUser) unsubUser();

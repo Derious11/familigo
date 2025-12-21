@@ -13,103 +13,144 @@ import {
     orderBy,
     onSnapshot,
     Timestamp,
-    getDoc
+    getDoc,
+    Unsubscribe
 } from "firebase/firestore";
-import { db } from '../firebaseConfig';
-import { User, Badge } from '../types';
+import { db } from "../firebaseConfig";
+import { User, Badge } from "../types";
 
-import { auth } from '../firebaseConfig';
+/* ============================================================
+   USER SNAPSHOT (PERMISSION-SAFE)
+   ============================================================ */
 
-export const onUserUpdate = (userId: string, callback: (user: User | null) => void): (() => void) => {
-    // console.log(`[UserService] Listening to user doc: ${userId}`);
+export const onUserUpdate = (
+    userId: string,
+    callback: (user: User | null) => void
+): Unsubscribe => {
 
-    const userDocRef = doc(db, 'users', userId);
+    const userRef = doc(db, "users", userId);
+    let unsub: Unsubscribe | null = null;
 
-    return onSnapshot(userDocRef, (docSnapshot) => {
-        if (docSnapshot.exists()) {
-            const userData = docSnapshot.data();
+    try {
+        unsub = onSnapshot(
+            userRef,
+            (snap) => {
+                if (!snap.exists()) {
+                    callback(null);
+                    return;
+                }
 
-            // Convert weightHistory timestamps
-            if (userData.weightHistory && Array.isArray(userData.weightHistory)) {
-                userData.weightHistory = userData.weightHistory.map((entry: any) => ({
-                    ...entry,
-                    timestamp: entry.timestamp instanceof Timestamp ? entry.timestamp.toDate() : new Date(),
-                }));
+                const data = snap.data();
+
+                // --- Normalize timestamps safely ---
+                if (Array.isArray(data.weightHistory)) {
+                    data.weightHistory = data.weightHistory.map((entry: any) => ({
+                        ...entry,
+                        timestamp:
+                            entry?.timestamp instanceof Timestamp
+                                ? entry.timestamp.toDate()
+                                : entry?.timestamp,
+                    }));
+                }
+
+                if (data.lastActiveDate instanceof Timestamp) {
+                    data.lastActiveDate = data.lastActiveDate.toDate();
+                }
+
+                const user: User = {
+                    id: snap.id,
+                    name: data.name ?? "",
+                    avatarUrl: data.avatarUrl ?? "",
+                    streak: typeof data.streak === "number" ? data.streak : 0,
+                    badges: Array.isArray(data.badges) ? data.badges : [],
+                    emailVerified: !!data.emailVerified,
+                    familyCircleId: data.familyCircleId,
+                    role: data.role,
+                    parentId: data.parentId,
+                    xp: data.xp ?? 0,
+                    level: data.level ?? 1,
+                    status: data.status,
+                    currentWeight: data.currentWeight,
+                    weightUnit: data.weightUnit,
+                    weightHistory: data.weightHistory,
+                    notificationTokens: data.notificationTokens,
+                    coverPhotoUrl: data.coverPhotoUrl,
+                    activityMap: data.activityMap || {},
+                };
+
+                callback(user);
+            },
+            (error) => {
+                // 🔒 CRITICAL: snapshot failures must NOT break the app
+                console.warn(
+                    `[UserService] onUserUpdate blocked for ${userId}:`,
+                    error.code || error.message
+                );
+                callback(null);
             }
+        );
+    } catch (err) {
+        console.error("[UserService] Failed to attach snapshot:", err);
+        callback(null);
+    }
 
-            // Convert lastActiveDate
-            if (userData.lastActiveDate && userData.lastActiveDate instanceof Timestamp) {
-                userData.lastActiveDate = userData.lastActiveDate.toDate();
-            }
-
-            const user: User = {
-                id: docSnapshot.id,
-                emailVerified: userData.emailVerified,
-                // Note: emailVerified is usually on Auth object, but we might store it or not. 
-                // For now, assume it's merged in App.tsx or we just take what's in Firestore + ID.
-                ...userData,
-                activityMap: userData.activityMap || {}, // Ensure activityMap is initialized
-            } as User;
-            callback(user);
-        } else {
-            callback(null);
-        }
-    }, (error) => {
-        console.error(`[UserService] Error listening to user ${userId}:`, error);
-        // We might want to notify the UI or force a sign-out if permission is lost
-    });
+    return () => {
+        if (unsub) unsub();
+    };
 };
 
+/* ============================================================
+   STREAKS & XP
+   ============================================================ */
 
 export const checkAndUpdateStreak = async (user: User) => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    let lastActive = user.lastActiveDate;
-
-    // If no lastActiveDate, treat as if active today (for new users) or handle legacy
-    if (!lastActive) {
-        // If it's a legacy user with 0 streak, set to 1 and today
-        // If they have a streak but no date, assume they are continuing today
-        const newStreak = user.streak > 0 ? user.streak : 1;
-        await updateDoc(doc(db, 'users', user.id), {
+    if (!user.lastActiveDate) {
+        await updateDoc(doc(db, "users", user.id), {
             lastActiveDate: serverTimestamp(),
-            streak: newStreak
+            streak: user.streak > 0 ? user.streak : 1,
         });
         return;
     }
 
-    // Normalize lastActive to midnight for comparison
-    const lastActiveDate = new Date(lastActive.getFullYear(), lastActive.getMonth(), lastActive.getDate());
+    const lastActive = new Date(
+        user.lastActiveDate.getFullYear(),
+        user.lastActiveDate.getMonth(),
+        user.lastActiveDate.getDate()
+    );
 
-    const diffTime = Math.abs(today.getTime() - lastActiveDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays =
+        Math.abs(today.getTime() - lastActive.getTime()) /
+        (1000 * 60 * 60 * 24);
 
-    if (diffDays === 0) {
-        // Already active today, do nothing
-        return;
-    } else if (diffDays === 1) {
-        // Consecutive day, increment streak
-        await updateDoc(doc(db, 'users', user.id), {
+    if (diffDays === 0) return;
+
+    if (diffDays === 1) {
+        await updateDoc(doc(db, "users", user.id), {
             streak: increment(1),
-            lastActiveDate: serverTimestamp()
+            lastActiveDate: serverTimestamp(),
         });
-        await addXp(user.id, 10); // +10 XP for maintaining streak
+        await addXp(user.id, 10);
     } else {
-        // Missed a day (or more), reset streak
-        await updateDoc(doc(db, 'users', user.id), {
+        await updateDoc(doc(db, "users", user.id), {
             streak: 1,
-            lastActiveDate: serverTimestamp()
+            lastActiveDate: serverTimestamp(),
         });
-        await addXp(user.id, 5); // +5 XP for coming back
+        await addXp(user.id, 5);
     }
 };
 
-export const getBadges = async (): Promise<Omit<Badge, 'unlocked'>[]> => {
-    const badgesCol = collection(db, 'badges');
-    const q = query(badgesCol, orderBy(documentId())); // Order by ID for consistency
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
+/* ============================================================
+   BADGES
+   ============================================================ */
+
+export const getBadges = async (): Promise<Omit<Badge, "unlocked">[]> => {
+    const q = query(collection(db, "badges"), orderBy(documentId()));
+    const snap = await getDocs(q);
+
+    return snap.docs.map((doc) => ({
         id: doc.id,
         name: doc.data().name,
         description: doc.data().description,
@@ -117,110 +158,131 @@ export const getBadges = async (): Promise<Omit<Badge, 'unlocked'>[]> => {
     }));
 };
 
-export const updateUserAvatar = async (userId: string, avatarUrl: string): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, { avatarUrl });
+/* ============================================================
+   PROFILE UPDATES
+   ============================================================ */
+
+export const updateUserAvatar = async (
+    userId: string,
+    avatarUrl: string
+) => {
+    await updateDoc(doc(db, "users", userId), { avatarUrl });
 };
 
-export const updateUserWeight = async (userId: string, weight: number, unit: 'lbs' | 'kg'): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, {
+export const updateCoverPhoto = async (
+    userId: string,
+    coverPhotoUrl: string
+) => {
+    await updateDoc(doc(db, "users", userId), { coverPhotoUrl });
+};
+
+export const updateUserWeight = async (
+    userId: string,
+    weight: number,
+    unit: "lbs" | "kg"
+) => {
+    await updateDoc(doc(db, "users", userId), {
         currentWeight: weight,
         weightUnit: unit,
-        weightHistory: arrayUnion({ value: weight, timestamp: new Date() }),
+        weightHistory: arrayUnion({
+            value: weight,
+            timestamp: new Date(),
+        }),
     });
 };
 
-export const addNotificationToken = async (userId: string, token: string): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, {
-        notificationTokens: arrayUnion(token)
+/* ============================================================
+   NOTIFICATIONS
+   ============================================================ */
+
+export const addNotificationToken = async (
+    userId: string,
+    token: string
+) => {
+    await updateDoc(doc(db, "users", userId), {
+        notificationTokens: arrayUnion(token),
     });
 };
 
-export const removeNotificationToken = async (userId: string, token?: string): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    if (token) {
-        // If a specific token is provided, remove only that one.
-        await updateDoc(userDocRef, {
-            notificationTokens: arrayRemove(token)
-        });
-    } else {
-        // If no token is provided, clear all tokens for the user.
-        // This is a safe fallback to ensure notifications are fully disabled.
-        await updateDoc(userDocRef, {
-            notificationTokens: []
-        });
-    }
+export const removeNotificationToken = async (
+    userId: string,
+    token?: string
+) => {
+    await updateDoc(doc(db, "users", userId), {
+        notificationTokens: token ? arrayRemove(token) : [],
+    });
 };
 
-export const getUserTokens = async (userIds: string[]): Promise<string[]> => {
-    if (userIds.length === 0) return [];
-    const usersQuery = query(collection(db, 'users'), where(documentId(), 'in', userIds));
-    const snapshot = await getDocs(usersQuery);
+export const getUserTokens = async (
+    userIds: string[]
+): Promise<string[]> => {
+    if (!userIds.length) return [];
+
+    const q = query(
+        collection(db, "users"),
+        where(documentId(), "in", userIds)
+    );
+
+    const snap = await getDocs(q);
     const tokens: string[] = [];
-    snapshot.forEach(doc => {
+
+    snap.forEach((doc) => {
         const user = doc.data() as User;
-        if (user.notificationTokens) {
+        if (Array.isArray(user.notificationTokens)) {
             tokens.push(...user.notificationTokens);
         }
     });
+
     return tokens;
 };
 
-export const updateCoverPhoto = async (userId: string, coverPhotoUrl: string): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, { coverPhotoUrl });
-};
+/* ============================================================
+   XP & LEVELING
+   ============================================================ */
 
-export const addXp = async (userId: string, amount: number): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
+export const addXp = async (userId: string, amount: number) => {
+    const ref = doc(db, "users", userId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return;
 
-    if (!userDoc.exists()) return;
-
-    const userData = userDoc.data() as User;
-    const currentXp = userData.xp || 0;
-    // const currentLevel = userData.level || 1; // Unused variable
-    const newXp = currentXp + amount;
-
-    // Simple leveling formula: Level = floor(sqrt(XP / 100)) + 1
-    // or just every 1000 XP is a level? Let's go with a progressive curve.
-    // Level 1: 0-100
-    // Level 2: 101-300 (200 xp)
-    // Level 3: 301-600 (300 xp)
-    // Formula: XP = 50 * (Level^2 - Level)
-    // Inverse: Level = (1 + sqrt(1 + 8 * XP / 100)) / 2  <-- roughly
-
-    // Let's stick to a simpler one for now: Level * 500 XP required for next level.
-    // Actually, let's just use a fixed threshold for simplicity in MVP: 100 XP per level? Too fast.
-    // Let's say: Level = 1 + Math.floor(newXp / 500);
+    const user = snap.data() as User;
+    const newXp = (user.xp || 0) + amount;
     const newLevel = 1 + Math.floor(newXp / 500);
 
-    const today = new Date().toISOString().split('T')[0];
-    const activityMap = userData.activityMap || {};
-    const currentDayCount = activityMap[today] || 0;
+    const todayKey = new Date().toISOString().split("T")[0];
+    const activityMap = user.activityMap || {};
+    const currentCount = activityMap[todayKey] || 0;
 
-
-    await updateDoc(userDocRef, {
+    await updateDoc(ref, {
         xp: newXp,
         level: newLevel,
-        [`activityMap.${today}`]: currentDayCount + 1
+        [`activityMap.${todayKey}`]: currentCount + 1,
     });
 };
 
+/* ============================================================
+   ADMIN
+   ============================================================ */
+
 export const getPendingUsers = async (): Promise<User[]> => {
-    const usersCol = collection(db, 'users');
-    const q = query(usersCol, where('status', '==', 'pending_approval'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    const q = query(
+        collection(db, "users"),
+        where("status", "==", "pending_approval")
+    );
+    const snap = await getDocs(q);
+
+    return snap.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as User)
+    );
 };
 
-export const approveUser = async (userId: string, adminId: string): Promise<void> => {
-    const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, {
-        status: 'active',
+export const approveUser = async (
+    userId: string,
+    adminId: string
+) => {
+    await updateDoc(doc(db, "users", userId), {
+        status: "active",
         approvedAt: serverTimestamp(),
-        approvedBy: adminId
+        approvedBy: adminId,
     });
 };
