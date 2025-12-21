@@ -1,44 +1,185 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if user is admin
+
+    /* ========================
+       HELPERS
+       ======================== */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // TEMP: Firestore-based admin disabled unless explicitly needed
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return false;
     }
 
-    // Helper function to check if user is active
-    function isActive() {
-       // Allow if admin, or if the user status is 'active' or checking their own profile
-       // ideally we check the claim, but here we check the resource data for general reads
-       return true; 
-    }
-
+    /* ========================
+       USERS
+       ======================== */
     match /users/{userId} {
-      // Users can read their own document to check status
-      // Admins can read all
-      // Other users can only read 'active' users (if needed for features like leaderboards)
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin() || resource.data.status == 'active');
-      
-      // Users can create their own account (signup)
-      allow create: if request.auth != null && request.auth.uid == userId;
-      
-      // Updates:
-      // - Users can update their own data (except status/roles)
-      // - Admins can update everything (approve users)
-      allow update: if request.auth != null && (
-        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'isAdmin', 'role', 'approvedAt', 'approvedBy'])) ||
-        isAdmin()
+
+      /* -------- READ -------- */
+      allow read: if isSignedIn() && (
+        // Self
+        request.auth.uid == userId
+
+        // Parent → child
+        || (
+          resource.data.parentId != null
+          && resource.data.parentId == request.auth.uid
+        )
+
+        // Same family
+        || (
+          resource.data.familyCircleId != null
+          && resource.data.familyCircleId
+              == get(/databases/$(database)/documents/users/$(request.auth.uid))
+                 .data.familyCircleId
+        )
       );
-      
-      allow delete: if isAdmin();
+
+      /* -------- CREATE -------- */
+      allow create: if isSignedIn() && (
+        // Normal signup
+        (
+          request.auth.uid == userId
+          && !request.resource.data.keys().hasAny(["isAdmin"])
+        )
+
+        // Parent creates child
+        || (
+          request.auth.uid != userId
+          && request.resource.data.parentId == request.auth.uid
+          && request.resource.data.familyCircleId != null
+          && !request.resource.data.keys().hasAny(["isAdmin"])
+        )
+      );
+
+      /* -------- UPDATE -------- */
+      allow update: if isSignedIn() && (
+
+        // Self updates safe fields only
+        (
+          request.auth.uid == userId
+          && !request.resource.data
+              .diff(resource.data)
+              .affectedKeys()
+              .hasAny(["isAdmin", "role", "parentId"])
+        )
+
+        // Parent updates child (safe fields only)
+        || (
+          resource.data.parentId == request.auth.uid
+          && !request.resource.data
+              .diff(resource.data)
+              .affectedKeys()
+              .hasAny([
+                "isAdmin",
+                "role",
+                "parentId",
+                "email",
+                "emailVerified"
+              ])
+        )
+      );
+
+      allow delete: if false;
     }
 
-    // General rule for other collections (Challenges, Replies, etc.)
-    // MUST enforce that the requestor is an 'active' user.
+    /* ========================
+       FAMILY CIRCLES
+       ======================== */
+    match /familyCircles/{circleId} {
+
+      allow create: if isSignedIn();
+
+      allow read, update: if isSignedIn()
+        && (
+          // Primary: membership map
+          resource.data.members[request.auth.uid] == true
+          // Backward compatibility while the map is being populated
+          || (
+            resource.data.members[request.auth.uid] == null
+            && request.auth.uid in resource.data.memberIds
+          )
+        );
+    }
+
+    /* ========================
+       CHALLENGES
+       ======================== */
+    match /challenges/{challengeId} {
+
+      allow read: if isSignedIn();
+
+      allow create, update, delete: if isSignedIn()
+        && (
+          get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
+              .data.members[request.auth.uid] == true
+          || (
+            get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
+                .data.members[request.auth.uid] == null
+            && request.auth.uid in get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
+                .data.memberIds
+          )
+        );
+    }
+
+    /* ========================
+       REPLIES
+       ======================== */
+    match /replies/{replyId} {
+
+      allow read: if isSignedIn();
+
+      allow create, update, delete: if isSignedIn()
+        && (
+          get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
+              .data.members[request.auth.uid] == true
+          || (
+            get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
+                .data.members[request.auth.uid] == null
+            && request.auth.uid in get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
+                .data.memberIds
+          )
+        );
+    }
+
+    /* ========================
+       MESSAGES
+       ======================== */
+    match /messages/{messageId} {
+
+      allow read, create, update, delete: if isSignedIn()
+        && (
+          get(/databases/$(database)/documents/familyCircles/$(resource.data.familyCircleId))
+              .data.members[request.auth.uid] == true
+          || (
+            get(/databases/$(database)/documents/familyCircles/$(resource.data.familyCircleId))
+                .data.members[request.auth.uid] == null
+            && request.auth.uid in get(/databases/$(database)/documents/familyCircles/$(resource.data.familyCircleId))
+                .data.memberIds
+          )
+        );
+    }
+
+    /* ========================
+       STATIC DATA
+       ======================== */
+    match /badges/{id} {
+      allow read: if isSignedIn();
+    }
+
+    match /exercises/{id} {
+      allow read: if isSignedIn();
+    }
+
+    /* ========================
+       DENY ALL ELSE
+       ======================== */
     match /{document=**} {
-      allow read, write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
+      allow read, write: if false;
     }
   }
 }

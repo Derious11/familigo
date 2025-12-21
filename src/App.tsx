@@ -81,6 +81,7 @@ const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [familyCircle, setFamilyCircle] = useState<FamilyCircle | null>(null);
     const [viewingAsUserId, setViewingAsUserId] = useState<string | null>(null);
+    const [familyError, setFamilyError] = useState<string | null>(null);
 
     /* ------------------------------------------------------------------------
        AUTH LISTENER
@@ -113,6 +114,7 @@ const App: React.FC = () => {
         const startSubscriptions = (targetUserId: string) => {
             // Reset state while switching
             setAuthState('loading');
+            setFamilyError(null);
 
             // Always clean old subs before starting new ones
             if (unsubUser) unsubUser();
@@ -163,8 +165,13 @@ const App: React.FC = () => {
 
                     subscribedFamilyId = familyId;
                     unsubFamily = onFamilyCircleUpdate(familyId, (circle) => {
+                        setFamilyError(null);
                         setFamilyCircle(circle);
                         setAuthState('authenticated'); // ✅ ONLY HERE
+                    }, (error) => {
+                        setFamilyError(error?.message || 'Missing or insufficient permissions while reading family data.');
+                        setFamilyCircle(null);
+                        setAuthState('authenticated');
                     });
                 }
             });
@@ -356,9 +363,17 @@ const App: React.FC = () => {
 
     // AUTHENTICATED ROUTES
     else if (authState === 'authenticated') {
-        if (currentUser?.status === 'pending_approval') {
-            content = <PendingApproval />;
-        } else if (currentUser && !familyCircle) {
+        if (familyError) {
+            content = (
+                <div className="flex items-center justify-center h-screen px-4">
+                    <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl max-w-md shadow-sm dark:bg-red-900/20 dark:border-red-800 dark:text-red-100">
+                        <h2 className="text-lg font-bold mb-2">Unable to load family data</h2>
+                        <p className="text-sm mb-4">{familyError}</p>
+                        <p className="text-sm text-red-700 dark:text-red-200">Please ensure this account is a member of the family circle and that family membership maps are populated.</p>
+                    </div>
+                </div>
+            );
+        } else if (currentUser?.status === 'pending_approval') {
             content = (
                 <OnboardingFlow
                     user={currentUser}

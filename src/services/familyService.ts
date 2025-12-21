@@ -54,6 +54,9 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
         name: familyName,
         inviteCode: inviteCode,
         memberIds: [userId],
+        members: {
+            [userId]: true,
+        },
         adminIds: [userId], // Creator is the first admin
         messageCount: 0,
     };
@@ -87,7 +90,10 @@ export const joinFamilyCircle = async (userId: string, inviteCode: string): Prom
 
     const batch = writeBatch(db);
     batch.update(doc(db, 'users', userId), { familyCircleId: circleDoc.id });
-    batch.update(circleDoc.ref, { memberIds: [...circleData.memberIds, userId] });
+    batch.update(circleDoc.ref, {
+        memberIds: [...circleData.memberIds, userId],
+        [`members.${userId}`]: true,
+    });
     await batch.commit();
 
     const familyCircle = await getUserFamilyCircle(circleDoc.id);
@@ -98,37 +104,48 @@ export const joinFamilyCircle = async (userId: string, inviteCode: string): Prom
 // I'll put it here.
 import { onSnapshot } from "firebase/firestore";
 
-export const onFamilyCircleUpdate = (familyCircleId: string, callback: (circle: FamilyCircle | null) => void): (() => void) => {
+export const onFamilyCircleUpdate = (
+    familyCircleId: string,
+    callback: (circle: FamilyCircle | null) => void,
+    onError?: (error: any) => void
+): (() => void) => {
     const circleRef = doc(db, 'familyCircles', familyCircleId);
-    return onSnapshot(circleRef, async (docSnapshot) => {
-        if (docSnapshot.exists()) {
-            const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
+    return onSnapshot(
+        circleRef,
+        async (docSnapshot) => {
+            if (docSnapshot.exists()) {
+                const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
 
-            // We need to fetch member details to construct the full FamilyCircle object
-            // This is a bit expensive to do on every update, but necessary if we want the full object.
-            let members: User[] = [];
-            if (circleData.memberIds?.length) {
-                const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
-                const membersSnapshot = await getDocs(membersQuery);
-                members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+                // We need to fetch member details to construct the full FamilyCircle object
+                // This is a bit expensive to do on every update, but necessary if we want the full object.
+                let members: User[] = [];
+                if (circleData.memberIds?.length) {
+                    const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
+                    const membersSnapshot = await getDocs(membersQuery);
+                    members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+                }
+
+                const circle: FamilyCircle = {
+                    id: docSnapshot.id,
+                    name: circleData.name,
+                    chatName: circleData.chatName,
+                    inviteCode: circleData.inviteCode,
+                    members,
+                    messageCount: circleData.messageCount || 0,
+                    avatarUrl: circleData.avatarUrl,
+                    motto: circleData.motto,
+                    adminIds: circleData.adminIds || [],
+                };
+                callback(circle);
+            } else {
+                callback(null);
             }
-
-            const circle: FamilyCircle = {
-                id: docSnapshot.id,
-                name: circleData.name,
-                chatName: circleData.chatName,
-                inviteCode: circleData.inviteCode,
-                members,
-                messageCount: circleData.messageCount || 0,
-                avatarUrl: circleData.avatarUrl,
-                motto: circleData.motto,
-                adminIds: circleData.adminIds || [],
-            };
-            callback(circle);
-        } else {
-            callback(null);
+        },
+        (error) => {
+            console.warn("[FamilyService] onFamilyCircleUpdate blocked:", error.code || error.message);
+            if (onError) onError(error);
         }
-    });
+    );
 };
 export const updateFamilyProfile = async (familyId: string, data: { avatarUrl?: string; motto?: string }): Promise<void> => {
     const familyRef = doc(db, 'familyCircles', familyId);
@@ -149,7 +166,8 @@ export const removeFromFamily = async (familyId: string, userId: string): Promis
 
     batch.update(familyRef, {
         memberIds: arrayRemove(userId),
-        adminIds: arrayRemove(userId)
+        adminIds: arrayRemove(userId),
+        [`members.${userId}`]: deleteField(),
     });
     batch.update(userRef, {
         familyCircleId: deleteField()
@@ -189,6 +207,7 @@ export const createChildProfile = async (
     const familyRef = doc(db, "familyCircles", familyId);
     batch.update(familyRef, {
         memberIds: arrayUnion(childRef.id),
+        [`members.${childRef.id}`]: true,
     });
 
     await batch.commit();
