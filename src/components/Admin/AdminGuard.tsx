@@ -4,12 +4,19 @@ import { AppContext } from "../../App";
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
     const ctx = useContext(AppContext);
 
-    if (!ctx?.currentUser) return <p>You must be logged in.</p>;
+    // Wait for auth to resolve
+    if (!ctx || ctx.loading) return null;
 
+    // Not logged in → send to login
+    if (!ctx.currentUser) {
+        window.location.href = "/login";
+        return null;
+    }
+
+    // Logged in but not admin → send to app home
     if (!ctx.currentUser.isAdmin) {
-        return <p className="text-center mt-10 text-red-500">
-            Access Denied — Admins Only
-        </p>;
+        window.location.href = "/app";
+        return null;
     }
 
     return <>{children}</>;

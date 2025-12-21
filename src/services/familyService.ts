@@ -158,39 +158,44 @@ export const removeFromFamily = async (familyId: string, userId: string): Promis
     await batch.commit();
 };
 
-export const createChildProfile = async (parentId: string, familyId: string, name: string, birthDate: Date): Promise<User> => {
-    const allBadges = await getBadges(); // Need to import getBadges from userService or move it?
-    // getBadges is in userService.ts. I need to import it.
-    // Actually, circular dependency might be an issue if I import from userService.
-    // Let's check imports. familyService imports from userService? No.
-    // I should probably move getBadges to a shared place or just duplicate the logic/import it if safe.
-    // Let's check userService imports. It imports from types and firebaseConfig.
-    // So importing getBadges from userService to familyService should be fine.
+export const createChildProfile = async (
+    parentId: string,
+    familyId: string,
+    name: string,
+    birthDate: Date
+): Promise<User> => {
 
-    const newChildData: Omit<User, 'id' | 'emailVerified'> = {
+    const childRef = doc(collection(db, "users"));
+
+    const newChildData: Omit<User, "id" | "emailVerified"> = {
         name,
-        role: 'child',
+        role: "child",
         birthDate,
         parentId,
         familyCircleId: familyId,
-        avatarUrl: `https://i.pravatar.cc/150?u=${Date.now()}`, // Temporary avatar
+        avatarUrl: `https://i.pravatar.cc/150?u=${Date.now()}`,
         streak: 0,
         lastActiveDate: new Date(),
-        badges: [], // Initialize empty or fetch default badges
-        weightUnit: 'lbs',
+        badges: [],
+        weightUnit: "lbs",
         weightHistory: [],
         notificationTokens: [],
-        // email is optional and omitted for child accounts
     };
 
-    const userRef = await addDoc(collection(db, 'users'), newChildData);
-    const newChild = { id: userRef.id, ...newChildData, emailVerified: false } as User;
+    const batch = writeBatch(db);
 
-    // Add to family
-    const familyRef = doc(db, 'familyCircles', familyId);
-    await updateDoc(familyRef, {
-        memberIds: arrayUnion(userRef.id)
+    batch.set(childRef, newChildData);
+
+    const familyRef = doc(db, "familyCircles", familyId);
+    batch.update(familyRef, {
+        memberIds: arrayUnion(childRef.id),
     });
 
-    return newChild;
+    await batch.commit();
+
+    return {
+        id: childRef.id,
+        ...newChildData,
+        emailVerified: false,
+    } as User;
 };
