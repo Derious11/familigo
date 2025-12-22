@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CameraIcon, PencilIcon, FireIcon, ShieldCheckIcon, ScaleIcon } from '../Icons';
 import CoverPhotoPicker from './CoverPhotoPicker';
 import { User } from '../../types'; // Adjust path if needed
+import AvatarImage from '../ui/AvatarImage';
 
 interface ProfileHeaderProps {
     currentUser: User;
@@ -58,7 +59,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
                     {/* Avatar with Edit Button */}
                     <div className="relative group">
                         <div className="w-28 h-28 rounded-full border-[5px] border-white dark:border-gray-800 shadow-xl bg-white overflow-hidden">
-                            <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
+                            <AvatarImage
+                                userId={currentUser.id}
+                                cacheKey={currentUser.avatarUpdatedAt?.getTime?.()}
+                                alt={currentUser.name}
+                                className="w-full h-full object-cover"
+                            />
                         </div>
                         <button
                             onClick={onEditProfile}

@@ -1,44 +1,2629 @@
-diff --git a/storage.rules b/storage.rules
-index 2a8bb12efb39cae3337851dcb162255a2b66f9f9..b50851139302495010728d72a570517e5b709627 100644
---- a/storage.rules
-+++ b/storage.rules
-@@ -1,19 +1,36 @@
- rules_version = '2';
- service firebase.storage {
-   match /b/{bucket}/o {
-+    function isSignedIn() {
-+      return request.auth != null;
-+    }
-+
-+    function getUser(userId) {
-+      return get(/databases/(default)/documents/users/$(userId)).data;
-+    }
-+
-+    function canWriteProfilePicture(userId) {
-+      // Allow the user themself
-+      if (!isSignedIn()) return false;
-+      if (request.auth.uid == userId) return true;
-+
-+      // Allow a parent to write their child's profile picture
-+      return getUser(userId).parentId == request.auth.uid;
-+    }
-+
-     match /profile-pictures/{userId} {
-       // Allow anyone to read profile pictures
-       allow read;
--      // Only allow a user to write to their own profile picture path
--      allow write: if request.auth != null && request.auth.uid == userId;
-+      // Allow a user to write their own profile picture or a parent to write their child's
-+      allow write: if canWriteProfilePicture(userId);
-     }
+diff --git a/functions/src/triggers/notifications.ts b/functions/src/triggers/notifications.ts
+index 74be858570372a7e68c960c45d5b0494eb4fde45..8446cf1b11222351e7637e4598b26accba9c711d 100644
+--- a/functions/src/triggers/notifications.ts
++++ b/functions/src/triggers/notifications.ts
+@@ -137,63 +137,63 @@ export const onReplyCreated = functions
+         // This is a top-level comment, notify the challenge creator
+         const challengeDoc = await db
+           .collection("challenges")
+           .doc(challengeId)
+           .get();
+         if (challengeDoc.exists) {
+           recipientId = challengeDoc.data()?.challenger?.id;
+           notificationTitle = "New comment on your challenge";
+         }
+       }
  
-     match /reply-images/{fileId} {
--      allow read, write: if request.auth != null;
-+      allow read, write: if isSignedIn();
-     }
+       // Ensure we notify someone other than the author
+       if (!recipientId || recipientId === replierId) {
+         console.log(`[${logContext}] No recipient or recipient is the sender.`);
+         return;
+       }
  
-     match /{allPaths=**} {
-       allow read, write: if false;
+       // Get recipient's tokens
+       const tokenRecords = await getTokensForUsers([recipientId]);
+       if (tokenRecords.length === 0) {
+         console.log(`[${logContext}] Recipient has no notification tokens.`);
+         return;
+       }
+ 
+       const notificationBody = `${user.name}: ${text || "posted a photo"}`;
++      const notificationIcon =
++        "https://familigo-11643.web.app/assets/FamiliGo_logo.png";
+       await sendNotifications(
+         tokenRecords,
+         (tokens) => ({
+           notification: {
+             title: notificationTitle,
+             body: notificationBody.substring(0, 200), // Truncate for safety
+           },
+           tokens,
+           webpush: {
+             notification: {
+-              icon:
+-                user.avatarUrl ||
+-                "https://familigo-11643.web.app/assets/FamiliGo_logo.png",
++              icon: notificationIcon,
+             },
+           },
+         }),
+         logContext
+       );
+     } catch (error) {
+       console.error(
+         `[${logContext}] Failed to process reply notification.`,
+         error
+       );
      }
-   }
+   });
+ 
+ /**
+  * Cloud Function that triggers when a new chat message is created.
+  * It sends a push notification to all other members of the family circle.
+  */
+ export const onMessageCreated = functions
+   .region(REGION)
+   .firestore.document("messages/{messageId}")
+   .onCreate(async (snapshot: functions.firestore.QueryDocumentSnapshot) => {
+     const logContext = `message:${snapshot.id}`;
+ 
+     try {
+       const messageData = snapshot.data();
+diff --git a/src/components/Challenges/ChallengeCard.tsx b/src/components/Challenges/ChallengeCard.tsx
+index b7b49e290df7b2a827ca02459f4319bbe9e68f82..bdf494b5c0bb19579de55153d4e5fdca2b66f985 100644
+--- a/src/components/Challenges/ChallengeCard.tsx
++++ b/src/components/Challenges/ChallengeCard.tsx
+@@ -1,35 +1,36 @@
+ import React, { useContext, useState, useEffect, useMemo } from 'react';
+ import { AppContext } from '../../App';
+ import { Challenge, Reply } from '../../types';
+ import { onRepliesUpdate, updateReaction } from '../../services/challengeService';
+ import LogWeightReplyModal from './LogWeightReplyModal';
+ import LogActivityModal from './LogActivityModal';
+ import CreateReplyModal from './CreateReplyModal';
+ import { TrashIcon, ChatBubbleLeftIcon, ClockIcon } from '../Icons';
+ import ConfirmDeleteModal from '../ConfirmDeleteModal';
+ import confetti from 'canvas-confetti';
++import AvatarImage from '../ui/AvatarImage';
+ 
+ interface ChallengeCardProps {
+     challenge: Challenge;
+     isActive: boolean;
  }
+ 
+ // --- HELPER COMPONENT: Countdown ---
+ const Countdown: React.FC<{ expiryDate: Date }> = ({ expiryDate }) => {
+     const [timeLeft, setTimeLeft] = useState('');
+     const [isUrgent, setIsUrgent] = useState(false);
+ 
+     useEffect(() => {
+         const calculateTimeLeft = () => {
+             const difference = +expiryDate - +new Date();
+             if (difference > 0) {
+                 const hours = Math.floor(difference / (1000 * 60 * 60));
+                 const minutes = Math.floor((difference / 1000 / 60) % 60);
+                 setIsUrgent(hours < 24);
+ 
+                 if (hours > 24) {
+                     const days = Math.floor(hours / 24);
+                     setTimeLeft(`${days}d ${hours % 24}h left`);
+                 } else {
+                     setTimeLeft(`${hours}h ${minutes}m left`);
+                 }
+@@ -61,50 +62,54 @@ const ProgressBar: React.FC<{ progress: number, colorClass: string }> = ({ progr
+             style={{ width: `${progress}%` }}
+         ></div>
+     </div>
+ );
+ 
+ // --- MAIN COMPONENT ---
+ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) => {
+     const context = useContext(AppContext);
+     const { currentUser, deleteReply, deleteChallenge, familyCircle, addReply } = context || {};
+ 
+     // State
+     const [replies, setReplies] = useState<Reply[]>([]);
+     const [isLogWeightModalOpen, setIsLogWeightModalOpen] = useState(false);
+     const [isLogActivityModalOpen, setIsLogActivityModalOpen] = useState(false);
+     const [isCreateReplyModalOpen, setIsCreateReplyModalOpen] = useState(false);
+     const [replyingToId, setReplyingToId] = useState<string | null>(null);
+     const [mainComment, setMainComment] = useState('');
+     const [isPostingMainComment, setIsPostingMainComment] = useState(false);
+ 
+     // UI State
+     const [showComments, setShowComments] = useState(false);
+     const [itemToDelete, setItemToDelete] = useState<{ type: 'reply' | 'challenge', id: string } | null>(null);
+     const [isDeleting, setIsDeleting] = useState(false);
+ 
+     const isChallenger = currentUser?.id === challenge.challenger.id;
++    const getAvatarCacheKey = (userId: string, fallback?: string | number) => {
++        const member = familyCircle?.members.find((m) => m.id === userId);
++        return member?.avatarUpdatedAt?.getTime?.() ?? fallback;
++    };
+ 
+     // Load Replies
+     useEffect(() => {
+         // FIX: Pass familyCircleId to satisfy the new query requirements
+         const unsubscribe = onRepliesUpdate(
+             challenge.id,
+             challenge.familyCircleId,
+             setReplies
+         );
+ 
+         return () => {
+             unsubscribe();
+             try { confetti.reset(); } catch (e) { /* ignore */ }
+         };
+     }, [challenge.id, challenge.familyCircleId]);
+ 
+     // Organize Replies (Threaded)
+     const { topLevelReplies, repliesByParent } = useMemo(() => {
+         const topLevel: Reply[] = [];
+         const byParent: Record<string, Reply[]> = {};
+         replies.forEach(reply => {
+             if (reply.parentId) {
+                 if (!byParent[reply.parentId]) byParent[reply.parentId] = [];
+                 byParent[reply.parentId].push(reply);
+             } else {
+@@ -185,51 +190,56 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
+     let progressText = '';
+ 
+     if (familyCircle && familyCircle.members.length > 0) {
+         if (isTeamChallenge && challenge.goalTotal) {
+             const current = challenge.currentTotal || 0;
+             progress = Math.min((current / challenge.goalTotal) * 100, 100);
+             progressText = `${current} / ${challenge.goalTotal} ${challenge.unit}`;
+         } else {
+             const count = challenge.completedBy?.length || 0;
+             const total = familyCircle.members.length;
+             progress = (count / total) * 100;
+             progressText = `${count}/${total}`;
+         }
+     }
+ 
+     const theme = isTeamChallenge
+         ? { bar: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' }
+         : { bar: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' };
+ 
+     return (
+         <div className={`bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-md mb-4 ${isActive ? '' : 'opacity-75 grayscale-[0.5]'}`}>
+ 
+             {/* --- TOP HEADER --- */}
+             <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                 <div className="flex items-center gap-2">
+-                    <img src={challenge.challenger.avatarUrl} alt="" className="w-6 h-6 rounded-full border border-gray-200" />
++                    <AvatarImage
++                        userId={challenge.challenger.id}
++                        cacheKey={getAvatarCacheKey(challenge.challenger.id, challenge.challenger.avatarUpdatedAt?.getTime?.())}
++                        alt={challenge.challenger.name}
++                        className="w-6 h-6 rounded-full border border-gray-200"
++                    />
+                     <span className="text-xs text-gray-500 dark:text-gray-400">
+                         <span className="font-semibold text-gray-700 dark:text-gray-300">{challenge.challenger.name}</span> challenged you
+                     </span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                     {isActive && <Countdown expiryDate={challenge.expiresAt} />}
+                     {isChallenger && (
+                         <button onClick={() => setItemToDelete({ type: 'challenge', id: challenge.id })} className="text-gray-400 hover:text-red-500 transition-colors">
+                             <TrashIcon className="w-4 h-4" />
+                         </button>
+                     )}
+                 </div>
+             </div>
+ 
+             {/* --- SPLIT LAYOUT: Text Left, Thumbnail Right --- */}
+             <div className="flex gap-4 px-4 pb-4">
+                 <div className="flex-1 flex flex-col justify-center">
+                     <div className="flex items-center gap-2 mb-1">
+                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide ${theme.bg} ${theme.text}`}>
+                             {isTeamChallenge ? 'Team Goal' : 'Solo'}
+                         </span>
+                     </div>
+ 
+                     <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight mb-1">
+                         {challenge.exercise.name}
+@@ -280,51 +290,56 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
+                         ) : (
+                             isTeamChallenge ? 'Log Contribution' : 'Mark Complete'
+                         )}
+                     </button>
+                 )}
+ 
+                 <button
+                     onClick={() => setShowComments(!showComments)}
+                     className={`p-2.5 rounded-xl border transition-colors flex items-center gap-2
+                         ${showComments
+                             ? 'bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-700 dark:border-gray-600'
+                             : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400'
+                         }`}
+                 >
+                     <ChatBubbleLeftIcon className="w-5 h-5" />
+                     {replies.length > 0 && <span className="text-xs font-bold">{replies.length}</span>}
+                 </button>
+             </div>
+ 
+             {/* --- COMMENTS SECTION --- */}
+             {showComments && (
+                 <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 p-4 space-y-4 animate-fade-in">
+ 
+                     {/* Inline Comment Input */}
+                     <form onSubmit={handleMainCommentSubmit} className="flex gap-2">
+-                        <img className="w-8 h-8 rounded-full mt-1 flex-shrink-0" src={currentUser?.avatarUrl} alt={currentUser?.name} />
++                        <AvatarImage
++                            userId={currentUser?.id}
++                            cacheKey={currentUser?.id ? getAvatarCacheKey(currentUser.id, currentUser.avatarUpdatedAt?.getTime?.()) : undefined}
++                            alt={currentUser?.name || ''}
++                            className="w-8 h-8 rounded-full mt-1 flex-shrink-0"
++                        />
+                         <div className="flex-grow relative">
+                             <textarea
+                                 value={mainComment}
+                                 onChange={(e) => setMainComment(e.target.value)}
+                                 rows={1}
+                                 placeholder="Write a comment..."
+                                 className="w-full text-sm py-2 px-3 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-brand-blue resize-none"
+                             />
+                             <button
+                                 type="submit"
+                                 disabled={!mainComment.trim() || isPostingMainComment}
+                                 className="absolute right-2 top-1.5 text-brand-blue hover:text-blue-600 disabled:opacity-30 p-1"
+                             >
+                                 <ChatBubbleLeftIcon className="w-5 h-5" />
+                             </button>
+                         </div>
+                     </form>
+ 
+                     {/* Replies List */}
+                     <div className="space-y-4">
+                         {topLevelReplies.length === 0 ? (
+                             <p className="text-center text-xs text-gray-400 py-2">No comments yet.</p>
+                         ) : (
+                             topLevelReplies.map(reply => (
+                                 <ReplyCard
+@@ -408,51 +423,56 @@ const InlineReplyForm: React.FC<{
+                 </button>
+             </div>
+         </form>
+     );
+ };
+ 
+ // --- REPLY CARD (Sub-Component) ---
+ const ReplyCard: React.FC<{
+     reply: Reply;
+     onReact: (replyId: string, emoji: string) => void;
+     onDeleteClick: (replyId: string) => void;
+     childReplies: Reply[];
+     allRepliesByParent: Record<string, Reply[]>;
+     challengeId: string;
+     onToggleReply: (replyId: string) => void;
+     replyingToId: string | null;
+ }> = ({ reply, onReact, onDeleteClick, childReplies, allRepliesByParent, challengeId, onToggleReply, replyingToId }) => {
+     const context = useContext(AppContext);
+     const { currentUser } = context || {};
+     const emojis = ['💪', '🔥', '😂', '🙌'];
+     const canDelete = currentUser && currentUser.id === reply.user.id;
+ 
+     return (
+         <div>
+             <div className="flex items-start gap-3">
+-                <img className="w-8 h-8 rounded-full mt-1" src={reply.user.avatarUrl} alt={reply.user.name} />
++                <AvatarImage
++                    userId={reply.user.id}
++                    cacheKey={getAvatarCacheKey(reply.user.id, reply.user.avatarUpdatedAt?.getTime?.())}
++                    alt={reply.user.name}
++                    className="w-8 h-8 rounded-full mt-1"
++                />
+                 <div className="flex-1">
+                     <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-none p-3 relative group">
+                         {canDelete && (
+                             <button
+                                 onClick={() => onDeleteClick(reply.id)}
+                                 className="absolute top-2 right-2 p-1 rounded-full text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                             >
+                                 <TrashIcon className="w-3 h-3" />
+                             </button>
+                         )}
+                         <p className="font-bold text-xs text-gray-900 dark:text-gray-100 mb-0.5">{reply.user.name}</p>
+                         {reply.text && <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{reply.text}</p>}
+                         {reply.mediaUrl && <img src={reply.mediaUrl} alt="Reply media" className="mt-2 rounded-lg w-full h-32 object-cover" />}
+                     </div>
+ 
+                     <div className="flex items-center gap-3 mt-1 ml-1">
+                         <div className="flex items-center gap-1">
+                             {emojis.map(emoji => (
+                                 <button
+                                     key={emoji}
+                                     onClick={() => onReact(reply.id, emoji)}
+                                     className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${(reply.reactions[emoji] || 0) > 0
+                                         ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30'
+                                         : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                         }`}
+@@ -475,26 +495,26 @@ const ReplyCard: React.FC<{
+                     onCancel={() => onToggleReply(reply.id)}
+                 />
+             )}
+ 
+             {childReplies.length > 0 && (
+                 <div className="mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-3">
+                     {childReplies.map(child => (
+                         <ReplyCard
+                             key={child.id}
+                             reply={child}
+                             onReact={onReact}
+                             onDeleteClick={onDeleteClick}
+                             childReplies={allRepliesByParent[child.id] || []}
+                             allRepliesByParent={allRepliesByParent}
+                             challengeId={challengeId}
+                             onToggleReply={onToggleReply}
+                             replyingToId={replyingToId}
+                         />
+                     ))}
+                 </div>
+             )}
+         </div>
+     );
+ };
+ 
+-export default ChallengeCard;
+\ No newline at end of file
++export default ChallengeCard;
+diff --git a/src/components/Chat/index.tsx b/src/components/Chat/index.tsx
+index 66c64216dc6bd070c4d2f61e727d52be05760974..c3cf145d6886d6a807d06341f93ff833d5bff43a 100644
+--- a/src/components/Chat/index.tsx
++++ b/src/components/Chat/index.tsx
+@@ -1,86 +1,91 @@
+ import React, { useState, useEffect, useContext, useRef } from 'react';
+ import { AppContext } from '../../App';
+ import { onMessagesUpdate, sendMessage, updateFamilyCircleChatName, deleteMessage, markChatAsRead } from '../../services/chatService';
+ import { Message } from '../../types';
+ import { PaperAirplaneIcon, PencilIcon, CheckIcon, XMarkIcon, TrashIcon } from '../Icons';
+ import { requestNotificationPermission } from '../../services/webPushService';
++import AvatarImage from '../ui/AvatarImage';
+ 
+ const Chat: React.FC = () => {
+     const context = useContext(AppContext);
+     const { currentUser, familyCircle } = context || {};
+     const [messages, setMessages] = useState<Message[]>([]);
+     const [newMessage, setNewMessage] = useState('');
+     const [isRenaming, setIsRenaming] = useState(false);
+     const [chatName, setChatName] = useState('');
+     const messagesEndRef = useRef<HTMLDivElement>(null);
+ 
+     useEffect(() => {
+         if (!familyCircle || !currentUser) return;
+ 
+         setChatName(familyCircle.chatName || 'Family Chat');
+ 
+         // Request notification permission when entering chat
+         requestNotificationPermission(currentUser.id);
+ 
+         // Mark chat as read
+         markChatAsRead(currentUser.id, familyCircle.id);
+ 
+         const unsubscribe = onMessagesUpdate(familyCircle.id, (updatedMessages) => {
+             setMessages(updatedMessages);
+             // Also mark as read when new messages arrive if we are in the chat view
+             if (currentUser.familyCircleId) {
+                 markChatAsRead(currentUser.id, currentUser.familyCircleId);
+             }
+         });
+ 
+         return () => unsubscribe();
+     }, [familyCircle, currentUser]);
+ 
+     useEffect(() => {
+         scrollToBottom();
+     }, [messages]);
+ 
+     const scrollToBottom = () => {
+         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+     };
+ 
++    const getAvatarCacheKey = (userId: string) => {
++        const member = familyCircle?.members.find((m) => m.id === userId);
++        return member?.avatarUpdatedAt?.getTime?.();
++    };
++
+     const handleSendMessage = async (e: React.FormEvent) => {
+         e.preventDefault();
+         if (!newMessage.trim() || !currentUser || !familyCircle) return;
+ 
+         const text = newMessage.trim();
+         setNewMessage('');
+ 
+         // Optimistic update
+         const tempId = `temp-${Date.now()}`;
+         const tempMessage: Message = {
+             id: tempId,
+             familyCircleId: familyCircle.id,
+             senderId: currentUser.id,
+             senderName: currentUser.name,
+-            senderAvatarUrl: currentUser.avatarUrl,
+             text: text,
+             type: 'text',
+             timestamp: new Date(),
+         };
+ 
+         setMessages(prev => [...prev, tempMessage]);
+ 
+         try {
+             await sendMessage(familyCircle.id, currentUser, text);
+         } catch (error) {
+             console.error("Failed to send message:", error);
+             // Revert optimistic update on failure
+             setMessages(prev => prev.filter(msg => msg.id !== tempId));
+             setNewMessage(text); // Restore text
+             alert("Failed to send message. Please try again.");
+         }
+     };
+ 
+     const handleRenameChat = async () => {
+         if (!chatName.trim() || !currentUser || !familyCircle) return;
+ 
+         if (chatName !== familyCircle.chatName) {
+             await updateFamilyCircleChatName(familyCircle.id, currentUser, chatName);
+         }
+         setIsRenaming(false);
+@@ -135,51 +140,56 @@ const Chat: React.FC = () => {
+                 {messages.length === 0 && (
+                     <div className="text-center text-gray-400 mt-10">
+                         <p>No messages yet. Start the conversation!</p>
+                     </div>
+                 )}
+ 
+                 {messages.map((msg, index) => {
+                     const isMe = msg.senderId === currentUser.id;
+                     const showAvatar = !isMe && (index === 0 || messages[index - 1].senderId !== msg.senderId || messages[index - 1].type === 'system');
+ 
+                     if (msg.type === 'system') {
+                         return (
+                             <div key={msg.id} className="flex justify-center my-4">
+                                 <span className="text-xs text-gray-500 bg-gray-200 dark:bg-gray-800 px-3 py-1 rounded-full">
+                                     {msg.senderName} {msg.text}
+                                 </span>
+                             </div>
+                         );
+                     }
+ 
+                     return (
+                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} items-end gap-2 group`}>
+                             {!isMe && (
+                                 <div className="w-8 h-8 flex-shrink-0">
+                                     {showAvatar ? (
+-                                        <img src={msg.senderAvatarUrl} alt={msg.senderName} className="w-8 h-8 rounded-full object-cover" />
++                                        <AvatarImage
++                                            userId={msg.senderId}
++                                            alt={msg.senderName}
++                                            className="w-8 h-8 rounded-full object-cover"
++                                            cacheKey={getAvatarCacheKey(msg.senderId)}
++                                        />
+                                     ) : <div className="w-8" />}
+                                 </div>
+                             )}
+ 
+                             {isMe && (
+                                 <button
+                                     onClick={() => handleDeleteMessage(msg.id)}
+                                     className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 p-1"
+                                     title="Delete message"
+                                 >
+                                     <TrashIcon className="w-4 h-4" />
+                                 </button>
+                             )}
+ 
+                             <div className={`max-w-[75%] px-4 py-2 rounded-2xl shadow-sm ${isMe
+                                 ? 'bg-brand-blue text-white rounded-br-none'
+                                 : 'bg-white dark:bg-gray-800 text-brand-text-primary dark:text-gray-100 rounded-bl-none'
+                                 }`}>
+                                 {!isMe && showAvatar && (
+                                     <p className="text-xs font-bold text-brand-blue mb-1">{msg.senderName}</p>
+                                 )}
+                                 <p className="break-words">{msg.text}</p>
+                                 <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                                     {formatTime(msg.timestamp)}
+                                 </p>
+diff --git a/src/components/History.tsx b/src/components/History.tsx
+index 25c26c0bbbe3d9feb7084e9d61890c6b4c45e124..3261f44c7d1fcb71c2eb81dad2ea716446126a0f 100644
+--- a/src/components/History.tsx
++++ b/src/components/History.tsx
+@@ -1,32 +1,33 @@
+ 
+ import React, { useContext, useState, useEffect, useMemo } from 'react';
+ import { AppContext } from '../App';
+ import { Challenge } from '../types';
+ import { onChallengesUpdate } from '../services/challengeService';
+ import Leaderboard from './Leaderboard';
+ import { ChevronDownIcon } from './Icons';
++import AvatarImage from './ui/AvatarImage';
+ 
+ const History: React.FC = () => {
+     const context = useContext(AppContext);
+     const { familyCircle } = context || {};
+     const [challenges, setChallenges] = useState<Challenge[]>([]);
+     const [isLoading, setIsLoading] = useState(true);
+     const [isLogbookOpen, setIsLogbookOpen] = useState(false); // Default closed to focus on leaderboard
+ 
+     useEffect(() => {
+         if (!context?.familyCircle) return;
+ 
+         const unsubscribe = onChallengesUpdate(context.familyCircle.id, (newChallenges) => {
+             setChallenges(newChallenges);
+             setIsLoading(false);
+         });
+ 
+         return () => unsubscribe();
+     }, [context?.familyCircle]);
+ 
+     const historyChallenges = useMemo(() => {
+         const now = new Date();
+         return challenges.filter(c => c.expiresAt <= now);
+     }, [challenges]);
+ 
+     if (isLoading) {
+@@ -74,33 +75,40 @@ const History: React.FC = () => {
+ interface HistoryItemProps {
+     challenge: Challenge;
+ }
+ 
+ const HistoryItem: React.FC<HistoryItemProps> = ({ challenge }) => {
+     const context = useContext(AppContext);
+     const { familyCircle } = context || {};
+ 
+     const completedMembers = useMemo(() => {
+         if (!familyCircle || !challenge.completedBy) return [];
+         return familyCircle.members.filter(member => challenge.completedBy.includes(member.id));
+     }, [familyCircle, challenge.completedBy]);
+ 
+     return (
+         <li className="flex items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg w-full">
+             <div className="text-center w-16 mr-4 flex-shrink-0">
+                 <p className="font-bold text-brand-blue dark:text-blue-400 text-sm">{challenge.timestamp.toLocaleDateString(undefined, { month: 'short' })}</p>
+                 <p className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">{challenge.timestamp.getDate()}</p>
+             </div>
+             <div className="flex-grow">
+                 <p className="font-semibold text-brand-text-primary dark:text-gray-100">{challenge.exercise.name}</p>
+                 <p className="text-sm text-brand-text-secondary dark:text-gray-400">{challenge.target}</p>
+             </div>
+             <div className="flex items-center -space-x-2">
+                 {completedMembers.map(member => (
+-                    <img key={member.id} src={member.avatarUrl} alt={member.name} title={member.name} className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" />
++                    <AvatarImage
++                        key={member.id}
++                        userId={member.id}
++                        cacheKey={member.avatarUpdatedAt?.getTime?.()}
++                        alt={member.name}
++                        title={member.name}
++                        className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800"
++                    />
+                 ))}
+             </div>
+         </li>
+     );
+ };
+ 
+ export default History;
+diff --git a/src/components/Leaderboard/index.tsx b/src/components/Leaderboard/index.tsx
+index 48626e4a2468387d5cc705bb5fd53a8f0370fcac..8e8de8af97e0ad55d72957efb14a07ea2fa6f22b 100644
+--- a/src/components/Leaderboard/index.tsx
++++ b/src/components/Leaderboard/index.tsx
+@@ -1,28 +1,29 @@
+ import React, { useContext, useMemo } from 'react';
+ import { AppContext } from '../../App';
+ import { TrophyIcon, FireIcon, ClockIcon, ArrowUpIcon } from '../Icons';
++import AvatarImage from '../ui/AvatarImage';
+ 
+ const Leaderboard: React.FC = () => {
+     const { familyCircle, currentUser } = useContext(AppContext);
+ 
+     const leaderboardData = useMemo(() => {
+         if (!familyCircle) return [];
+ 
+         const today = new Date();
+         const last7Days = Array.from({ length: 7 }, (_, i) => {
+             const d = new Date(today);
+             d.setDate(d.getDate() - i);
+             return d.toISOString().split('T')[0];
+         });
+ 
+         return familyCircle.members.map(member => {
+             let weeklyScore = 0;
+             if (member.activityMap) {
+                 last7Days.forEach(date => {
+                     weeklyScore += member.activityMap![date] || 0;
+                 });
+             }
+             if (weeklyScore === 0) weeklyScore = member.streak;
+ 
+             return { ...member, weeklyScore };
+         }).sort((a, b) => b.weeklyScore - a.weeklyScore);
+@@ -39,120 +40,140 @@ const Leaderboard: React.FC = () => {
+         <div className="space-y-8 animate-fade-in pb-20">
+ 
+             {/* --- HEADER --- */}
+             {/* Reset margin to normal (mb-6) so it doesn't float too high */}
+             <div className="text-center mb-6 relative z-20">
+                 <div className="flex items-center justify-center gap-2 mb-1">
+                     <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Weekly Legends</h2>
+                 </div>
+                 <div className="inline-flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full shadow-sm border border-gray-200 dark:border-gray-600">
+                     <ClockIcon className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                     <p className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                         {daysLeft} Days Left
+                     </p>
+                 </div>
+             </div>
+ 
+             {/* --- TOP 3 PODIUM --- */}
+             {/* Added 'mt-12' (Margin Top) to drop the whole podium down. */}
+             {/* This gives the bouncing trophy physical space so it doesn't overlap the header. */}
+             <div className="flex justify-center items-end gap-2 sm:gap-4 px-2 h-64 relative z-10 mt-12">
+ 
+                 {/* 2nd Place */}
+                 {top3[1] && (
+                     <div className="flex flex-col items-center w-1/3">
+                         <div className="relative mb-2">
+-                            <img src={top3[1].avatarUrl} alt={top3[1].name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-gray-300 shadow-lg object-cover" />
++                            <AvatarImage
++                                userId={top3[1].id}
++                                cacheKey={top3[1].avatarUpdatedAt?.getTime?.()}
++                                alt={top3[1].name}
++                                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-gray-300 shadow-lg object-cover"
++                            />
+                             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-300 shadow-sm">2nd</div>
+                         </div>
+                         <p className="font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-300 text-center truncate w-full px-1">{top3[1].name}</p>
+                         <p className="text-xs text-gray-400 font-bold mb-1">{top3[1].weeklyScore}</p>
+                         <div className="w-full h-24 bg-gradient-to-t from-gray-300 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-t-lg shadow-inner flex items-end justify-center pb-2 opacity-90">
+                             <span className="text-2xl font-black text-gray-400/50">2</span>
+                         </div>
+                     </div>
+                 )}
+ 
+                 {/* 1st Place */}
+                 {top3[0] && (
+                     <div className="flex flex-col items-center w-1/3 z-10">
+                         <div className="relative mb-2">
+-                            <img src={top3[0].avatarUrl} alt={top3[0].name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-yellow-400 shadow-xl object-cover ring-4 ring-yellow-400/30" />
++                            <AvatarImage
++                                userId={top3[0].id}
++                                cacheKey={top3[0].avatarUpdatedAt?.getTime?.()}
++                                alt={top3[0].name}
++                                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-yellow-400 shadow-xl object-cover ring-4 ring-yellow-400/30"
++                            />
+                             <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-0.5 rounded-full border border-yellow-200 shadow-sm">1st</div>
+                         </div>
+                         <p className="font-black text-sm sm:text-base text-gray-900 dark:text-white text-center truncate w-full px-1">{top3[0].name}</p>
+                         <p className="text-xs text-yellow-600 dark:text-yellow-400 font-bold mb-1">{top3[0].weeklyScore} pts</p>
+                         <div className="w-full h-32 bg-gradient-to-t from-yellow-400 to-yellow-200 dark:from-yellow-600 dark:to-yellow-500 rounded-t-lg shadow-lg flex items-end justify-center pb-3 relative overflow-hidden">
+                             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 opacity-50"></div>
+                             <FireIcon className="w-8 h-8 text-yellow-700/50 dark:text-yellow-900/50" />
+                         </div>
+                     </div>
+                 )}
+ 
+                 {/* 3rd Place */}
+                 {top3[2] && (
+                     <div className="flex flex-col items-center w-1/3">
+                         <div className="relative mb-2">
+-                            <img src={top3[2].avatarUrl} alt={top3[2].name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-orange-300 shadow-lg object-cover" />
++                            <AvatarImage
++                                userId={top3[2].id}
++                                cacheKey={top3[2].avatarUpdatedAt?.getTime?.()}
++                                alt={top3[2].name}
++                                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-orange-300 shadow-lg object-cover"
++                            />
+                             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-orange-200 text-orange-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-300 shadow-sm">3rd</div>
+                         </div>
+                         <p className="font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-300 text-center truncate w-full px-1">{top3[2].name}</p>
+                         <p className="text-xs text-gray-400 font-bold mb-1">{top3[2].weeklyScore}</p>
+                         <div className="w-full h-16 bg-gradient-to-t from-orange-300 to-orange-100 dark:from-orange-800 dark:to-orange-700 rounded-t-lg shadow-inner flex items-end justify-center pb-2 opacity-90">
+                             <span className="text-2xl font-black text-orange-900/20 dark:text-orange-900/40">3</span>
+                         </div>
+                     </div>
+                 )}
+             </div>
+ 
+             {/* --- THE REST --- */}
+             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mx-2 relative z-0">
+                 {rest.map((member, index) => {
+                     const isMe = currentUser?.id === member.id;
+                     const personAboveScore = index === 0 ? (top3[2]?.weeklyScore || 0) : rest[index - 1].weeklyScore;
+                     const pointsToOvertake = personAboveScore - member.weeklyScore;
+                     const showChase = pointsToOvertake > 0 && pointsToOvertake < 50;
+ 
+                     return (
+                         <div
+                             key={member.id}
+                             className={`flex items-center justify-between p-4 border-b border-gray-50 dark:border-gray-700/50 last:border-0 transition-colors ${isMe ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                                 }`}
+                         >
+                             <div className="flex items-center gap-4">
+                                 <span className={`text-sm font-bold w-6 text-center ${isMe ? 'text-brand-blue' : 'text-gray-400'}`}>#{index + 4}</span>
+                                 <div className="relative">
+-                                    <img src={member.avatarUrl} alt={member.name} className={`w-10 h-10 rounded-full object-cover ${isMe ? 'ring-2 ring-brand-blue ring-offset-2 dark:ring-offset-gray-800' : 'bg-gray-200'}`} />
++                                    <AvatarImage
++                                        userId={member.id}
++                                        cacheKey={member.avatarUpdatedAt?.getTime?.()}
++                                        alt={member.name}
++                                        className={`w-10 h-10 rounded-full object-cover ${isMe ? 'ring-2 ring-brand-blue ring-offset-2 dark:ring-offset-gray-800' : 'bg-gray-200'}`}
++                                    />
+                                     {isMe && <div className="absolute -bottom-1 -right-1 bg-brand-blue text-white text-[8px] px-1.5 rounded-full border border-white">YOU</div>}
+                                 </div>
+                                 <div>
+                                     <span className={`font-semibold text-sm ${isMe ? 'text-brand-blue dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'}`}>
+                                         {member.name}
+                                     </span>
+                                     {showChase && (
+                                         <div className="flex items-center gap-1 text-[10px] text-orange-500 font-medium animate-pulse">
+                                             <ArrowUpIcon className="w-3 h-3" />
+                                             <span>{pointsToOvertake} pts to overtake</span>
+                                         </div>
+                                     )}
+                                 </div>
+                             </div>
+ 
+                             <div className="text-right">
+                                 <span className={`font-bold block ${isMe ? 'text-brand-blue dark:text-blue-300' : 'text-gray-900 dark:text-white'}`}>{member.weeklyScore}</span>
+                                 <span className="text-[10px] text-gray-400 uppercase font-semibold">Points</span>
+                             </div>
+                         </div>
+                     );
+                 })}
+ 
+                 {rest.length === 0 && top3.length > 0 && (
+                     <div className="p-6 text-center text-sm text-gray-400 bg-gray-50/50 dark:bg-gray-800">
+                         The arena is quiet... invite more family!
+                     </div>
+                 )}
+             </div>
+         </div>
+     );
+ };
+ 
+-export default Leaderboard;
+\ No newline at end of file
++export default Leaderboard;
+diff --git a/src/components/Profile/FamilyCircleCard.tsx b/src/components/Profile/FamilyCircleCard.tsx
+index d2940065247659eab0cc1f92095d2bf24d5ef0d8..2564c026e36243542ce963ff895f62fd758bbac8 100644
+--- a/src/components/Profile/FamilyCircleCard.tsx
++++ b/src/components/Profile/FamilyCircleCard.tsx
+@@ -1,76 +1,82 @@
+ import React, { useState } from 'react';
+ import { UserGroupIcon, LinkIcon, CheckIcon } from '../Icons';
+ import { FamilyCircle } from '../../types'; // Adjust path if needed
++import AvatarImage from '../ui/AvatarImage';
+ 
+ interface FamilyCircleCardProps {
+     familyCircle: FamilyCircle;
+     onManage: () => void;
+ }
+ 
+ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({ familyCircle, onManage }) => {
+     const [isLinkCopied, setIsLinkCopied] = useState(false);
+ 
+     const handleShareInviteLink = () => {
+         if (familyCircle) {
+             const inviteLink = `${window.location.origin}${window.location.pathname}?inviteCode=${familyCircle.inviteCode}`;
+             navigator.clipboard.writeText(inviteLink);
+             setIsLinkCopied(true);
+             setTimeout(() => setIsLinkCopied(false), 2000);
+         }
+     };
+ 
+     return (
+         <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+             <div className="p-6 bg-blue-50/50 dark:bg-blue-900/10">
+                 <div className="flex justify-between items-start">
+                     <div className="flex items-center gap-4">
+                         <div className="w-16 h-16 rounded-2xl bg-white dark:bg-gray-700 shadow-sm flex items-center justify-center text-3xl overflow-hidden border-2 border-white dark:border-gray-600">
+                             {familyCircle.avatarUrl ? <img src={familyCircle.avatarUrl} alt="" className="w-full h-full object-cover" /> : "🏠"}
+                         </div>
+                         <div>
+                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">{familyCircle.name}</h3>
+                             <p className="text-xs font-medium text-brand-blue uppercase tracking-wide">Family Circle</p>
+                         </div>
+                     </div>
+                     <button
+                         onClick={onManage}
+                         className="px-4 py-2 bg-white dark:bg-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:bg-gray-50 transition-colors"
+                     >
+                         Manage
+                     </button>
+                 </div>
+             </div>
+ 
+             <div className="p-6">
+                 {/* Members Grid */}
+                 <div className="mb-6">
+                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Team Members</p>
+                     <div className="flex flex-wrap gap-3">
+                         {familyCircle.members.map(member => (
+                             <div key={member.id} className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 pr-4 pl-1 py-1 rounded-full border border-gray-100 dark:border-gray-700">
+-                                <img src={member.avatarUrl} alt={member.name} className="w-8 h-8 rounded-full bg-white" />
++                                <AvatarImage
++                                    userId={member.id}
++                                    cacheKey={member.avatarUpdatedAt?.getTime?.()}
++                                    alt={member.name}
++                                    className="w-8 h-8 rounded-full bg-white"
++                                />
+                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{member.name.split(' ')[0]}</span>
+                             </div>
+                         ))}
+                     </div>
+                 </div>
+ 
+                 {/* Collapsed Invite Code - Clean Look */}
+                 <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700/30 rounded-lg p-3">
+                     <div className="flex items-center gap-3">
+                         <div className="p-2 bg-white dark:bg-gray-600 rounded-md text-gray-500">
+                             <UserGroupIcon className="w-5 h-5" />
+                         </div>
+                         <div>
+                             <p className="text-xs text-gray-500 dark:text-gray-400">Invite Code</p>
+                             <p className="text-sm font-mono font-bold text-gray-800 dark:text-gray-200 tracking-wider">{familyCircle.inviteCode}</p>
+                         </div>
+                     </div>
+                     <button
+                         onClick={handleShareInviteLink}
+                         className={`p-2 rounded-lg transition-all ${isLinkCopied ? 'bg-green-100 text-green-700' : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500'}`}
+                     >
+                         {isLinkCopied ? <CheckIcon className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
+                     </button>
+                 </div>
+             </div>
+diff --git a/src/components/Profile/ProfileHeader.tsx b/src/components/Profile/ProfileHeader.tsx
+index 9f33aaaf8fd11038db3da66cc0f6e6801b33b47f..f76698de79140507f2f2f50732435af4eef8f622 100644
+--- a/src/components/Profile/ProfileHeader.tsx
++++ b/src/components/Profile/ProfileHeader.tsx
+@@ -1,29 +1,30 @@
+ import React, { useState } from 'react';
+ import { CameraIcon, PencilIcon, FireIcon, ShieldCheckIcon, ScaleIcon } from '../Icons';
+ import CoverPhotoPicker from './CoverPhotoPicker';
+ import { User } from '../../types'; // Adjust path if needed
++import AvatarImage from '../ui/AvatarImage';
+ 
+ interface ProfileHeaderProps {
+     currentUser: User;
+     onUpdateCover: (url: string) => Promise<void>;
+     onEditProfile: () => void;
+     onUpdateWeight: () => void;
+ }
+ 
+ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCover, onEditProfile, onUpdateWeight }) => {
+     const [isEditingCover, setIsEditingCover] = useState(false);
+ 
+     const handleSaveCover = async (url: string) => {
+         await onUpdateCover(url);
+         setIsEditingCover(false);
+     };
+ 
+     // --- Logic for Gamification & Stats ---
+     const currentLevel = currentUser.level || 1;
+     const currentXp = currentUser.xp || 0;
+     // XP Logic
+     const xpProgress = Math.min((currentXp % 500) / 500 * 100, 100);
+ 
+     return (
+         <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 relative z-10">
+             {/* Cover Photo Area */}
+@@ -36,51 +37,56 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
+ 
+                 {/* Floating Edit Cover Button */}
+                 <button
+                     onClick={() => setIsEditingCover(!isEditingCover)}
+                     className="absolute top-3 right-3 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md transition-all shadow-sm"
+                 >
+                     <CameraIcon className="w-5 h-5" />
+                 </button>
+ 
+                 {/* IMPROVED: Preset Picker Popover */}
+                 {isEditingCover && (
+                     <CoverPhotoPicker
+                         currentCoverUrl={currentUser.coverPhotoUrl}
+                         onSave={handleSaveCover}
+                         onCancel={() => setIsEditingCover(false)}
+                     />
+                 )}
+             </div>
+ 
+             {/* Profile Info & XP Bar */}
+             <div className="px-6 pb-6 relative">
+                 <div className="flex justify-between items-end -mt-14 mb-4">
+                     {/* Avatar with Edit Button */}
+                     <div className="relative group">
+                         <div className="w-28 h-28 rounded-full border-[5px] border-white dark:border-gray-800 shadow-xl bg-white overflow-hidden">
+-                            <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
++                            <AvatarImage
++                                userId={currentUser.id}
++                                cacheKey={currentUser.avatarUpdatedAt?.getTime?.()}
++                                alt={currentUser.name}
++                                className="w-full h-full object-cover"
++                            />
+                         </div>
+                         <button
+                             onClick={onEditProfile}
+                             className="absolute bottom-1 right-1 bg-brand-blue hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border-2 border-white dark:border-gray-800 transition-transform hover:scale-105"
+                         >
+                             <PencilIcon className="w-4 h-4" />
+                         </button>
+                     </div>
+ 
+                     {/* Level Badge */}
+                     <div className="flex flex-col items-end">
+                         <div className="bg-gradient-to-r from-amber-400 to-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-md transform rotate-1">
+                             Level {currentLevel}
+                         </div>
+                     </div>
+                 </div>
+ 
+                 <div className="mb-8">
+                     <div className="flex items-baseline justify-between mb-2">
+                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{currentUser.name}</h2>
+                         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{currentXp} XP</span>
+                     </div>
+ 
+                     {/* Gamified XP Bar */}
+                     <div className="relative w-full h-5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
+diff --git a/src/components/Profile/ProfileSettings.tsx b/src/components/Profile/ProfileSettings.tsx
+index c39ff41e5b72e63be74d7817c0fdbb13774b8f3c..2261bd361c32257f45cfaa2587cda76c2255be77 100644
+--- a/src/components/Profile/ProfileSettings.tsx
++++ b/src/components/Profile/ProfileSettings.tsx
+@@ -1,28 +1,29 @@
+ import React from 'react';
+ import { BellIcon, ShieldCheckIcon } from '../Icons';
+ import { User, FamilyCircle } from '../../types';
++import AvatarImage from '../ui/AvatarImage';
+ 
+ interface ProfileSettingsProps {
+     currentUser: User;
+     familyCircle?: FamilyCircle | null;
+     isImpersonating: boolean;
+     originalUserId?: string | null;
+     hasNotificationsEnabled: boolean;
+     isNotificationToggleLoading: boolean;
+     onToggleNotifications: (e: React.ChangeEvent<HTMLInputElement>) => void;
+     onOpenPrivacy: () => void;
+     onSwitchProfile: (userId: string) => void;
+     onSignOut: () => void;
+ }
+ 
+ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
+     currentUser,
+     familyCircle,
+     isImpersonating,
+     originalUserId,
+     hasNotificationsEnabled,
+     isNotificationToggleLoading,
+     onToggleNotifications,
+     onOpenPrivacy,
+     onSwitchProfile,
+     onSignOut
+@@ -47,58 +48,63 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
+             <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4"></div>
+ 
+             {/* Privacy */}
+             <button onClick={onOpenPrivacy} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors text-left">
+                 <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-full bg-teal-50 dark:bg-teal-900/20 text-teal-600 flex items-center justify-center">
+                         <ShieldCheckIcon className="w-5 h-5" />
+                     </div>
+                     <span className="font-medium text-gray-700 dark:text-gray-200">Privacy Policy</span>
+                 </div>
+                 <span className="text-gray-400">›</span>
+             </button>
+ 
+             {/* Profile Switcher Section */}
+             {(currentUser.role === 'adult' || isImpersonating) && (
+                 <>
+                     <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4 my-2"></div>
+                     <div className="px-4 py-2">
+                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Switch Profile</p>
+                         <div className="space-y-1">
+                             {familyCircle?.members
+                                 .filter(m => m.role === 'child' && m.id !== currentUser.id)
+                                 .map(child => (
+                                     <button
+                                         key={child.id}
+-                                        onClick={() => onSwitchProfile(child.id)}
+-                                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+-                                    >
+-                                        <img src={child.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+-                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{child.name}</span>
+-                                    </button>
+-                                ))
+-                            }
++                                onClick={() => onSwitchProfile(child.id)}
++                                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
++                            >
++                                <AvatarImage
++                                    userId={child.id}
++                                    cacheKey={child.avatarUpdatedAt?.getTime?.()}
++                                    alt={child.name}
++                                    className="w-8 h-8 rounded-full"
++                                />
++                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{child.name}</span>
++                            </button>
++                        ))
++                    }
+                             {isImpersonating && originalUserId && (
+                                 <button
+                                     onClick={() => onSwitchProfile(originalUserId)}
+                                     className="w-full flex items-center gap-3 p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors mt-2"
+                                 >
+                                     <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">↩</div>
+                                     <span className="text-sm font-medium">Exit Child View</span>
+                                 </button>
+                             )}
+                         </div>
+                     </div>
+                 </>
+             )}
+ 
+             <div className="h-px bg-gray-100 dark:bg-gray-700 mx-4"></div>
+ 
+             {/* Sign Out */}
+             <button onClick={onSignOut} className="w-full p-4 text-center text-red-500 font-medium hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors">
+                 Sign Out
+             </button>
+         </div>
+     );
+ };
+ 
+ export default ProfileSettings;
+diff --git a/src/components/Profile/ProfileSwitcher.tsx b/src/components/Profile/ProfileSwitcher.tsx
+index 45e7ffbf51bfb836e08283f820ad5ff756c8bf29..38bf4414e9a9ae2ff26c30170d98d5a4ba250aaf 100644
+--- a/src/components/Profile/ProfileSwitcher.tsx
++++ b/src/components/Profile/ProfileSwitcher.tsx
+@@ -1,75 +1,77 @@
+ import React from 'react';
+ import { User, FamilyCircle } from '../../types';
++import AvatarImage from '../ui/AvatarImage';
+ 
+ interface ProfileSwitcherProps {
+     currentUser: User;
+     familyCircle: FamilyCircle | null;
+     isImpersonating: boolean;
+     originalUserId: string | null;
+     onSwitch: (userId: string) => void;
+     onOpenSettings: () => void;
+ }
+ 
+ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
+     currentUser,
+     familyCircle,
+     isImpersonating,
+     originalUserId,
+     onSwitch,
+     onOpenSettings
+ }) => {
+ 
+     // Safety check: If not an adult and not impersonating, show nothing
+     if (currentUser.role !== 'adult' && !isImpersonating) return null;
+ 
+     return (
+         <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 animate-fade-in">
+             <div className="flex items-center justify-between mb-4">
+                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                     <span>🔄</span> Switch Profile
+                 </h3>
+             </div>
+ 
+             {/* State A: Parent View - Show Kids */}
+             {!isImpersonating && (
+                 <div>
+                     <p className="text-sm text-gray-500 mb-4">Tap a child's profile to log challenges for them.</p>
+ 
+                     <div className="grid grid-cols-3 gap-3">
+                         {/* Render Children */}
+                         {familyCircle?.members
+                             .filter(m => m.role === 'child' && m.id !== currentUser.id)
+                             .map(child => (
+                                 <button
+                                     key={child.id}
+                                     onClick={() => onSwitch(child.id)}
+                                     className="flex flex-col items-center group"
+                                 >
+                                     <div className="relative w-16 h-16 mb-2 transition-transform group-hover:scale-105">
+-                                        <img
+-                                            src={child.avatarUrl}
++                                        <AvatarImage
++                                            userId={child.id}
++                                            cacheKey={child.avatarUpdatedAt?.getTime?.()}
+                                             alt={child.name}
+                                             className="w-full h-full rounded-2xl object-cover border-2 border-transparent group-hover:border-brand-blue shadow-sm"
+                                         />
+                                         <div className="absolute -bottom-1 -right-1 bg-green-100 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white">
+                                             KID
+                                         </div>
+                                     </div>
+                                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate w-full text-center">
+                                         {child.name.split(' ')[0]}
+                                     </span>
+                                 </button>
+                             ))
+                         }
+ 
+                         {/* Empty State */}
+                         {familyCircle?.members.filter(m => m.role === 'child').length === 0 && (
+                             <div className="col-span-3 text-center py-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-dashed border-gray-300">
+                                 <p className="text-xs text-gray-400">No child profiles found.</p>
+                                 <button
+                                     onClick={onOpenSettings}
+                                     className="text-xs text-brand-blue font-bold mt-1 hover:underline"
+                                 >
+                                     + Add Child in Settings
+                                 </button>
+                             </div>
+diff --git a/src/components/Profile/modals/EditProfilePictureModal.tsx b/src/components/Profile/modals/EditProfilePictureModal.tsx
+index b86362c95e9d7af724a32f0c6fd6bc128d6a0d43..464b652d6c19b32cbdae25abbc0c6177d502cfe8 100644
+--- a/src/components/Profile/modals/EditProfilePictureModal.tsx
++++ b/src/components/Profile/modals/EditProfilePictureModal.tsx
+@@ -1,32 +1,33 @@
+ 
+ import React, { useState, useRef, useEffect, useContext } from 'react';
+ import { AppContext } from '../../../App';
+ import { uploadProfileImage } from '../../../services/storageService';
+ import { updateUserAvatar } from '../../../services/userService';
+ import { CameraIcon, PhotoIcon, XMarkIcon } from '../../Icons';
+ import confetti from 'canvas-confetti';
++import { clearAvatarCache } from '../../../lib/avatar';
+ 
+ interface EditProfilePictureModalProps {
+     onClose: () => void;
+ }
+ 
+ type View = 'select' | 'camera' | 'preview';
+ 
+ const ErrorMessage: React.FC<{ message: string }> = ({ message }) => {
+     if (!message) return null;
+     return (
+         <div className="bg-red-100 border border-red-400 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200 px-4 py-3 rounded-md my-4 text-sm text-center" role="alert">
+             {message}
+         </div>
+     );
+ };
+ 
+ 
+ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClose }) => {
+     const context = useContext(AppContext);
+     const [view, setView] = useState<View>('select');
+     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+     const [imageUrl, setImageUrl] = useState<string>('');
+     const [error, setError] = useState('');
+     const [isLoading, setIsLoading] = useState(false);
+ 
+@@ -110,53 +111,54 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
+             context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+             canvas.toBlob(blob => {
+                 if (blob) {
+                     setImageBlob(blob);
+                     setImageUrl(URL.createObjectURL(blob));
+                     setView('preview');
+                 }
+             }, 'image/jpeg');
+         }
+     };
+ 
+     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+         const file = event.target.files?.[0];
+         if (file) {
+             setImageBlob(file);
+             setImageUrl(URL.createObjectURL(file));
+             setView('preview');
+         }
+     };
+ 
+     const handleSave = async () => {
+         if (!imageBlob || !context?.currentUser || !context.updateCurrentUser) return;
+         setIsLoading(true);
+         setError('');
+         try {
+-            const downloadURL = await uploadProfileImage(context.currentUser.id, imageBlob);
+-            await updateUserAvatar(context.currentUser.id, downloadURL);
+-            context.updateCurrentUser({ avatarUrl: downloadURL });
++            await uploadProfileImage(context.currentUser.id, imageBlob);
++            clearAvatarCache(context.currentUser.id);
++            await updateUserAvatar(context.currentUser.id);
++            context.updateCurrentUser({ avatarUpdatedAt: new Date() });
+             onClose();
+         } catch (err: any) {
+             console.error("Error uploading image:", err);
+             let message = 'Failed to upload image. Please try again.';
+             if (err.code === 'storage/unauthorized') {
+                 message = "Upload failed due to permissions. Please ensure your Firebase Storage rules are configured correctly.";
+             }
+             setError(message);
+         } finally {
+             setIsLoading(false);
+         }
+     };
+ 
+     const reset = () => {
+         setImageBlob(null);
+         if (imageUrl) {
+             URL.revokeObjectURL(imageUrl);
+         }
+         setImageUrl('');
+         setError('');
+         setView('select');
+     };
+ 
+     const renderContent = () => {
+         switch (view) {
+diff --git a/src/components/Profile/modals/FamilySettingsModal.tsx b/src/components/Profile/modals/FamilySettingsModal.tsx
+index 8fe5fbeec20ecccf89704d3e78cc357082bf6a1a..4141354659edf2b05ad76aa41cfaa7ee8a024227 100644
+--- a/src/components/Profile/modals/FamilySettingsModal.tsx
++++ b/src/components/Profile/modals/FamilySettingsModal.tsx
+@@ -1,31 +1,32 @@
+ import React, { useState, useContext } from 'react';
+ import { AppContext } from '../../../App';
+ import { updateFamilyProfile, promoteToAdmin, removeFromFamily, createChildProfile } from '../../../services/familyService';
+ import { XMarkIcon, CameraIcon, TrashIcon, ShieldCheckIcon, UserGroupIcon, UserPlusIcon, HomeIcon } from '../../Icons'; // Make sure to add the new icons
+ import Modal from '../../ui/Modal';
+ import { getFunctions, httpsCallable } from 'firebase/functions';
++import AvatarImage from '../../ui/AvatarImage';
+ 
+ interface FamilySettingsModalProps {
+     onClose: () => void;
+ }
+ 
+ type TabType = 'general' | 'members' | 'add';
+ 
+ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) => {
+     const { familyCircle, currentUser } = useContext(AppContext);
+ 
+     // UI State
+     const [activeTab, setActiveTab] = useState<TabType>('members'); // Default to members as it's the most common action
+     const [isLoading, setIsLoading] = useState(false);
+ 
+     // Form States
+     const [name, setName] = useState(familyCircle?.name || '');
+     const [motto, setMotto] = useState(familyCircle?.motto || '');
+     const [avatarUrl, setAvatarUrl] = useState(familyCircle?.avatarUrl || '');
+ 
+     // Add Child State
+     const [childName, setChildName] = useState('');
+     const [childBirthDate, setChildBirthDate] = useState('');
+     const [isAddingChild, setIsAddingChild] = useState(false);
+ 
+     // Invite Teen State
+@@ -156,51 +157,56 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) =>
+             title="Family Settings"
+             footer={null} // We handle buttons inside tabs now for better context
+         >
+             <div>
+                 {renderTabs()}
+ 
+                 {/* --- TAB: MEMBERS --- */}
+                 {activeTab === 'members' && (
+                     <div className="space-y-4 animate-fade-in">
+                         <div className="flex items-center justify-between mb-2">
+                             <p className="text-sm text-gray-500 dark:text-gray-400">Manage your family roster.</p>
+                             <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-2 py-1 rounded-full font-mono">
+                                 {familyCircle.members.length} Members
+                             </span>
+                         </div>
+ 
+                         <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+                             {familyCircle.members.map(member => {
+                                 const isMemberAdmin = familyCircle.adminIds?.includes(member.id);
+                                 const isMe = currentUser.id === member.id;
+ 
+                                 return (
+                                     <div key={member.id} className="flex items-center justify-between bg-white dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 p-3 rounded-xl shadow-sm">
+                                         <div className="flex items-center gap-3">
+                                             <div className="relative">
+-                                                <img src={member.avatarUrl} alt={member.name} className="w-10 h-10 rounded-full object-cover bg-gray-200" />
++                                                <AvatarImage
++                                                    userId={member.id}
++                                                    cacheKey={member.avatarUpdatedAt?.getTime?.()}
++                                                    alt={member.name}
++                                                    className="w-10 h-10 rounded-full object-cover bg-gray-200"
++                                                />
+                                                 {isMemberAdmin && (
+                                                     <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5">
+                                                         <ShieldCheckIcon className="w-3 h-3 text-blue-500" />
+                                                     </div>
+                                                 )}
+                                             </div>
+                                             <div>
+                                                 <p className="font-bold text-gray-900 dark:text-white text-sm">
+                                                     {member.name} {isMe && <span className="text-gray-400 font-normal">(You)</span>}
+                                                 </p>
+                                                 <p className="text-xs text-gray-500 capitalize">
+                                                     {member.role || 'Member'}
+                                                 </p>
+                                             </div>
+                                         </div>
+ 
+                                         {isAdmin && !isMe && (
+                                             <div className="flex items-center gap-1">
+                                                 {!isMemberAdmin && member.role !== 'child' && (
+                                                     <button
+                                                         onClick={() => handlePromote(member.id)}
+                                                         className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                         title="Promote to Admin"
+                                                     >
+                                                         <ShieldCheckIcon className="w-5 h-5" />
+@@ -347,26 +353,26 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) =>
+                             </div>
+                         </div>
+ 
+                         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                             <button
+                                 onClick={onClose}
+                                 className="px-4 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                             >
+                                 Cancel
+                             </button>
+                             <button
+                                 onClick={handleSaveProfile}
+                                 disabled={isLoading}
+                                 className="px-6 py-2 bg-brand-blue hover:bg-blue-600 text-white font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                             >
+                                 {isLoading ? 'Saving...' : 'Save Details'}
+                             </button>
+                         </div>
+                     </div>
+                 )}
+             </div>
+         </Modal>
+     );
+ };
+ 
+-export default FamilySettingsModal;
+\ No newline at end of file
++export default FamilySettingsModal;
+diff --git a/src/components/ui/AvatarImage.tsx b/src/components/ui/AvatarImage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..1c3a4ec00b77068143572c81c1fae085e58f9606
+--- /dev/null
++++ b/src/components/ui/AvatarImage.tsx
+@@ -0,0 +1,49 @@
++import React, { useEffect, useState } from "react";
++import { AVATAR_PLACEHOLDER, getAvatarDownloadUrl } from "../../lib/avatar";
++
++interface AvatarImageProps {
++    userId?: string;
++    alt?: string;
++    className?: string;
++    title?: string;
++    cacheKey?: string | number;
++}
++
++const AvatarImage: React.FC<AvatarImageProps> = ({
++    userId,
++    alt = "",
++    className = "",
++    title,
++    cacheKey,
++}) => {
++    const [src, setSrc] = useState<string>(AVATAR_PLACEHOLDER);
++
++    useEffect(() => {
++        let isMounted = true;
++
++        if (!userId) {
++            setSrc(AVATAR_PLACEHOLDER);
++            return;
++        }
++
++        getAvatarDownloadUrl(userId, cacheKey).then((url) => {
++            if (isMounted) setSrc(url);
++        });
++
++        return () => {
++            isMounted = false;
++        };
++    }, [userId, cacheKey]);
++
++    return (
++        <img
++            src={src}
++            alt={alt}
++            title={title ?? alt}
++            className={className}
++            onError={() => setSrc(AVATAR_PLACEHOLDER)}
++        />
++    );
++};
++
++export default AvatarImage;
+diff --git a/src/lib/avatar.ts b/src/lib/avatar.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..93db885df94b866a468c72216e6701d09a81aac6
+--- /dev/null
++++ b/src/lib/avatar.ts
+@@ -0,0 +1,81 @@
++import { getDownloadURL, ref } from "firebase/storage";
++import { storage } from "../firebaseConfig";
++
++const AVATAR_ROOT = "profile-pictures";
++export const AVATAR_PLACEHOLDER = "/assets/FamiliGo_logo_nobg.png";
++
++type CacheKey = string | number | undefined;
++
++const avatarUrlCache = new Map<string, Promise<string>>();
++
++const buildCacheKey = (userId: string, cacheKey?: CacheKey) =>
++    `${userId}:${cacheKey ?? ""}`;
++
++/**
++ * Returns the canonical storage reference for a user's avatar.
++ */
++export const getAvatarStorageRef = (userId: string) => {
++    const normalizedUserId = userId?.trim();
++    if (!normalizedUserId) {
++        throw new Error("A valid userId is required to build an avatar path.");
++    }
++    return ref(storage, `${AVATAR_ROOT}/${normalizedUserId}/avatar.jpg`);
++};
++
++/**
++ * Resolves the download URL for a user's avatar, with in-memory caching and
++ * a safe placeholder fallback when the object does not exist.
++ */
++export const getAvatarDownloadUrl = async (
++    userId: string,
++    cacheKey?: CacheKey
++): Promise<string> => {
++    const normalizedUserId = userId?.trim();
++    if (!normalizedUserId) return AVATAR_PLACEHOLDER;
++
++    const key = buildCacheKey(normalizedUserId, cacheKey);
++
++    if (!avatarUrlCache.has(key)) {
++        avatarUrlCache.set(
++            key,
++            (async () => {
++                try {
++                    return await getDownloadURL(getAvatarStorageRef(normalizedUserId));
++                } catch (error: any) {
++                    if (error?.code === "storage/object-not-found") {
++                        return AVATAR_PLACEHOLDER;
++                    }
++                    console.warn(`[avatar] Failed to resolve avatar for ${normalizedUserId}`, error);
++                    return AVATAR_PLACEHOLDER;
++                }
++            })()
++        );
++    }
++
++    return avatarUrlCache.get(key)!;
++};
++
++/**
++ * Clears cached download URLs. When a cacheKey is provided, only that
++ * version is removed. Otherwise, every cached entry for the user is purged.
++ */
++export const clearAvatarCache = (userId?: string, cacheKey?: CacheKey) => {
++    if (!userId) {
++        avatarUrlCache.clear();
++        return;
++    }
++
++    const normalizedUserId = userId.trim();
++    if (!normalizedUserId) return;
++
++    if (cacheKey !== undefined) {
++        avatarUrlCache.delete(buildCacheKey(normalizedUserId, cacheKey));
++        return;
++    }
++
++    for (const key of avatarUrlCache.keys()) {
++        if (key.startsWith(`${normalizedUserId}:`)) {
++            avatarUrlCache.delete(key);
++        }
++    }
++};
+diff --git a/src/services/authService.ts b/src/services/authService.ts
+index fadbb834f46d216bd424b08b6e841f47858e3d79..898596f9d0e315c5660cca98c3f7bac22ba58dd4 100644
+--- a/src/services/authService.ts
++++ b/src/services/authService.ts
+@@ -1,137 +1,141 @@
+ import {
+     createUserWithEmailAndPassword,
+     signInWithEmailAndPassword,
+     signOut,
+     onAuthStateChanged as onFirebaseAuthStateChanged,
+     sendEmailVerification,
+     GoogleAuthProvider,
+     signInWithPopup,
+     getAdditionalUserInfo,
+ } from "firebase/auth";
+ import {
+     doc,
+     setDoc,
+     getDoc,
+     Timestamp,
++    serverTimestamp,
+ } from "firebase/firestore";
+ import { auth, db } from '../firebaseConfig';
+ import { User, UserRole } from '../types';
+ import { checkAndUpdateStreak, getBadges } from './userService';
+ 
+ export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
+     return onFirebaseAuthStateChanged(auth, async (firebaseUser) => {
+         if (firebaseUser) {
+             const userDocRef = doc(db, 'users', firebaseUser.uid);
+ 
+             // This function retries fetching the document to avoid a race condition during sign-up
+             // where the auth state changes before the user document is written to Firestore.
+             const getUserDocWithRetry = async (retries = 3, delay = 500): Promise<any | null> => {
+                 for (let i = 0; i < retries; i++) {
+                     const userDoc = await getDoc(userDocRef);
+                     if (userDoc.exists()) {
+                         return userDoc;
+                     }
+                     // Wait before the next retry
+                     await new Promise(res => setTimeout(res, delay));
+                 }
+                 return null; // Return null if not found after all retries
+             };
+ 
+             const userDoc = await getUserDocWithRetry();
+ 
+             if (userDoc) {
+                 const userData = userDoc.data();
+ 
+                 // Convert weightHistory timestamps from Firestore Timestamps to JS Dates
+                 if (userData.weightHistory && Array.isArray(userData.weightHistory)) {
+                     userData.weightHistory = userData.weightHistory.map((entry: any) => ({
+                         ...entry,
+                         timestamp: entry.timestamp instanceof Timestamp ? entry.timestamp.toDate() : new Date(), // Defensive check
+                     }));
+                 }
+ 
+                 // Convert lastActiveDate from Firestore Timestamp to JS Date
+                 if (userData.lastActiveDate && userData.lastActiveDate instanceof Timestamp) {
+                     userData.lastActiveDate = userData.lastActiveDate.toDate();
+                 }
++                if (userData.avatarUpdatedAt && userData.avatarUpdatedAt instanceof Timestamp) {
++                    userData.avatarUpdatedAt = userData.avatarUpdatedAt.toDate();
++                }
+ 
+                 const idTokenResult = await firebaseUser.getIdTokenResult(true);
+                 const isAdmin = !!idTokenResult.claims.admin;
+ 
+                 const user: User = {
+                     id: firebaseUser.uid,
+                     emailVerified: firebaseUser.emailVerified,
+                     isAdmin,
+                     ...userData,
+                 } as User;
+ 
+                 // Check and update streak
+                 checkAndUpdateStreak(user);
+ 
+                 callback(user);
+             } else {
+                 // If the user document doesn't exist even after retries, it's an inconsistent state.
+                 // It's safer to sign the user out.
+                 console.warn(`User document not found for uid: ${firebaseUser.uid} after retries. Forcing sign out.`);
+                 signOut(auth);
+                 callback(null);
+             }
+         } else {
+             callback(null);
+         }
+     });
+ };
+ 
+ export const signUpWithEmail = async (
+     name: string,
+     email: string,
+     pass: string,
+     role: UserRole = 'adult',
+     birthDate?: Date,
+     earlyAccessData?: User['earlyAccessData'],
+     inviteContext?: User['inviteContext']
+ ): Promise<{ user: User | null, error: string | null }> => {
+     try {
+         const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+         const { user } = userCredential;
+ 
+         await sendEmailVerification(user);
+ 
+         const allBadges = await getBadges();
+ 
+-        const newUser: Omit<User, 'id' | 'emailVerified'> = {
+-            name,
+-            email: user.email!,
+-            role,
+-            birthDate,
+-            avatarUrl: `https://i.pravatar.cc/150?u=${user.uid}`,
+-            streak: 1,
+-            lastActiveDate: new Date(),
+-            badges: allBadges.map(b => ({ ...b, unlocked: false })),
+-            weightUnit: 'lbs',
+-            weightHistory: [],
++            const newUser: Omit<User, 'id' | 'emailVerified'> = {
++                name,
++                email: user.email!,
++                role,
++                birthDate,
++                avatarUpdatedAt: serverTimestamp(),
++                streak: 1,
++                lastActiveDate: new Date(),
++                badges: allBadges.map(b => ({ ...b, unlocked: false })),
++                weightUnit: 'lbs',
++                weightHistory: [],
+             notificationTokens: [],
+             // Default new parent signups to pending_approval if they have early access data
+             // or if we enforce it for all parents. For now, let's tie it to earlyAccessData presence or role.
+             status: role === 'adult' ? 'pending_approval' : 'active',
+             earlyAccessData,
+             inviteContext,
+             familyCircleId: inviteContext?.familyCircleId,
+         };
+ 
+         await setDoc(doc(db, 'users', user.uid), newUser);
+ 
+         return { user: { id: user.uid, ...newUser, emailVerified: user.emailVerified }, error: null };
+     }
+     catch (error: any) {
+         if (error.code === "auth/email-already-in-use") {
+             return { user: null, error: "An account with this email already exists." };
+         }
+         return { user: null, error: "Unable to create account. Please try again." };
+     }
+ 
+ };
+ 
+ export const signInWithEmail = async (email: string, pass: string): Promise<{ user: User | null, error: string | null }> => {
+     try {
+         await signInWithEmailAndPassword(auth, email, pass);
+@@ -139,51 +143,51 @@ export const signInWithEmail = async (email: string, pass: string): Promise<{ us
+         return { user: null, error: null };
+     } catch (error: any) {
+         return { user: null, error: "Invalid email or password." };
+     }
+ };
+ 
+ export const signInWithGoogle = async (
+     role: UserRole = 'adult',
+     earlyAccessData?: User['earlyAccessData']
+ ): Promise<{ user: User | null, error: string | null }> => {
+     const provider = new GoogleAuthProvider();
+     try {
+         const result = await signInWithPopup(auth, provider);
+         const user = result.user;
+ 
+         // Check if it's a new user
+         const additionalUserInfo = getAdditionalUserInfo(result);
+         if (additionalUserInfo?.isNewUser) {
+             // If it's a new user, create a document for them in Firestore
+             const allBadges = await getBadges();
+             const newUser: Omit<User, 'id' | 'emailVerified'> = {
+                 name: user.displayName || 'New User',
+                 email: user.email!,
+                 role: role,
+                 birthDate: new Date(), // Default to today or handle later
+-                avatarUrl: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
++                avatarUpdatedAt: serverTimestamp(),
+                 streak: 1,
+                 lastActiveDate: new Date(),
+                 badges: allBadges.map(b => ({ ...b, unlocked: false })),
+                 weightUnit: 'lbs',
+                 weightHistory: [],
+                 notificationTokens: [],
+                 // Default new parent signups to pending_approval if they have early access data
+                 status: role === 'adult' ? 'pending_approval' : 'active',
+                 earlyAccessData: earlyAccessData
+             };
+             await setDoc(doc(db, 'users', user.uid), newUser);
+         } else {
+             // Existing user - logic is handled by onAuthStateChanged
+             // If we assume account linking is automatic, we don't need to do manual linking here.
+             // However, we might want to update early access data if it's missing? 
+             // For now, let's keep it simple: existing users just log in.
+         }
+ 
+         // onAuthStateChanged will handle the rest
+         return { user: null, error: null };
+     } catch (error: any) {
+         // Handle specific errors
+         if (error.code === 'auth/popup-closed-by-user') {
+             return { user: null, error: null }; // Not an error to display
+         }
+diff --git a/src/services/challengeService.ts b/src/services/challengeService.ts
+index db5403922417971e591b3b0be3a0cff3673859ce..0da95505f45bb86bf1a19270c691b2519d326431 100644
+--- a/src/services/challengeService.ts
++++ b/src/services/challengeService.ts
+@@ -1,136 +1,146 @@
+ import {
+     doc,
+     getDoc,
+     updateDoc,
+     collection,
+     query,
+     where, // <--- CRITICAL IMPORT
+     addDoc,
+     getDocs,
+     serverTimestamp,
+     onSnapshot,
+     orderBy,
+     writeBatch,
+     increment,
+     Timestamp,
+     arrayUnion,
+ } from "firebase/firestore";
+ import { db } from '../firebaseConfig';
+ import { User, Challenge, Reply, Exercise } from '../types';
+ import { getUserTokens, addXp } from './userService';
+ import { sendPushNotification } from "./webPushService";
+ 
++const normalizeAvatarMetadata = <T extends { avatarUpdatedAt?: any }>(entity: T) => {
++    if (!entity) return entity;
++    const avatarUpdatedAt =
++        entity.avatarUpdatedAt instanceof Timestamp
++            ? entity.avatarUpdatedAt.toDate()
++            : entity.avatarUpdatedAt;
++    return { ...entity, avatarUpdatedAt };
++};
++
+ export const getExercises = async (): Promise<Exercise[]> => {
+     const exercisesCol = collection(db, 'exercises');
+     const q = query(exercisesCol, orderBy('name'));
+     const snapshot = await getDocs(q);
+     return snapshot.docs.map(doc => doc.data() as Exercise);
+ };
+ 
+ export const onChallengesUpdate = (familyCircleId: string, callback: (challenges: Challenge[]) => void, onError?: (error: Error) => void): (() => void) => {
+     // SECURITY FIX: Added where('familyCircleId', '==', familyCircleId)
+     const q = query(
+         collection(db, 'challenges'),
+         where('familyCircleId', '==', familyCircleId),
+         // orderBy('timestamp', 'desc') // Ensure you have an index for familyCircleId + timestamp
+     );
+ 
+     return onSnapshot(q, (querySnapshot) => {
+         const challenges = querySnapshot.docs.map(doc => {
+             const data = doc.data();
+             const timestamp = data.timestamp as Timestamp | null;
+             const expiresAt = data.expiresAt as Timestamp | null;
+             return {
+                 id: doc.id,
+                 ...data,
++                challenger: normalizeAvatarMetadata(data.challenger),
+                 timestamp: timestamp ? timestamp.toDate() : new Date(),
+                 expiresAt: expiresAt ? expiresAt.toDate() : new Date(Date.now() + 48 * 60 * 60 * 1000),
+                 completedBy: data.completedBy || [],
+             } as Challenge
+         });
+         // Client-side sort is safer if index is missing
+         challenges.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+         callback(challenges);
+     }, (error) => {
+         console.error("[ChallengeService] Snapshot error:", error);
+         if (onError) onError(error);
+     });
+ };
+ 
+ // SECURITY FIX: Added familyCircleId parameter
+ export const onRepliesUpdate = (challengeId: string, familyCircleId: string, callback: (replies: Reply[]) => void): (() => void) => {
+     // SECURITY FIX: Must filter by familyCircleId to satisfy rules
+     const q = query(
+         collection(db, 'replies'),
+         where('challengeId', '==', challengeId),
+         where('familyCircleId', '==', familyCircleId)
+     );
+ 
+     return onSnapshot(q, (querySnapshot) => {
+         const replies = querySnapshot.docs.map(doc => {
+             const data = doc.data();
+             const timestamp = data.timestamp as Timestamp | null;
+             return {
+                 id: doc.id,
+                 ...data,
++                user: normalizeAvatarMetadata(data.user),
+                 timestamp: timestamp ? timestamp.toDate() : new Date(),
+             } as Reply
+         });
+         replies.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+         callback(replies);
+     });
+ };
+ 
+ export const addChallengeToFamily = async (
+     challenger: User,
+     familyCircleId: string,
+     exercise: Exercise,
+     target: string,
+     mediaUrl?: string,
+     type: 'individual' | 'team' = 'individual',
+     goalTotal?: number,
+     unit?: string,
+     durationDays: number = 2
+ ) => {
+     const batch = writeBatch(db);
+     const challengesRef = collection(db, 'challenges');
+ 
+     const userChallengesQuery = query(
+         challengesRef,
+         where('challenger.id', '==', challenger.id),
+         where('familyCircleId', '==', familyCircleId)
+     );
+     const userChallengesSnapshot = await getDocs(userChallengesQuery);
+     const isFirstChallenge = userChallengesSnapshot.empty;
+ 
+     const expirationDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+     const newChallenge: any = {
+         challenger: {
+             id: challenger.id,
+             name: challenger.name,
+-            avatarUrl: challenger.avatarUrl
+         },
+         familyCircleId, // This field allows the Read/Write
+         exercise,
+         target,
+         type,
+         mediaUrl: mediaUrl || exercise.visualGuideUrl,
+         timestamp: serverTimestamp(),
+         expiresAt: Timestamp.fromDate(expirationDate),
+         completedBy: [],
+     };
+ 
+     if (type === 'team') {
+         newChallenge.goalTotal = goalTotal;
+         newChallenge.currentTotal = 0;
+         newChallenge.unit = unit;
+     }
+     const newChallengeRef = doc(challengesRef);
+     batch.set(newChallengeRef, newChallenge);
+ 
+     if (isFirstChallenge) {
+         const userDocRef = doc(db, 'users', challenger.id);
+         const userDoc = await getDoc(userDocRef);
+ 
+         if (userDoc.exists()) {
+             const userData = userDoc.data();
+@@ -147,51 +157,50 @@ export const addChallengeToFamily = async (
+                 batch.update(userDocRef, { badges: updatedBadges });
+             }
+         }
+     }
+ 
+     await batch.commit();
+ };
+ 
+ export const addReplyToChallenge = async (
+     user: User,
+     challengeId: string,
+     familyCircleId: string,
+     mediaUrl?: string,
+     text?: string,
+     parentId?: string,
+     isCompletion: boolean = false,
+     contributionValue?: number
+ ) => {
+     const batch = writeBatch(db);
+ 
+     const replyRef = doc(collection(db, 'replies'));
+     const newReply: any = {
+         user: {
+             id: user.id,
+             name: user.name,
+-            avatarUrl: user.avatarUrl,
+         },
+         challengeId,
+         familyCircleId, // Essential for Security Rules
+         reactions: {},
+         timestamp: serverTimestamp(),
+     };
+     if (text) newReply.text = text;
+     if (mediaUrl) newReply.mediaUrl = mediaUrl;
+     if (parentId) newReply.parentId = parentId;
+     if (contributionValue) newReply.contributionValue = contributionValue;
+ 
+     batch.set(replyRef, newReply);
+ 
+     const challengeRef = doc(db, 'challenges', challengeId);
+ 
+     if (isCompletion) {
+         batch.update(challengeRef, {
+             completedBy: arrayUnion(user.id)
+         });
+     }
+ 
+     if (contributionValue) {
+         batch.update(challengeRef, {
+             currentTotal: increment(contributionValue)
+         });
+@@ -242,26 +251,26 @@ export const deleteChallengeAndReplies = async (challengeId: string, familyCircl
+     const repliesQuery = query(
+         collection(db, 'replies'),
+         where('challengeId', '==', challengeId),
+         where('familyCircleId', '==', familyCircleId) // <--- THIS WAS THE MISSING KEY
+     );
+ 
+     const repliesSnapshot = await getDocs(repliesQuery);
+     repliesSnapshot.forEach(replyDoc => {
+         batch.delete(replyDoc.ref);
+     });
+ 
+     await batch.commit();
+ };
+ 
+ export const updateReaction = async (replyId: string, emoji: string) => {
+     const replyRef = doc(db, 'replies', replyId);
+     await updateDoc(replyRef, {
+         [`reactions.${emoji}`]: increment(1)
+     });
+ };
+ 
+ export const getRepliesForFamily = async (familyCircleId: string): Promise<Reply[]> => {
+     const q = query(collection(db, 'replies'), where('familyCircleId', '==', familyCircleId));
+     const querySnapshot = await getDocs(q);
+     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reply));
+-};
+\ No newline at end of file
++};
+diff --git a/src/services/chatService.ts b/src/services/chatService.ts
+index 4a36e1d952cfad879aad0c0bc216acbadba5e83e..3aadcecbeb5183e8d5a7d2f7b901f7cb7cb9e93e 100644
+--- a/src/services/chatService.ts
++++ b/src/services/chatService.ts
+@@ -1,50 +1,49 @@
+ import {
+     doc,
+     getDoc,
+     updateDoc,
+     collection,
+     query,
+     where,
+     addDoc,
+     serverTimestamp,
+     onSnapshot,
+     orderBy,
+     deleteDoc,
+     increment,
+     Timestamp
+ } from "firebase/firestore";
+ import { db } from '../firebaseConfig';
+ import { User, Message } from '../types';
+ 
+ export const sendMessage = async (familyCircleId: string, user: User, text: string, type: 'text' | 'system' = 'text') => {
+     const messagesRef = collection(db, 'messages');
+     await addDoc(messagesRef, {
+         familyCircleId,
+         senderId: user.id,
+         senderName: user.name,
+-        senderAvatarUrl: user.avatarUrl,
+         text,
+         type,
+         timestamp: serverTimestamp(),
+     });
+ 
+     // Atomically increment the message count on the family circle
+     const circleRef = doc(db, 'familyCircles', familyCircleId);
+     await updateDoc(circleRef, {
+         messageCount: increment(1)
+     });
+ };
+ 
+ export const onMessagesUpdate = (familyCircleId: string, callback: (messages: Message[]) => void): (() => void) => {
+     const q = query(
+         collection(db, 'messages'),
+         where('familyCircleId', '==', familyCircleId),
+         orderBy('timestamp', 'asc')
+     );
+ 
+     return onSnapshot(q, (querySnapshot) => {
+         const messages = querySnapshot.docs.map(doc => {
+             const data = doc.data();
+             const timestamp = data.timestamp as Timestamp | null;
+             return {
+                 id: doc.id,
+diff --git a/src/services/familyService.ts b/src/services/familyService.ts
+index 80e7813a4246bf357950c20c78c903e484d4d1d1..2b2bb37fb0d611dd60513a914dc0eda7f0d729ff 100644
+--- a/src/services/familyService.ts
++++ b/src/services/familyService.ts
+@@ -1,95 +1,111 @@
+ import {
+     doc,
+     getDoc,
+     updateDoc,
+     collection,
+     query,
+     where,
+     addDoc,
+     getDocs,
+     writeBatch,
+     documentId,
+     arrayUnion,
+     arrayRemove,
+-    deleteField
++    deleteField,
++    Timestamp
+ } from "firebase/firestore";
+ import { db } from '../firebaseConfig';
+ import { User, FamilyCircle } from '../types';
+ import { getBadges } from './userService';
+ 
++const mapUserSnapshot = (snapshot: any): User => {
++    const data = snapshot.data() as User;
++    const avatarUpdatedAt = data.avatarUpdatedAt instanceof Timestamp
++        ? data.avatarUpdatedAt.toDate()
++        : data.avatarUpdatedAt;
++
++    return {
++        id: snapshot.id,
++        ...data,
++        avatarUpdatedAt,
++    } as User;
++};
++
+ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircle | null> => {
+     const circleDocRef = doc(db, 'familyCircles', familyId);
+     const circleDoc = await getDoc(circleDocRef);
+     if (!circleDoc.exists()) return null;
+ 
+     const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
+ 
+     let members: User[] = [];
+     if (circleData.memberIds?.length) {
+         const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
+         const membersSnapshot = await getDocs(membersQuery);
+-        members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
++        members = membersSnapshot.docs.map(mapUserSnapshot);
+     }
+ 
+     return {
+         id: circleDoc.id,
+         name: circleData.name,
+         inviteCode: circleData.inviteCode,
+         members,
+         chatName: circleData.chatName,
+         messageCount: circleData.messageCount,
+         avatarUrl: circleData.avatarUrl,
+         motto: circleData.motto,
+         adminIds: circleData.adminIds || []
+     };
+ };
+ 
+ export const createFamilyCircle = async (userId: string, familyName: string): Promise<FamilyCircle> => {
+     const user = await getDoc(doc(db, 'users', userId));
+     if (!user.exists()) throw new Error("User not found for creating circle");
+ 
++    const creator = mapUserSnapshot(user);
++
+     const inviteCode = `${familyName.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+ 
+     const newCircleData = {
+         name: familyName,
+         inviteCode: inviteCode,
+         memberIds: [userId],
+         members: {
+             [userId]: true,
+         },
+         adminIds: [userId], // Creator is the first admin
+         messageCount: 0,
+     };
+ 
+     const circleRef = await addDoc(collection(db, "familyCircles"), newCircleData);
+     await updateDoc(doc(db, 'users', userId), { familyCircleId: circleRef.id });
+ 
+     return {
+         id: circleRef.id,
+         ...newCircleData,
+-        members: [{ id: userId, ...user.data() } as User],
++        members: [creator],
+     };
+ };
+ 
+ export const joinFamilyCircle = async (userId: string, inviteCode: string): Promise<{ circle: FamilyCircle | null, error: string | null }> => {
+     const q = query(collection(db, 'familyCircles'), where('inviteCode', '==', inviteCode));
+     const querySnapshot = await getDocs(q);
+ 
+     if (querySnapshot.empty) {
+         return { circle: null, error: "Invalid invite code. Please check and try again." };
+     }
+ 
+     const circleDoc = querySnapshot.docs[0];
+     const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[] };
+ 
+     if (circleData.memberIds.includes(userId)) {
+         // User is already in the circle, just return it.
+         const familyCircle = await getUserFamilyCircle(circleDoc.id);
+         return { circle: familyCircle, error: null };
+     }
+ 
+     const batch = writeBatch(db);
+     batch.update(doc(db, 'users', userId), { familyCircleId: circleDoc.id });
+     batch.update(circleDoc.ref, {
+         memberIds: [...circleData.memberIds, userId],
+         [`members.${userId}`]: true,
+@@ -100,51 +116,51 @@ export const joinFamilyCircle = async (userId: string, inviteCode: string): Prom
+     return { circle: familyCircle, error: null };
+ };
+ 
+ // Note: onFamilyCircleUpdate was in firebaseService.ts but logic was slightly mixed with chatName.
+ // I'll put it here.
+ import { onSnapshot } from "firebase/firestore";
+ 
+ export const onFamilyCircleUpdate = (
+     familyCircleId: string,
+     callback: (circle: FamilyCircle | null) => void,
+     onError?: (error: any) => void
+ ): (() => void) => {
+     const circleRef = doc(db, 'familyCircles', familyCircleId);
+     return onSnapshot(
+         circleRef,
+         async (docSnapshot) => {
+             if (docSnapshot.exists()) {
+                 const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
+ 
+                 // We need to fetch member details to construct the full FamilyCircle object
+                 // This is a bit expensive to do on every update, but necessary if we want the full object.
+                 let members: User[] = [];
+                 if (circleData.memberIds?.length) {
+                     const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
+                     const membersSnapshot = await getDocs(membersQuery);
+-                    members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
++                    members = membersSnapshot.docs.map(mapUserSnapshot);
+                 }
+ 
+                 const circle: FamilyCircle = {
+                     id: docSnapshot.id,
+                     name: circleData.name,
+                     chatName: circleData.chatName,
+                     inviteCode: circleData.inviteCode,
+                     members,
+                     messageCount: circleData.messageCount || 0,
+                     avatarUrl: circleData.avatarUrl,
+                     motto: circleData.motto,
+                     adminIds: circleData.adminIds || [],
+                 };
+                 callback(circle);
+             } else {
+                 callback(null);
+             }
+         },
+         (error) => {
+             console.warn("[FamilyService] onFamilyCircleUpdate blocked:", error.code || error.message);
+             if (onError) onError(error);
+         }
+     );
+ };
+ export const updateFamilyProfile = async (familyId: string, data: { avatarUrl?: string; motto?: string }): Promise<void> => {
+@@ -169,51 +185,51 @@ export const removeFromFamily = async (familyId: string, userId: string): Promis
+         adminIds: arrayRemove(userId),
+         [`members.${userId}`]: deleteField(),
+     });
+     batch.update(userRef, {
+         familyCircleId: deleteField()
+     });
+ 
+     await batch.commit();
+ };
+ 
+ export const createChildProfile = async (
+     parentId: string,
+     familyId: string,
+     name: string,
+     birthDate: Date
+ ): Promise<User> => {
+ 
+     const childRef = doc(collection(db, "users"));
+ 
+     const newChildData: Omit<User, "id" | "emailVerified"> = {
+         name,
+         role: "child",
+         birthDate,
+         parentId,
+         familyCircleId: familyId,
+-        avatarUrl: `https://i.pravatar.cc/150?u=${Date.now()}`,
++        avatarUpdatedAt: new Date(),
+         streak: 0,
+         lastActiveDate: new Date(),
+         badges: [],
+         weightUnit: "lbs",
+         weightHistory: [],
+         notificationTokens: [],
+     };
+ 
+     const batch = writeBatch(db);
+ 
+     batch.set(childRef, newChildData);
+ 
+     const familyRef = doc(db, "familyCircles", familyId);
+     batch.update(familyRef, {
+         memberIds: arrayUnion(childRef.id),
+         [`members.${childRef.id}`]: true,
+     });
+ 
+     await batch.commit();
+ 
+     return {
+         id: childRef.id,
+         ...newChildData,
+         emailVerified: false,
+     } as User;
+diff --git a/src/services/storageService.ts b/src/services/storageService.ts
+index 7a019747461e1234eb95f5e5d3a76c200af3bcd2..f4ae3d5ec33d79bd95698541ae163051925012ba 100644
+--- a/src/services/storageService.ts
++++ b/src/services/storageService.ts
+@@ -1,47 +1,56 @@
+-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
++import { uploadBytesResumable, getDownloadURL, UploadMetadata } from "firebase/storage";
+ import { storage, db } from '../firebaseConfig';
+ import { doc, collection } from "firebase/firestore";
++import { clearAvatarCache, getAvatarDownloadUrl, getAvatarStorageRef } from "../lib/avatar";
+ 
+ export const uploadProfileImage = async (userId: string, file: File | Blob): Promise<string> => {
+-    const storageRef = ref(storage, `profile-pictures/${userId}`);
++    if (!(file as File).type?.startsWith?.("image/") && !(file as Blob).type?.startsWith?.("image/")) {
++        throw new Error("Only image uploads are allowed for avatars.");
++    }
++
++    const storageRef = getAvatarStorageRef(userId);
++    const metadata: UploadMetadata = {
++        contentType: (file as File).type || "image/jpeg",
++    };
+ 
+     return new Promise((resolve, reject) => {
+-        const uploadTask = uploadBytesResumable(storageRef, file);
++        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
+ 
+         uploadTask.on('state_changed',
+             (snapshot) => {
+                 // Optional: Handle progress
+             },
+             (error) => {
+                 console.error("Profile upload failed:", error);
+                 reject(error);
+             },
+             () => {
+-                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+-                    resolve(downloadURL);
+-                });
++                clearAvatarCache(userId);
++                getAvatarDownloadUrl(userId, Date.now())
++                    .then((downloadURL) => resolve(downloadURL))
++                    .catch((err) => reject(err));
+             }
+         );
+     });
+ };
+ 
+ export const uploadReplyImage = async (file: Blob): Promise<string> => {
+     const uniqueId = doc(collection(db, 'temp')).id; // Generate a unique ID for the path
+     const storageRef = ref(storage, `reply-images/${uniqueId}`);
+ 
+     return new Promise((resolve, reject) => {
+         const uploadTask = uploadBytesResumable(storageRef, file);
+ 
+         uploadTask.on('state_changed',
+             (snapshot) => {
+                 // You can add progress logging here if needed
+                 // const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                 // console.log('Upload is ' + progress + '% done');
+             },
+             (error) => {
+                 console.error("Upload failed:", error);
+                 reject(error);
+             },
+             () => {
+                 getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                     resolve(downloadURL);
+diff --git a/src/services/userService.ts b/src/services/userService.ts
+index c7b10b28f019ea7be63a7674a01466d1407fc952..30552d8baa4ae97f6ffd14187ce9fcc96e28fabc 100644
+--- a/src/services/userService.ts
++++ b/src/services/userService.ts
+@@ -1,88 +1,92 @@
+ import {
+     doc,
+     updateDoc,
+     serverTimestamp,
+     increment,
+     collection,
+     query,
+     where,
+     getDocs,
+     documentId,
+     arrayUnion,
+     arrayRemove,
+     orderBy,
+     onSnapshot,
+     Timestamp,
+     getDoc,
+-    Unsubscribe
++    Unsubscribe,
++    deleteField
+ } from "firebase/firestore";
+ import { db } from "../firebaseConfig";
+ import { User, Badge } from "../types";
+ 
+ /* ============================================================
+    USER SNAPSHOT (PERMISSION-SAFE)
+    ============================================================ */
+ 
+ export const onUserUpdate = (
+     userId: string,
+     callback: (user: User | null) => void
+ ): Unsubscribe => {
+ 
+     const userRef = doc(db, "users", userId);
+     let unsub: Unsubscribe | null = null;
+ 
+     try {
+         unsub = onSnapshot(
+             userRef,
+             (snap) => {
+                 if (!snap.exists()) {
+                     callback(null);
+                     return;
+                 }
+ 
+                 const data = snap.data();
+ 
+                 // --- Normalize timestamps safely ---
+                 if (Array.isArray(data.weightHistory)) {
+                     data.weightHistory = data.weightHistory.map((entry: any) => ({
+                         ...entry,
+                         timestamp:
+                             entry?.timestamp instanceof Timestamp
+                                 ? entry.timestamp.toDate()
+                                 : entry?.timestamp,
+                     }));
+                 }
+ 
+                 if (data.lastActiveDate instanceof Timestamp) {
+                     data.lastActiveDate = data.lastActiveDate.toDate();
+                 }
+ 
+                 const user: User = {
+                     id: snap.id,
+                     name: data.name ?? "",
+-                    avatarUrl: data.avatarUrl ?? "",
++                    avatarUrl: data.avatarUrl || undefined,
++                    avatarUpdatedAt: data.avatarUpdatedAt instanceof Timestamp
++                        ? data.avatarUpdatedAt.toDate()
++                        : data.avatarUpdatedAt,
+                     streak: typeof data.streak === "number" ? data.streak : 0,
+                     badges: Array.isArray(data.badges) ? data.badges : [],
+                     emailVerified: !!data.emailVerified,
+                     familyCircleId: data.familyCircleId,
+                     role: data.role,
+                     parentId: data.parentId,
+                     xp: data.xp ?? 0,
+                     level: data.level ?? 1,
+                     status: data.status,
+                     currentWeight: data.currentWeight,
+                     weightUnit: data.weightUnit,
+                     weightHistory: data.weightHistory,
+                     notificationTokens: data.notificationTokens,
+                     coverPhotoUrl: data.coverPhotoUrl,
+                     activityMap: data.activityMap || {},
+                 };
+ 
+                 callback(user);
+             },
+             (error) => {
+                 // 🔒 CRITICAL: snapshot failures must NOT break the app
+                 console.warn(
+                     `[UserService] onUserUpdate blocked for ${userId}:`,
+                     error.code || error.message
+                 );
+@@ -142,53 +146,56 @@ export const checkAndUpdateStreak = async (user: User) => {
+     }
+ };
+ 
+ /* ============================================================
+    BADGES
+    ============================================================ */
+ 
+ export const getBadges = async (): Promise<Omit<Badge, "unlocked">[]> => {
+     const q = query(collection(db, "badges"), orderBy(documentId()));
+     const snap = await getDocs(q);
+ 
+     return snap.docs.map((doc) => ({
+         id: doc.id,
+         name: doc.data().name,
+         description: doc.data().description,
+         icon: doc.data().icon,
+     }));
+ };
+ 
+ /* ============================================================
+    PROFILE UPDATES
+    ============================================================ */
+ 
+ export const updateUserAvatar = async (
+     userId: string,
+-    avatarUrl: string
++    avatarUrl?: string
+ ) => {
+-    await updateDoc(doc(db, "users", userId), { avatarUrl });
++    await updateDoc(doc(db, "users", userId), {
++        avatarUpdatedAt: serverTimestamp(),
++        avatarUrl: avatarUrl ?? deleteField(),
++    });
+ };
+ 
+ export const updateCoverPhoto = async (
+     userId: string,
+     coverPhotoUrl: string
+ ) => {
+     await updateDoc(doc(db, "users", userId), { coverPhotoUrl });
+ };
+ 
+ export const updateUserWeight = async (
+     userId: string,
+     weight: number,
+     unit: "lbs" | "kg"
+ ) => {
+     await updateDoc(doc(db, "users", userId), {
+         currentWeight: weight,
+         weightUnit: unit,
+         weightHistory: arrayUnion({
+             value: weight,
+             timestamp: new Date(),
+         }),
+     });
+ };
+ 
+ /* ============================================================
+diff --git a/src/types/challenge.ts b/src/types/challenge.ts
+index cc3bdea9a3b6929b232675c2bb635c239cdca7a3..983257e8eca669109f010bc40d089cc408cab51e 100644
+--- a/src/types/challenge.ts
++++ b/src/types/challenge.ts
+@@ -1,40 +1,40 @@
+ export interface Exercise {
+     name: string;
+     description: string;
+     visualGuideUrl: string;
+ }
+ 
+ export interface Reply {
+     id: string;
+-    user: { id: string, name: string, avatarUrl: string };
++    user: { id: string, name: string, avatarUrl?: string, avatarUpdatedAt?: Date };
+     mediaUrl?: string;
+     text?: string;
+     reactions: { [emoji: string]: number };
+     timestamp: Date;
+     challengeId: string;
+     familyCircleId: string;
+     parentId?: string;
+     contributionValue?: number;
+ }
+ 
+ export interface Challenge {
+     id: string;
+     type: 'individual' | 'team';
+-    challenger: { id: string, name: string, avatarUrl: string };
++    challenger: { id: string, name: string, avatarUrl?: string, avatarUpdatedAt?: Date };
+     exercise: Exercise;
+     target: string; // Description for individual, or summary for team
+     goalTotal?: number;
+     currentTotal?: number;
+     unit?: string;
+     mediaUrl?: string;
+     timestamp: Date;
+     familyCircleId: string;
+     replies?: Reply[]; // Kept for potential future use or old data structures
+     expiresAt: Date;
+     completedBy: string[];
+ }
+ 
+ export interface AddReplyPayload {
+     image?: Blob;
+     text?: string;
+ }
+diff --git a/src/types/chat.ts b/src/types/chat.ts
+index 07dd056e9dd59129ee374a89b5ff4a04dece5314..735c74c3b217df921d044eb33c24db27b463e398 100644
+--- a/src/types/chat.ts
++++ b/src/types/chat.ts
+@@ -1,10 +1,9 @@
+ export interface Message {
+     id: string;
+     familyCircleId: string;
+     senderId: string;
+     senderName: string;
+-    senderAvatarUrl: string;
+     text: string;
+     timestamp: Date;
+     type: 'text' | 'system';
+ }
+diff --git a/src/types/user.ts b/src/types/user.ts
+index 2149a7f723042ccb27d4383b49c2a9d6fb7593c3..344757a04ab5ddb10d21cd53625d830e15fbbb64 100644
+--- a/src/types/user.ts
++++ b/src/types/user.ts
+@@ -1,93 +1,48 @@
+ export interface Badge {
+     id: string;
+     name: string;
+     description: string;
+     icon: string;
+     unlocked: boolean;
+ }
+ 
+ export type UserRole = 'adult' | 'teen' | 'child';
+ 
+ export interface User {
+     id: string;
+     name: string;
+     email?: string; // Optional for child accounts
+     isAdmin?: boolean; // From Firebase Custom Claims
+     role?: UserRole;
+     birthDate?: Date;
+     parentId?: string; // For teens and children
+-    avatarUrl: string;
++    avatarUrl?: string;
++    avatarUpdatedAt?: Date;
+     streak: number;
+     lastActiveDate?: Date;
+     badges: Badge[];
+     familyCircleId?: string;
+     emailVerified: boolean;
+     currentWeight?: number;
+     weightUnit?: 'lbs' | 'kg';
+     weightHistory?: { value: number; timestamp: Date }[];
+     notificationTokens?: string[];
+     lastReadMessageCount?: number;
+     coverPhotoUrl?: string;
+     xp?: number;
+     level?: number;
+     activityMap?: Record<string, number>; // Date string (YYYY-MM-DD) -> count
+ 
+     // Auth & Access Control
+     status?: 'active' | 'pending_approval' | 'suspended';
+     approvedAt?: any; // Firestore Timestamp
+     approvedBy?: string;
+     earlyAccessData?: {
+         kidCount?: number;
+         kidAges?: string;
+         parentEmail?: string;
+         challengeTarget?: string;
+     };
+ }
+ 
+-export interface User {
+-    id: string;
+-    name: string;
+-    email?: string; // Optional for child accounts
+-    isAdmin?: boolean;
+-    role?: UserRole;
+-    birthDate?: Date;
+-    parentId?: string;
+-    avatarUrl: string;
+-    streak: number;
+-    lastActiveDate?: Date;
+-    badges: Badge[];
+-    familyCircleId?: string;
+-    emailVerified: boolean;
+-    currentWeight?: number;
+-    weightUnit?: 'lbs' | 'kg';
+-    weightHistory?: { value: number; timestamp: Date }[];
+-    notificationTokens?: string[];
+-    lastReadMessageCount?: number;
+-    coverPhotoUrl?: string;
+-    xp?: number;
+-    level?: number;
+-    activityMap?: Record<string, number>;
+-
+-    // Auth & Access Control
+-    status?: 'active' | 'pending_approval' | 'suspended';
+-    approvedAt?: any;
+-    approvedBy?: string;
+-
+-    // Early Access (parents / teens requesting beta)
+-    earlyAccessData?: {
+-        kidCount?: number;
+-        kidAges?: string;
+-        parentEmail?: string;
+-        challengeTarget?: string;
+-    };
+-
+-    // ✅ NEW: Invite-based onboarding (teen 13+)
+-    inviteContext?: {
+-        inviteCode: string;
+-        familyCircleId: string;
+-        invitedBy: string; // parent name or id
+-    };
+-}
+-
+-
+ export type AuthState = 'loading' | 'authenticated' | 'unauthenticated';

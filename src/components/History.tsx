@@ -5,6 +5,7 @@ import { Challenge } from '../types';
 import { onChallengesUpdate } from '../services/challengeService';
 import Leaderboard from './Leaderboard';
 import { ChevronDownIcon } from './Icons';
+import AvatarImage from './ui/AvatarImage';
 
 const History: React.FC = () => {
     const context = useContext(AppContext);
@@ -96,7 +97,14 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ challenge }) => {
             </div>
             <div className="flex items-center -space-x-2">
                 {completedMembers.map(member => (
-                    <img key={member.id} src={member.avatarUrl} alt={member.name} title={member.name} className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" />
+                    <AvatarImage
+                        key={member.id}
+                        userId={member.id}
+                        cacheKey={member.avatarUpdatedAt?.getTime?.()}
+                        alt={member.name}
+                        title={member.name}
+                        className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800"
+                    />
                 ))}
             </div>
         </li>

@@ -6,7 +6,7 @@ export interface Exercise {
 
 export interface Reply {
     id: string;
-    user: { id: string, name: string, avatarUrl: string };
+    user: { id: string, name: string, avatarUrl?: string, avatarUpdatedAt?: Date };
     mediaUrl?: string;
     text?: string;
     reactions: { [emoji: string]: number };
@@ -20,7 +20,7 @@ export interface Reply {
 export interface Challenge {
     id: string;
     type: 'individual' | 'team';
-    challenger: { id: string, name: string, avatarUrl: string };
+    challenger: { id: string, name: string, avatarUrl?: string, avatarUpdatedAt?: Date };
     exercise: Exercise;
     target: string; // Description for individual, or summary for team
     goalTotal?: number;

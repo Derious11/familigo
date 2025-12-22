@@ -1,0 +1,93 @@
+diff a/src/components/Profile/modals/EditProfilePictureModal.tsx b/src/components/Profile/modals/EditProfilePictureModal.tsx	(rejected hunks)
+@@ -1,32 +1,33 @@
+ 
+ import React, { useState, useRef, useEffect, useContext } from 'react';
+ import { AppContext } from '../../../App';
+ import { uploadProfileImage } from '../../../services/storageService';
+ import { updateUserAvatar } from '../../../services/userService';
+ import { CameraIcon, PhotoIcon, XMarkIcon } from '../../Icons';
+ import confetti from 'canvas-confetti';
++import { clearAvatarCache } from '../../../lib/avatar';
+ 
+ interface EditProfilePictureModalProps {
+     onClose: () => void;
+ }
+ 
+ type View = 'select' | 'camera' | 'preview';
+ 
+ const ErrorMessage: React.FC<{ message: string }> = ({ message }) => {
+     if (!message) return null;
+     return (
+         <div className="bg-red-100 border border-red-400 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200 px-4 py-3 rounded-md my-4 text-sm text-center" role="alert">
+             {message}
+         </div>
+     );
+ };
+ 
+ 
+ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClose }) => {
+     const context = useContext(AppContext);
+     const [view, setView] = useState<View>('select');
+     const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+     const [imageUrl, setImageUrl] = useState<string>('');
+     const [error, setError] = useState('');
+     const [isLoading, setIsLoading] = useState(false);
+ 
+@@ -110,53 +111,54 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
+             context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+             canvas.toBlob(blob => {
+                 if (blob) {
+                     setImageBlob(blob);
+                     setImageUrl(URL.createObjectURL(blob));
+                     setView('preview');
+                 }
+             }, 'image/jpeg');
+         }
+     };
+ 
+     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+         const file = event.target.files?.[0];
+         if (file) {
+             setImageBlob(file);
+             setImageUrl(URL.createObjectURL(file));
+             setView('preview');
+         }
+     };
+ 
+     const handleSave = async () => {
+         if (!imageBlob || !context?.currentUser || !context.updateCurrentUser) return;
+         setIsLoading(true);
+         setError('');
+         try {
+-            const downloadURL = await uploadProfileImage(context.currentUser.id, imageBlob);
+-            await updateUserAvatar(context.currentUser.id, downloadURL);
+-            context.updateCurrentUser({ avatarUrl: downloadURL });
++            await uploadProfileImage(context.currentUser.id, imageBlob);
++            clearAvatarCache(context.currentUser.id);
++            await updateUserAvatar(context.currentUser.id);
++            context.updateCurrentUser({ avatarUpdatedAt: new Date() });
+             onClose();
+         } catch (err: any) {
+             console.error("Error uploading image:", err);
+             let message = 'Failed to upload image. Please try again.';
+             if (err.code === 'storage/unauthorized') {
+                 message = "Upload failed due to permissions. Please ensure your Firebase Storage rules are configured correctly.";
+             }
+             setError(message);
+         } finally {
+             setIsLoading(false);
+         }
+     };
+ 
+     const reset = () => {
+         setImageBlob(null);
+         if (imageUrl) {
+             URL.revokeObjectURL(imageUrl);
+         }
+         setImageUrl('');
+         setError('');
+         setView('select');
+     };
+ 
+     const renderContent = () => {
+         switch (view) {

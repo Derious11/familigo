@@ -22,7 +22,6 @@ export const sendMessage = async (familyCircleId: string, user: User, text: stri
         familyCircleId,
         senderId: user.id,
         senderName: user.name,
-        senderAvatarUrl: user.avatarUrl,
         text,
         type,
         timestamp: serverTimestamp(),

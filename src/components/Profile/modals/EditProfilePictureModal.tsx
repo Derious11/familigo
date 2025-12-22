@@ -5,6 +5,7 @@ import { uploadProfileImage } from '../../../services/storageService';
 import { updateUserAvatar } from '../../../services/userService';
 import { CameraIcon, PhotoIcon, XMarkIcon } from '../../Icons';
 import confetti from 'canvas-confetti';
+import { clearAvatarCache } from '../../../lib/avatar';
 
 interface EditProfilePictureModalProps {
     onClose: () => void;
@@ -132,9 +133,10 @@ const EditProfilePictureModal: React.FC<EditProfilePictureModalProps> = ({ onClo
         setIsLoading(true);
         setError('');
         try {
-            const downloadURL = await uploadProfileImage(context.currentUser.id, imageBlob);
-            await updateUserAvatar(context.currentUser.id, downloadURL);
-            context.updateCurrentUser({ avatarUrl: downloadURL });
+            await uploadProfileImage(context.currentUser.id, imageBlob);
+            clearAvatarCache(context.currentUser.id);
+            await updateUserAvatar(context.currentUser.id);
+            context.updateCurrentUser({ avatarUpdatedAt: new Date() });
             onClose();
         } catch (err: any) {
             console.error("Error uploading image:", err);

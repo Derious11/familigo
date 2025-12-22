@@ -16,7 +16,8 @@ export interface User {
     role?: UserRole;
     birthDate?: Date;
     parentId?: string; // For teens and children
-    avatarUrl: string;
+    avatarUrl?: string;
+    avatarUpdatedAt?: Date;
     streak: number;
     lastActiveDate?: Date;
     badges: Badge[];
@@ -43,51 +44,5 @@ export interface User {
         challengeTarget?: string;
     };
 }
-
-export interface User {
-    id: string;
-    name: string;
-    email?: string; // Optional for child accounts
-    isAdmin?: boolean;
-    role?: UserRole;
-    birthDate?: Date;
-    parentId?: string;
-    avatarUrl: string;
-    streak: number;
-    lastActiveDate?: Date;
-    badges: Badge[];
-    familyCircleId?: string;
-    emailVerified: boolean;
-    currentWeight?: number;
-    weightUnit?: 'lbs' | 'kg';
-    weightHistory?: { value: number; timestamp: Date }[];
-    notificationTokens?: string[];
-    lastReadMessageCount?: number;
-    coverPhotoUrl?: string;
-    xp?: number;
-    level?: number;
-    activityMap?: Record<string, number>;
-
-    // Auth & Access Control
-    status?: 'active' | 'pending_approval' | 'suspended';
-    approvedAt?: any;
-    approvedBy?: string;
-
-    // Early Access (parents / teens requesting beta)
-    earlyAccessData?: {
-        kidCount?: number;
-        kidAges?: string;
-        parentEmail?: string;
-        challengeTarget?: string;
-    };
-
-    // ✅ NEW: Invite-based onboarding (teen 13+)
-    inviteContext?: {
-        inviteCode: string;
-        familyCircleId: string;
-        invitedBy: string; // parent name or id
-    };
-}
-
 
 export type AuthState = 'loading' | 'authenticated' | 'unauthenticated';

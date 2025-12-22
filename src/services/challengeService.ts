@@ -20,6 +20,15 @@ import { User, Challenge, Reply, Exercise } from '../types';
 import { getUserTokens, addXp } from './userService';
 import { sendPushNotification } from "./webPushService";
 
+const normalizeAvatarMetadata = <T extends { avatarUpdatedAt?: any }>(entity: T) => {
+    if (!entity) return entity;
+    const avatarUpdatedAt =
+        entity.avatarUpdatedAt instanceof Timestamp
+            ? entity.avatarUpdatedAt.toDate()
+            : entity.avatarUpdatedAt;
+    return { ...entity, avatarUpdatedAt };
+};
+
 export const getExercises = async (): Promise<Exercise[]> => {
     const exercisesCol = collection(db, 'exercises');
     const q = query(exercisesCol, orderBy('name'));
@@ -43,6 +52,7 @@ export const onChallengesUpdate = (familyCircleId: string, callback: (challenges
             return {
                 id: doc.id,
                 ...data,
+                challenger: normalizeAvatarMetadata(data.challenger),
                 timestamp: timestamp ? timestamp.toDate() : new Date(),
                 expiresAt: expiresAt ? expiresAt.toDate() : new Date(Date.now() + 48 * 60 * 60 * 1000),
                 completedBy: data.completedBy || [],
@@ -73,6 +83,7 @@ export const onRepliesUpdate = (challengeId: string, familyCircleId: string, cal
             return {
                 id: doc.id,
                 ...data,
+                user: normalizeAvatarMetadata(data.user),
                 timestamp: timestamp ? timestamp.toDate() : new Date(),
             } as Reply
         });
@@ -108,7 +119,6 @@ export const addChallengeToFamily = async (
         challenger: {
             id: challenger.id,
             name: challenger.name,
-            avatarUrl: challenger.avatarUrl
         },
         familyCircleId, // This field allows the Read/Write
         exercise,
@@ -169,7 +179,6 @@ export const addReplyToChallenge = async (
         user: {
             id: user.id,
             name: user.name,
-            avatarUrl: user.avatarUrl,
         },
         challengeId,
         familyCircleId, // Essential for Security Rules

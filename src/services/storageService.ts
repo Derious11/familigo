@@ -1,12 +1,20 @@
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { uploadBytesResumable, getDownloadURL, UploadMetadata } from "firebase/storage";
 import { storage, db } from '../firebaseConfig';
 import { doc, collection } from "firebase/firestore";
+import { clearAvatarCache, getAvatarDownloadUrl, getAvatarStorageRef } from "../lib/avatar";
 
 export const uploadProfileImage = async (userId: string, file: File | Blob): Promise<string> => {
-    const storageRef = ref(storage, `profile-pictures/${userId}`);
+    if (!(file as File).type?.startsWith?.("image/") && !(file as Blob).type?.startsWith?.("image/")) {
+        throw new Error("Only image uploads are allowed for avatars.");
+    }
+
+    const storageRef = getAvatarStorageRef(userId);
+    const metadata: UploadMetadata = {
+        contentType: (file as File).type || "image/jpeg",
+    };
 
     return new Promise((resolve, reject) => {
-        const uploadTask = uploadBytesResumable(storageRef, file);
+        const uploadTask = uploadBytesResumable(storageRef, file, metadata);
 
         uploadTask.on('state_changed',
             (snapshot) => {
@@ -17,9 +25,10 @@ export const uploadProfileImage = async (userId: string, file: File | Blob): Pro
                 reject(error);
             },
             () => {
-                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                    resolve(downloadURL);
-                });
+                clearAvatarCache(userId);
+                getAvatarDownloadUrl(userId, Date.now())
+                    .then((downloadURL) => resolve(downloadURL))
+                    .catch((err) => reject(err));
             }
         );
     });

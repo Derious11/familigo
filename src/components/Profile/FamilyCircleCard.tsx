@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserGroupIcon, LinkIcon, CheckIcon } from '../Icons';
 import { FamilyCircle } from '../../types'; // Adjust path if needed
+import AvatarImage from '../ui/AvatarImage';
 
 interface FamilyCircleCardProps {
     familyCircle: FamilyCircle;
@@ -48,7 +49,12 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({ familyCircle, onMan
                     <div className="flex flex-wrap gap-3">
                         {familyCircle.members.map(member => (
                             <div key={member.id} className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 pr-4 pl-1 py-1 rounded-full border border-gray-100 dark:border-gray-700">
-                                <img src={member.avatarUrl} alt={member.name} className="w-8 h-8 rounded-full bg-white" />
+                                <AvatarImage
+                                    userId={member.id}
+                                    cacheKey={member.avatarUpdatedAt?.getTime?.()}
+                                    alt={member.name}
+                                    className="w-8 h-8 rounded-full bg-white"
+                                />
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{member.name.split(' ')[0]}</span>
                             </div>
                         ))}

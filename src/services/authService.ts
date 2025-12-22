@@ -13,6 +13,7 @@ import {
     setDoc,
     getDoc,
     Timestamp,
+    serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from '../firebaseConfig';
 import { User, UserRole } from '../types';
@@ -53,6 +54,9 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
                 // Convert lastActiveDate from Firestore Timestamp to JS Date
                 if (userData.lastActiveDate && userData.lastActiveDate instanceof Timestamp) {
                     userData.lastActiveDate = userData.lastActiveDate.toDate();
+                }
+                if (userData.avatarUpdatedAt && userData.avatarUpdatedAt instanceof Timestamp) {
+                    userData.avatarUpdatedAt = userData.avatarUpdatedAt.toDate();
                 }
 
                 const idTokenResult = await firebaseUser.getIdTokenResult(true);
@@ -99,17 +103,17 @@ export const signUpWithEmail = async (
 
         const allBadges = await getBadges();
 
-        const newUser: Omit<User, 'id' | 'emailVerified'> = {
-            name,
-            email: user.email!,
-            role,
-            birthDate,
-            avatarUrl: `https://i.pravatar.cc/150?u=${user.uid}`,
-            streak: 1,
-            lastActiveDate: new Date(),
-            badges: allBadges.map(b => ({ ...b, unlocked: false })),
-            weightUnit: 'lbs',
-            weightHistory: [],
+            const newUser: Omit<User, 'id' | 'emailVerified'> = {
+                name,
+                email: user.email!,
+                role,
+                birthDate,
+                avatarUpdatedAt: serverTimestamp(),
+                streak: 1,
+                lastActiveDate: new Date(),
+                badges: allBadges.map(b => ({ ...b, unlocked: false })),
+                weightUnit: 'lbs',
+                weightHistory: [],
             notificationTokens: [],
             // Default new parent signups to pending_approval if they have early access data
             // or if we enforce it for all parents. For now, let's tie it to earlyAccessData presence or role.
@@ -161,7 +165,7 @@ export const signInWithGoogle = async (
                 email: user.email!,
                 role: role,
                 birthDate: new Date(), // Default to today or handle later
-                avatarUrl: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+                avatarUpdatedAt: serverTimestamp(),
                 streak: 1,
                 lastActiveDate: new Date(),
                 badges: allBadges.map(b => ({ ...b, unlocked: false })),

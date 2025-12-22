@@ -1,6 +1,7 @@
 import React from 'react';
 import { BellIcon, ShieldCheckIcon } from '../Icons';
 import { User, FamilyCircle } from '../../types';
+import AvatarImage from '../ui/AvatarImage';
 
 interface ProfileSettingsProps {
     currentUser: User;
@@ -69,14 +70,19 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
                                 .map(child => (
                                     <button
                                         key={child.id}
-                                        onClick={() => onSwitchProfile(child.id)}
-                                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    >
-                                        <img src={child.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
-                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{child.name}</span>
-                                    </button>
-                                ))
-                            }
+                                onClick={() => onSwitchProfile(child.id)}
+                                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                            >
+                                <AvatarImage
+                                    userId={child.id}
+                                    cacheKey={child.avatarUpdatedAt?.getTime?.()}
+                                    alt={child.name}
+                                    className="w-8 h-8 rounded-full"
+                                />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{child.name}</span>
+                            </button>
+                        ))
+                    }
                             {isImpersonating && originalUserId && (
                                 <button
                                     onClick={() => onSwitchProfile(originalUserId)}

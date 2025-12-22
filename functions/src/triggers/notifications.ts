@@ -159,6 +159,8 @@ export const onReplyCreated = functions
       }
 
       const notificationBody = `${user.name}: ${text || "posted a photo"}`;
+      const notificationIcon =
+        "https://familigo-11643.web.app/assets/FamiliGo_logo.png";
       await sendNotifications(
         tokenRecords,
         (tokens) => ({
@@ -169,9 +171,7 @@ export const onReplyCreated = functions
           tokens,
           webpush: {
             notification: {
-              icon:
-                user.avatarUrl ||
-                "https://familigo-11643.web.app/assets/FamiliGo_logo.png",
+              icon: notificationIcon,
             },
           },
         }),

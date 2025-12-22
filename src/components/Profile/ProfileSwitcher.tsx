@@ -1,5 +1,6 @@
 import React from 'react';
 import { User, FamilyCircle } from '../../types';
+import AvatarImage from '../ui/AvatarImage';
 
 interface ProfileSwitcherProps {
     currentUser: User;
@@ -46,8 +47,9 @@ const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
                                     className="flex flex-col items-center group"
                                 >
                                     <div className="relative w-16 h-16 mb-2 transition-transform group-hover:scale-105">
-                                        <img
-                                            src={child.avatarUrl}
+                                        <AvatarImage
+                                            userId={child.id}
+                                            cacheKey={child.avatarUpdatedAt?.getTime?.()}
                                             alt={child.name}
                                             className="w-full h-full rounded-2xl object-cover border-2 border-transparent group-hover:border-brand-blue shadow-sm"
                                         />

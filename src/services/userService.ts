@@ -14,7 +14,8 @@ import {
     onSnapshot,
     Timestamp,
     getDoc,
-    Unsubscribe
+    Unsubscribe,
+    deleteField
 } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { User, Badge } from "../types";
@@ -60,7 +61,10 @@ export const onUserUpdate = (
                 const user: User = {
                     id: snap.id,
                     name: data.name ?? "",
-                    avatarUrl: data.avatarUrl ?? "",
+                    avatarUrl: data.avatarUrl || undefined,
+                    avatarUpdatedAt: data.avatarUpdatedAt instanceof Timestamp
+                        ? data.avatarUpdatedAt.toDate()
+                        : data.avatarUpdatedAt,
                     streak: typeof data.streak === "number" ? data.streak : 0,
                     badges: Array.isArray(data.badges) ? data.badges : [],
                     emailVerified: !!data.emailVerified,
@@ -164,9 +168,12 @@ export const getBadges = async (): Promise<Omit<Badge, "unlocked">[]> => {
 
 export const updateUserAvatar = async (
     userId: string,
-    avatarUrl: string
+    avatarUrl?: string
 ) => {
-    await updateDoc(doc(db, "users", userId), { avatarUrl });
+    await updateDoc(doc(db, "users", userId), {
+        avatarUpdatedAt: serverTimestamp(),
+        avatarUrl: avatarUrl ?? deleteField(),
+    });
 };
 
 export const updateCoverPhoto = async (

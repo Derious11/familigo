@@ -3,7 +3,6 @@ export interface Message {
     familyCircleId: string;
     senderId: string;
     senderName: string;
-    senderAvatarUrl: string;
     text: string;
     timestamp: Date;
     type: 'text' | 'system';

@@ -4,6 +4,7 @@ import { updateFamilyProfile, promoteToAdmin, removeFromFamily, createChildProfi
 import { XMarkIcon, CameraIcon, TrashIcon, ShieldCheckIcon, UserGroupIcon, UserPlusIcon, HomeIcon } from '../../Icons'; // Make sure to add the new icons
 import Modal from '../../ui/Modal';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import AvatarImage from '../../ui/AvatarImage';
 
 interface FamilySettingsModalProps {
     onClose: () => void;
@@ -178,7 +179,12 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) =>
                                     <div key={member.id} className="flex items-center justify-between bg-white dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 p-3 rounded-xl shadow-sm">
                                         <div className="flex items-center gap-3">
                                             <div className="relative">
-                                                <img src={member.avatarUrl} alt={member.name} className="w-10 h-10 rounded-full object-cover bg-gray-200" />
+                                                <AvatarImage
+                                                    userId={member.id}
+                                                    cacheKey={member.avatarUpdatedAt?.getTime?.()}
+                                                    alt={member.name}
+                                                    className="w-10 h-10 rounded-full object-cover bg-gray-200"
+                                                />
                                                 {isMemberAdmin && (
                                                     <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-800 rounded-full p-0.5">
                                                         <ShieldCheckIcon className="w-3 h-3 text-blue-500" />

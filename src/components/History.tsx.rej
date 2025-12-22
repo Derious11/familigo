@@ -1,0 +1,77 @@
+diff a/src/components/History.tsx b/src/components/History.tsx	(rejected hunks)
+@@ -1,32 +1,33 @@
+ 
+ import React, { useContext, useState, useEffect, useMemo } from 'react';
+ import { AppContext } from '../App';
+ import { Challenge } from '../types';
+ import { onChallengesUpdate } from '../services/challengeService';
+ import Leaderboard from './Leaderboard';
+ import { ChevronDownIcon } from './Icons';
++import AvatarImage from './ui/AvatarImage';
+ 
+ const History: React.FC = () => {
+     const context = useContext(AppContext);
+     const { familyCircle } = context || {};
+     const [challenges, setChallenges] = useState<Challenge[]>([]);
+     const [isLoading, setIsLoading] = useState(true);
+     const [isLogbookOpen, setIsLogbookOpen] = useState(false); // Default closed to focus on leaderboard
+ 
+     useEffect(() => {
+         if (!context?.familyCircle) return;
+ 
+         const unsubscribe = onChallengesUpdate(context.familyCircle.id, (newChallenges) => {
+             setChallenges(newChallenges);
+             setIsLoading(false);
+         });
+ 
+         return () => unsubscribe();
+     }, [context?.familyCircle]);
+ 
+     const historyChallenges = useMemo(() => {
+         const now = new Date();
+         return challenges.filter(c => c.expiresAt <= now);
+     }, [challenges]);
+ 
+     if (isLoading) {
+@@ -74,33 +75,40 @@ const History: React.FC = () => {
+ interface HistoryItemProps {
+     challenge: Challenge;
+ }
+ 
+ const HistoryItem: React.FC<HistoryItemProps> = ({ challenge }) => {
+     const context = useContext(AppContext);
+     const { familyCircle } = context || {};
+ 
+     const completedMembers = useMemo(() => {
+         if (!familyCircle || !challenge.completedBy) return [];
+         return familyCircle.members.filter(member => challenge.completedBy.includes(member.id));
+     }, [familyCircle, challenge.completedBy]);
+ 
+     return (
+         <li className="flex items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg w-full">
+             <div className="text-center w-16 mr-4 flex-shrink-0">
+                 <p className="font-bold text-brand-blue dark:text-blue-400 text-sm">{challenge.timestamp.toLocaleDateString(undefined, { month: 'short' })}</p>
+                 <p className="text-2xl font-bold text-brand-text-primary dark:text-gray-100">{challenge.timestamp.getDate()}</p>
+             </div>
+             <div className="flex-grow">
+                 <p className="font-semibold text-brand-text-primary dark:text-gray-100">{challenge.exercise.name}</p>
+                 <p className="text-sm text-brand-text-secondary dark:text-gray-400">{challenge.target}</p>
+             </div>
+             <div className="flex items-center -space-x-2">
+                 {completedMembers.map(member => (
+-                    <img key={member.id} src={member.avatarUrl} alt={member.name} title={member.name} className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800" />
++                    <AvatarImage
++                        key={member.id}
++                        userId={member.id}
++                        cacheKey={member.avatarUpdatedAt?.getTime?.()}
++                        alt={member.name}
++                        title={member.name}
++                        className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800"
++                    />
+                 ))}
+             </div>
+         </li>
+     );
+ };
+ 
+ export default History;

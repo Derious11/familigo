@@ -1,6 +1,7 @@
 import React, { useContext, useMemo } from 'react';
 import { AppContext } from '../../App';
 import { TrophyIcon, FireIcon, ClockIcon, ArrowUpIcon } from '../Icons';
+import AvatarImage from '../ui/AvatarImage';
 
 const Leaderboard: React.FC = () => {
     const { familyCircle, currentUser } = useContext(AppContext);
@@ -61,7 +62,12 @@ const Leaderboard: React.FC = () => {
                 {top3[1] && (
                     <div className="flex flex-col items-center w-1/3">
                         <div className="relative mb-2">
-                            <img src={top3[1].avatarUrl} alt={top3[1].name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-gray-300 shadow-lg object-cover" />
+                            <AvatarImage
+                                userId={top3[1].id}
+                                cacheKey={top3[1].avatarUpdatedAt?.getTime?.()}
+                                alt={top3[1].name}
+                                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-gray-300 shadow-lg object-cover"
+                            />
                             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gray-200 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-300 shadow-sm">2nd</div>
                         </div>
                         <p className="font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-300 text-center truncate w-full px-1">{top3[1].name}</p>
@@ -76,7 +82,12 @@ const Leaderboard: React.FC = () => {
                 {top3[0] && (
                     <div className="flex flex-col items-center w-1/3 z-10">
                         <div className="relative mb-2">
-                            <img src={top3[0].avatarUrl} alt={top3[0].name} className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-yellow-400 shadow-xl object-cover ring-4 ring-yellow-400/30" />
+                            <AvatarImage
+                                userId={top3[0].id}
+                                cacheKey={top3[0].avatarUpdatedAt?.getTime?.()}
+                                alt={top3[0].name}
+                                className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-yellow-400 shadow-xl object-cover ring-4 ring-yellow-400/30"
+                            />
                             <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-0.5 rounded-full border border-yellow-200 shadow-sm">1st</div>
                         </div>
                         <p className="font-black text-sm sm:text-base text-gray-900 dark:text-white text-center truncate w-full px-1">{top3[0].name}</p>
@@ -92,7 +103,12 @@ const Leaderboard: React.FC = () => {
                 {top3[2] && (
                     <div className="flex flex-col items-center w-1/3">
                         <div className="relative mb-2">
-                            <img src={top3[2].avatarUrl} alt={top3[2].name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-orange-300 shadow-lg object-cover" />
+                            <AvatarImage
+                                userId={top3[2].id}
+                                cacheKey={top3[2].avatarUpdatedAt?.getTime?.()}
+                                alt={top3[2].name}
+                                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-orange-300 shadow-lg object-cover"
+                            />
                             <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-orange-200 text-orange-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-300 shadow-sm">3rd</div>
                         </div>
                         <p className="font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-300 text-center truncate w-full px-1">{top3[2].name}</p>
@@ -121,7 +137,12 @@ const Leaderboard: React.FC = () => {
                             <div className="flex items-center gap-4">
                                 <span className={`text-sm font-bold w-6 text-center ${isMe ? 'text-brand-blue' : 'text-gray-400'}`}>#{index + 4}</span>
                                 <div className="relative">
-                                    <img src={member.avatarUrl} alt={member.name} className={`w-10 h-10 rounded-full object-cover ${isMe ? 'ring-2 ring-brand-blue ring-offset-2 dark:ring-offset-gray-800' : 'bg-gray-200'}`} />
+                                    <AvatarImage
+                                        userId={member.id}
+                                        cacheKey={member.avatarUpdatedAt?.getTime?.()}
+                                        alt={member.name}
+                                        className={`w-10 h-10 rounded-full object-cover ${isMe ? 'ring-2 ring-brand-blue ring-offset-2 dark:ring-offset-gray-800' : 'bg-gray-200'}`}
+                                    />
                                     {isMe && <div className="absolute -bottom-1 -right-1 bg-brand-blue text-white text-[8px] px-1.5 rounded-full border border-white">YOU</div>}
                                 </div>
                                 <div>

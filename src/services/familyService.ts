@@ -11,11 +11,25 @@ import {
     documentId,
     arrayUnion,
     arrayRemove,
-    deleteField
+    deleteField,
+    Timestamp
 } from "firebase/firestore";
 import { db } from '../firebaseConfig';
 import { User, FamilyCircle } from '../types';
 import { getBadges } from './userService';
+
+const mapUserSnapshot = (snapshot: any): User => {
+    const data = snapshot.data() as User;
+    const avatarUpdatedAt = data.avatarUpdatedAt instanceof Timestamp
+        ? data.avatarUpdatedAt.toDate()
+        : data.avatarUpdatedAt;
+
+    return {
+        id: snapshot.id,
+        ...data,
+        avatarUpdatedAt,
+    } as User;
+};
 
 export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircle | null> => {
     const circleDocRef = doc(db, 'familyCircles', familyId);
@@ -28,7 +42,7 @@ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircl
     if (circleData.memberIds?.length) {
         const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
         const membersSnapshot = await getDocs(membersQuery);
-        members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        members = membersSnapshot.docs.map(mapUserSnapshot);
     }
 
     return {
@@ -47,6 +61,8 @@ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircl
 export const createFamilyCircle = async (userId: string, familyName: string): Promise<FamilyCircle> => {
     const user = await getDoc(doc(db, 'users', userId));
     if (!user.exists()) throw new Error("User not found for creating circle");
+
+    const creator = mapUserSnapshot(user);
 
     const inviteCode = `${familyName.substring(0, 3).toUpperCase()}-${Date.now().toString().slice(-4)}`;
 
@@ -67,7 +83,7 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
     return {
         id: circleRef.id,
         ...newCircleData,
-        members: [{ id: userId, ...user.data() } as User],
+        members: [creator],
     };
 };
 
@@ -122,7 +138,7 @@ export const onFamilyCircleUpdate = (
                 if (circleData.memberIds?.length) {
                     const membersQuery = query(collection(db, 'users'), where(documentId(), 'in', circleData.memberIds));
                     const membersSnapshot = await getDocs(membersQuery);
-                    members = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+                    members = membersSnapshot.docs.map(mapUserSnapshot);
                 }
 
                 const circle: FamilyCircle = {
@@ -191,7 +207,7 @@ export const createChildProfile = async (
         birthDate,
         parentId,
         familyCircleId: familyId,
-        avatarUrl: `https://i.pravatar.cc/150?u=${Date.now()}`,
+        avatarUpdatedAt: new Date(),
         streak: 0,
         lastActiveDate: new Date(),
         badges: [],

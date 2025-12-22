@@ -1,0 +1,296 @@
+diff a/src/components/Challenges/ChallengeCard.tsx b/src/components/Challenges/ChallengeCard.tsx	(rejected hunks)
+@@ -1,35 +1,36 @@
+ import React, { useContext, useState, useEffect, useMemo } from 'react';
+ import { AppContext } from '../../App';
+ import { Challenge, Reply } from '../../types';
+ import { onRepliesUpdate, updateReaction } from '../../services/challengeService';
+ import LogWeightReplyModal from './LogWeightReplyModal';
+ import LogActivityModal from './LogActivityModal';
+ import CreateReplyModal from './CreateReplyModal';
+ import { TrashIcon, ChatBubbleLeftIcon, ClockIcon } from '../Icons';
+ import ConfirmDeleteModal from '../ConfirmDeleteModal';
+ import confetti from 'canvas-confetti';
++import AvatarImage from '../ui/AvatarImage';
+ 
+ interface ChallengeCardProps {
+     challenge: Challenge;
+     isActive: boolean;
+ }
+ 
+ // --- HELPER COMPONENT: Countdown ---
+ const Countdown: React.FC<{ expiryDate: Date }> = ({ expiryDate }) => {
+     const [timeLeft, setTimeLeft] = useState('');
+     const [isUrgent, setIsUrgent] = useState(false);
+ 
+     useEffect(() => {
+         const calculateTimeLeft = () => {
+             const difference = +expiryDate - +new Date();
+             if (difference > 0) {
+                 const hours = Math.floor(difference / (1000 * 60 * 60));
+                 const minutes = Math.floor((difference / 1000 / 60) % 60);
+                 setIsUrgent(hours < 24);
+ 
+                 if (hours > 24) {
+                     const days = Math.floor(hours / 24);
+                     setTimeLeft(`${days}d ${hours % 24}h left`);
+                 } else {
+                     setTimeLeft(`${hours}h ${minutes}m left`);
+                 }
+@@ -61,50 +62,54 @@ const ProgressBar: React.FC<{ progress: number, colorClass: string }> = ({ progr
+             style={{ width: `${progress}%` }}
+         ></div>
+     </div>
+ );
+ 
+ // --- MAIN COMPONENT ---
+ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) => {
+     const context = useContext(AppContext);
+     const { currentUser, deleteReply, deleteChallenge, familyCircle, addReply } = context || {};
+ 
+     // State
+     const [replies, setReplies] = useState<Reply[]>([]);
+     const [isLogWeightModalOpen, setIsLogWeightModalOpen] = useState(false);
+     const [isLogActivityModalOpen, setIsLogActivityModalOpen] = useState(false);
+     const [isCreateReplyModalOpen, setIsCreateReplyModalOpen] = useState(false);
+     const [replyingToId, setReplyingToId] = useState<string | null>(null);
+     const [mainComment, setMainComment] = useState('');
+     const [isPostingMainComment, setIsPostingMainComment] = useState(false);
+ 
+     // UI State
+     const [showComments, setShowComments] = useState(false);
+     const [itemToDelete, setItemToDelete] = useState<{ type: 'reply' | 'challenge', id: string } | null>(null);
+     const [isDeleting, setIsDeleting] = useState(false);
+ 
+     const isChallenger = currentUser?.id === challenge.challenger.id;
++    const getAvatarCacheKey = (userId: string, fallback?: string | number) => {
++        const member = familyCircle?.members.find((m) => m.id === userId);
++        return member?.avatarUpdatedAt?.getTime?.() ?? fallback;
++    };
+ 
+     // Load Replies
+     useEffect(() => {
+         // FIX: Pass familyCircleId to satisfy the new query requirements
+         const unsubscribe = onRepliesUpdate(
+             challenge.id,
+             challenge.familyCircleId,
+             setReplies
+         );
+ 
+         return () => {
+             unsubscribe();
+             try { confetti.reset(); } catch (e) { /* ignore */ }
+         };
+     }, [challenge.id, challenge.familyCircleId]);
+ 
+     // Organize Replies (Threaded)
+     const { topLevelReplies, repliesByParent } = useMemo(() => {
+         const topLevel: Reply[] = [];
+         const byParent: Record<string, Reply[]> = {};
+         replies.forEach(reply => {
+             if (reply.parentId) {
+                 if (!byParent[reply.parentId]) byParent[reply.parentId] = [];
+                 byParent[reply.parentId].push(reply);
+             } else {
+@@ -185,51 +190,56 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
+     let progressText = '';
+ 
+     if (familyCircle && familyCircle.members.length > 0) {
+         if (isTeamChallenge && challenge.goalTotal) {
+             const current = challenge.currentTotal || 0;
+             progress = Math.min((current / challenge.goalTotal) * 100, 100);
+             progressText = `${current} / ${challenge.goalTotal} ${challenge.unit}`;
+         } else {
+             const count = challenge.completedBy?.length || 0;
+             const total = familyCircle.members.length;
+             progress = (count / total) * 100;
+             progressText = `${count}/${total}`;
+         }
+     }
+ 
+     const theme = isTeamChallenge
+         ? { bar: 'bg-blue-500', text: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' }
+         : { bar: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' };
+ 
+     return (
+         <div className={`bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-md mb-4 ${isActive ? '' : 'opacity-75 grayscale-[0.5]'}`}>
+ 
+             {/* --- TOP HEADER --- */}
+             <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                 <div className="flex items-center gap-2">
+-                    <img src={challenge.challenger.avatarUrl} alt="" className="w-6 h-6 rounded-full border border-gray-200" />
++                    <AvatarImage
++                        userId={challenge.challenger.id}
++                        cacheKey={getAvatarCacheKey(challenge.challenger.id, challenge.challenger.avatarUpdatedAt?.getTime?.())}
++                        alt={challenge.challenger.name}
++                        className="w-6 h-6 rounded-full border border-gray-200"
++                    />
+                     <span className="text-xs text-gray-500 dark:text-gray-400">
+                         <span className="font-semibold text-gray-700 dark:text-gray-300">{challenge.challenger.name}</span> challenged you
+                     </span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                     {isActive && <Countdown expiryDate={challenge.expiresAt} />}
+                     {isChallenger && (
+                         <button onClick={() => setItemToDelete({ type: 'challenge', id: challenge.id })} className="text-gray-400 hover:text-red-500 transition-colors">
+                             <TrashIcon className="w-4 h-4" />
+                         </button>
+                     )}
+                 </div>
+             </div>
+ 
+             {/* --- SPLIT LAYOUT: Text Left, Thumbnail Right --- */}
+             <div className="flex gap-4 px-4 pb-4">
+                 <div className="flex-1 flex flex-col justify-center">
+                     <div className="flex items-center gap-2 mb-1">
+                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide ${theme.bg} ${theme.text}`}>
+                             {isTeamChallenge ? 'Team Goal' : 'Solo'}
+                         </span>
+                     </div>
+ 
+                     <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight mb-1">
+                         {challenge.exercise.name}
+@@ -280,51 +290,56 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
+                         ) : (
+                             isTeamChallenge ? 'Log Contribution' : 'Mark Complete'
+                         )}
+                     </button>
+                 )}
+ 
+                 <button
+                     onClick={() => setShowComments(!showComments)}
+                     className={`p-2.5 rounded-xl border transition-colors flex items-center gap-2
+                         ${showComments
+                             ? 'bg-gray-100 border-gray-300 text-gray-800 dark:bg-gray-700 dark:border-gray-600'
+                             : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400'
+                         }`}
+                 >
+                     <ChatBubbleLeftIcon className="w-5 h-5" />
+                     {replies.length > 0 && <span className="text-xs font-bold">{replies.length}</span>}
+                 </button>
+             </div>
+ 
+             {/* --- COMMENTS SECTION --- */}
+             {showComments && (
+                 <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 p-4 space-y-4 animate-fade-in">
+ 
+                     {/* Inline Comment Input */}
+                     <form onSubmit={handleMainCommentSubmit} className="flex gap-2">
+-                        <img className="w-8 h-8 rounded-full mt-1 flex-shrink-0" src={currentUser?.avatarUrl} alt={currentUser?.name} />
++                        <AvatarImage
++                            userId={currentUser?.id}
++                            cacheKey={currentUser?.id ? getAvatarCacheKey(currentUser.id, currentUser.avatarUpdatedAt?.getTime?.()) : undefined}
++                            alt={currentUser?.name || ''}
++                            className="w-8 h-8 rounded-full mt-1 flex-shrink-0"
++                        />
+                         <div className="flex-grow relative">
+                             <textarea
+                                 value={mainComment}
+                                 onChange={(e) => setMainComment(e.target.value)}
+                                 rows={1}
+                                 placeholder="Write a comment..."
+                                 className="w-full text-sm py-2 px-3 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:ring-2 focus:ring-brand-blue resize-none"
+                             />
+                             <button
+                                 type="submit"
+                                 disabled={!mainComment.trim() || isPostingMainComment}
+                                 className="absolute right-2 top-1.5 text-brand-blue hover:text-blue-600 disabled:opacity-30 p-1"
+                             >
+                                 <ChatBubbleLeftIcon className="w-5 h-5" />
+                             </button>
+                         </div>
+                     </form>
+ 
+                     {/* Replies List */}
+                     <div className="space-y-4">
+                         {topLevelReplies.length === 0 ? (
+                             <p className="text-center text-xs text-gray-400 py-2">No comments yet.</p>
+                         ) : (
+                             topLevelReplies.map(reply => (
+                                 <ReplyCard
+@@ -408,51 +423,56 @@ const InlineReplyForm: React.FC<{
+                 </button>
+             </div>
+         </form>
+     );
+ };
+ 
+ // --- REPLY CARD (Sub-Component) ---
+ const ReplyCard: React.FC<{
+     reply: Reply;
+     onReact: (replyId: string, emoji: string) => void;
+     onDeleteClick: (replyId: string) => void;
+     childReplies: Reply[];
+     allRepliesByParent: Record<string, Reply[]>;
+     challengeId: string;
+     onToggleReply: (replyId: string) => void;
+     replyingToId: string | null;
+ }> = ({ reply, onReact, onDeleteClick, childReplies, allRepliesByParent, challengeId, onToggleReply, replyingToId }) => {
+     const context = useContext(AppContext);
+     const { currentUser } = context || {};
+     const emojis = ['💪', '🔥', '😂', '🙌'];
+     const canDelete = currentUser && currentUser.id === reply.user.id;
+ 
+     return (
+         <div>
+             <div className="flex items-start gap-3">
+-                <img className="w-8 h-8 rounded-full mt-1" src={reply.user.avatarUrl} alt={reply.user.name} />
++                <AvatarImage
++                    userId={reply.user.id}
++                    cacheKey={getAvatarCacheKey(reply.user.id, reply.user.avatarUpdatedAt?.getTime?.())}
++                    alt={reply.user.name}
++                    className="w-8 h-8 rounded-full mt-1"
++                />
+                 <div className="flex-1">
+                     <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-tl-none p-3 relative group">
+                         {canDelete && (
+                             <button
+                                 onClick={() => onDeleteClick(reply.id)}
+                                 className="absolute top-2 right-2 p-1 rounded-full text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                             >
+                                 <TrashIcon className="w-3 h-3" />
+                             </button>
+                         )}
+                         <p className="font-bold text-xs text-gray-900 dark:text-gray-100 mb-0.5">{reply.user.name}</p>
+                         {reply.text && <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{reply.text}</p>}
+                         {reply.mediaUrl && <img src={reply.mediaUrl} alt="Reply media" className="mt-2 rounded-lg w-full h-32 object-cover" />}
+                     </div>
+ 
+                     <div className="flex items-center gap-3 mt-1 ml-1">
+                         <div className="flex items-center gap-1">
+                             {emojis.map(emoji => (
+                                 <button
+                                     key={emoji}
+                                     onClick={() => onReact(reply.id, emoji)}
+                                     className={`text-[10px] px-1.5 py-0.5 rounded-full transition-colors ${(reply.reactions[emoji] || 0) > 0
+                                         ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30'
+                                         : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                         }`}
+@@ -475,26 +495,26 @@ const ReplyCard: React.FC<{
+                     onCancel={() => onToggleReply(reply.id)}
+                 />
+             )}
+ 
+             {childReplies.length > 0 && (
+                 <div className="mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-3">
+                     {childReplies.map(child => (
+                         <ReplyCard
+                             key={child.id}
+                             reply={child}
+                             onReact={onReact}
+                             onDeleteClick={onDeleteClick}
+                             childReplies={allRepliesByParent[child.id] || []}
+                             allRepliesByParent={allRepliesByParent}
+                             challengeId={challengeId}
+                             onToggleReply={onToggleReply}
+                             replyingToId={replyingToId}
+                         />
+                     ))}
+                 </div>
+             )}
+         </div>
+     );
+ };
+ 
+-export default ChallengeCard;
+\ No newline at end of file
++export default ChallengeCard;

@@ -4,6 +4,7 @@ import { onMessagesUpdate, sendMessage, updateFamilyCircleChatName, deleteMessag
 import { Message } from '../../types';
 import { PaperAirplaneIcon, PencilIcon, CheckIcon, XMarkIcon, TrashIcon } from '../Icons';
 import { requestNotificationPermission } from '../../services/webPushService';
+import AvatarImage from '../ui/AvatarImage';
 
 const Chat: React.FC = () => {
     const context = useContext(AppContext);
@@ -44,6 +45,11 @@ const Chat: React.FC = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    const getAvatarCacheKey = (userId: string) => {
+        const member = familyCircle?.members.find((m) => m.id === userId);
+        return member?.avatarUpdatedAt?.getTime?.();
+    };
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim() || !currentUser || !familyCircle) return;
@@ -58,7 +64,6 @@ const Chat: React.FC = () => {
             familyCircleId: familyCircle.id,
             senderId: currentUser.id,
             senderName: currentUser.name,
-            senderAvatarUrl: currentUser.avatarUrl,
             text: text,
             type: 'text',
             timestamp: new Date(),
@@ -157,7 +162,12 @@ const Chat: React.FC = () => {
                             {!isMe && (
                                 <div className="w-8 h-8 flex-shrink-0">
                                     {showAvatar ? (
-                                        <img src={msg.senderAvatarUrl} alt={msg.senderName} className="w-8 h-8 rounded-full object-cover" />
+                                        <AvatarImage
+                                            userId={msg.senderId}
+                                            alt={msg.senderName}
+                                            className="w-8 h-8 rounded-full object-cover"
+                                            cacheKey={getAvatarCacheKey(msg.senderId)}
+                                        />
                                     ) : <div className="w-8" />}
                                 </div>
                             )}
