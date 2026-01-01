@@ -367,6 +367,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 };
 
 /* ---------- Reply Card ---------- */
+/* ---------- Reply Card ---------- */
 const ReplyCard: React.FC<{
     reply: Reply;
     onReact: (replyId: string, emoji: string) => void;
@@ -383,9 +384,27 @@ const ReplyCard: React.FC<{
                 cacheKey={reply.user.avatarUpdatedAt?.getTime?.()}
                 className="w-8 h-8 rounded-full"
             />
-            <div>
-                <b>{reply.user.name}</b>
-                <p>{reply.text}</p>
+            <div className="flex-1">
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl rounded-tl-none px-4 py-2 inline-block">
+                    <b className="text-sm text-gray-900 dark:text-gray-100">{reply.user.name}</b>
+
+                    {reply.mediaUrl && (
+                        <div className="mt-2 mb-1">
+                            <div className="relative rounded-lg overflow-hidden h-40 w-auto inline-block border border-gray-200 dark:border-gray-600">
+                                <img
+                                    src={reply.mediaUrl}
+                                    alt="Challenge Proof"
+                                    className="h-full w-auto object-cover max-w-full"
+                                />
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-2 py-1 text-center font-bold uppercase tracking-wider backdrop-blur-sm">
+                                    Completed the Challenge
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {reply.text && <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">{reply.text}</p>}
+                </div>
             </div>
         </div>
     );
