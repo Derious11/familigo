@@ -1,4 +1,4 @@
-import { uploadBytesResumable, getDownloadURL, UploadMetadata } from "firebase/storage";
+import { uploadBytesResumable, getDownloadURL, UploadMetadata, ref } from "firebase/storage";
 import { storage, db } from '../firebaseConfig';
 import { doc, collection } from "firebase/firestore";
 import { clearAvatarCache, getAvatarDownloadUrl, getAvatarStorageRef } from "../lib/avatar";
@@ -34,9 +34,9 @@ export const uploadProfileImage = async (userId: string, file: File | Blob): Pro
     });
 };
 
-export const uploadReplyImage = async (file: Blob): Promise<string> => {
-    const uniqueId = doc(collection(db, 'temp')).id; // Generate a unique ID for the path
-    const storageRef = ref(storage, `reply-images/${uniqueId}`);
+export const uploadReplyImage = async (userId: string, challengeId: string, file: Blob): Promise<string> => {
+    const uniqueId = doc(collection(db, 'temp')).id; // Generate a unique ID for the file
+    const storageRef = ref(storage, `reply-images/${userId}/${challengeId}/${uniqueId}`);
 
     return new Promise((resolve, reject) => {
         const uploadTask = uploadBytesResumable(storageRef, file);

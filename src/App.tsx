@@ -231,7 +231,7 @@ const App: React.FC = () => {
 
         let mediaUrl: string | undefined;
         if (payload.image) {
-            mediaUrl = await uploadReplyImage(payload.image);
+            mediaUrl = await uploadReplyImage(currentUser.id, challengeId, payload.image);
         }
 
         await addReplyToChallenge(

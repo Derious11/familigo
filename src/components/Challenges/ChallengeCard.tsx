@@ -45,8 +45,8 @@ const Countdown: React.FC<{ expiryDate: Date }> = ({ expiryDate }) => {
     return (
         <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isUrgent
-                    ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
-                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+                : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
                 }`}
         >
             <ClockIcon className="w-3 h-3" />
@@ -235,6 +235,19 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 <h3 className="text-xl font-bold">{challenge.exercise.name}</h3>
                 <p className="text-sm mb-3">{challenge.target}</p>
 
+                {challenge.exercise.visualGuideUrl && (
+                    <div className="mb-3 rounded-xl overflow-hidden shadow-sm aspect-video">
+                        <img
+                            src={challenge.exercise.visualGuideUrl}
+                            alt={challenge.exercise.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                        />
+                    </div>
+                )}
+
                 {familyCircle && (
                     <>
                         <div className="flex justify-between text-xs mb-1">
@@ -265,17 +278,44 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
             {/* Comments */}
             {showComments && (
                 <div className="p-4 space-y-4">
-                    <form onSubmit={handleMainCommentSubmit} className="flex gap-2">
+                    <form onSubmit={handleMainCommentSubmit} className="flex gap-2 items-start">
                         <AvatarImage
                             userId={currentUser?.id}
                             cacheKey={currentUser?.avatarUpdatedAt?.getTime?.()}
-                            className="w-8 h-8 rounded-full"
+                            className="w-8 h-8 rounded-full mt-1"
                         />
-                        <textarea
-                            value={mainComment}
-                            onChange={(e) => setMainComment(e.target.value)}
-                            className="flex-1 text-sm"
-                        />
+                        <div className="flex-1 relative">
+                            <textarea
+                                value={mainComment}
+                                onChange={(e) => setMainComment(e.target.value)}
+                                placeholder="Write a comment..."
+                                className="w-full text-sm rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-0 focus:ring-2 focus:ring-brand-blue resize-none shadow-sm dark:text-gray-100 placeholder:text-gray-400"
+                                rows={1}
+                                onKeyDown={(e) => {
+                                    // Submit on Enter (without Shift)
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleMainCommentSubmit(e);
+                                    }
+                                    // Auto-resize
+                                    const target = e.target as HTMLTextAreaElement;
+                                    target.style.height = 'auto'; // Reset
+                                    target.style.height = `${target.scrollHeight}px`; // Set to scroll height
+                                }}
+                            />
+                            {mainComment.trim() && (
+                                <button
+                                    type="submit"
+                                    disabled={isPostingMainComment}
+                                    className="absolute right-2 top-2 p-1 text-brand-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-all"
+                                >
+                                    {/* PaperAirplaneIcon */}
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                        <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
                     </form>
 
                     {topLevelReplies.map((reply) => (
@@ -301,6 +341,27 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 title={itemToDelete?.type === 'challenge' ? 'Delete Challenge' : 'Delete Reply'}
                 message="Are you sure? This cannot be undone."
             />
+
+            {isLogWeightModalOpen && (
+                <LogWeightReplyModal
+                    challenge={challenge}
+                    onClose={() => setIsLogWeightModalOpen(false)}
+                />
+            )}
+
+            {isLogActivityModalOpen && (
+                <LogActivityModal
+                    challenge={challenge}
+                    onClose={() => setIsLogActivityModalOpen(false)}
+                />
+            )}
+
+            {isCreateReplyModalOpen && (
+                <CreateReplyModal
+                    challengeId={challenge.id}
+                    onClose={() => setIsCreateReplyModalOpen(false)}
+                />
+            )}
         </div>
     );
 };
