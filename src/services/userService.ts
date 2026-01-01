@@ -176,6 +176,13 @@ export const updateUserAvatar = async (
     });
 };
 
+export const updateDisplayName = async (
+    userId: string,
+    name: string
+) => {
+    await updateDoc(doc(db, "users", userId), { name });
+};
+
 export const updateCoverPhoto = async (
     userId: string,
     coverPhotoUrl: string

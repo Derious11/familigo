@@ -61,24 +61,8 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({ familyCircle, onMan
                     </div>
                 </div>
 
-                {/* Collapsed Invite Code - Clean Look */}
-                <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700/30 rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white dark:bg-gray-600 rounded-md text-gray-500">
-                            <UserGroupIcon className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Invite Code</p>
-                            <p className="text-sm font-mono font-bold text-gray-800 dark:text-gray-200 tracking-wider">{familyCircle.inviteCode}</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleShareInviteLink}
-                        className={`p-2 rounded-lg transition-all ${isLinkCopied ? 'bg-green-100 text-green-700' : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500'}`}
-                    >
-                        {isLinkCopied ? <CheckIcon className="w-5 h-5" /> : <LinkIcon className="w-5 h-5" />}
-                    </button>
-                </div>
+                {/* Invite Code removed as per request */}
+
             </div>
         </div>
     );

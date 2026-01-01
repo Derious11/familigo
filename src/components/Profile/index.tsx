@@ -13,7 +13,7 @@ import ProfileSettings from './ProfileSettings';
 import ProfileSwitcher from './ProfileSwitcher';
 
 // Modals
-import EditProfilePictureModal from './modals/EditProfilePictureModal';
+import EditProfileModal from './modals/EditProfileModal';
 import UpdateWeightModal from './modals/UpdateWeightModal';
 import FamilySettingsModal from './modals/FamilySettingsModal';
 import PrivacyPolicy from '../Auth/PrivacyPolicy';
@@ -54,7 +54,7 @@ const Profile: React.FC = () => {
     }, []);
 
     const unlockedBadgeIds = useMemo(() => {
-        return new Set(currentUser.badges.filter(b => b.unlocked).map(b => b.id));
+        return new Set<string>(currentUser.badges.filter(b => b.unlocked).map(b => b.id));
     }, [currentUser.badges]);
 
     const handleNotificationToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,19 +130,15 @@ const Profile: React.FC = () => {
 
             <ProfileSettings
                 currentUser={currentUser}
-                familyCircle={familyCircle}
-                isImpersonating={isImpersonating}
-                originalUserId={originalUserId}
                 hasNotificationsEnabled={hasNotificationsEnabled}
                 isNotificationToggleLoading={isNotificationToggleLoading}
                 onToggleNotifications={handleNotificationToggle}
                 onOpenPrivacy={() => setIsPrivacyOpen(true)}
-                onSwitchProfile={switchProfile}
                 onSignOut={signOut}
             />
 
             {/* Modals */}
-            {isEditModalOpen && <EditProfilePictureModal onClose={() => setIsEditModalOpen(false)} />}
+            {isEditModalOpen && <EditProfileModal onClose={() => setIsEditModalOpen(false)} />}
             {isWeightModalOpen && <UpdateWeightModal onClose={() => setIsWeightModalOpen(false)} />}
             {isFamilySettingsOpen && <FamilySettingsModal onClose={() => setIsFamilySettingsOpen(false)} />}
             {isPrivacyOpen && (
