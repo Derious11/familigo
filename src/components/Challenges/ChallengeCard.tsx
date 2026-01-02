@@ -266,10 +266,8 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                         onClick={handleCompleteChallenge}
                         disabled={!isTeamChallenge && hasReplied}
                         className={`flex-1 py-2.5 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 ${!isTeamChallenge && hasReplied
-                                ? 'bg-gray-400 cursor-default shadow-none'
-                                : isTeamChallenge
-                                    ? 'bg-brand-blue hover:bg-blue-600 shadow-blue-500/30'
-                                    : 'bg-brand-green hover:bg-green-600 shadow-green-500/30'
+                            ? 'bg-green-500/60 cursor-default shadow-none'
+                            : 'bg-green-500 hover:bg-green-600 shadow-green-500/30'
                             }`}
                     >
                         {!isTeamChallenge && hasReplied ? '✓ Done' : isTeamChallenge ? 'Log Contribution' : 'Mark Complete'}
