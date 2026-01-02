@@ -10,7 +10,6 @@ import ActivityHeatmap from './ActivityHeatmap';
 import BadgeCollection from './BadgeCollection';
 import FamilyCircleCard from './FamilyCircleCard';
 import ProfileSettings from './ProfileSettings';
-import ProfileSwitcher from './ProfileSwitcher';
 
 // Modals
 import EditProfileModal from './modals/EditProfileModal';
@@ -115,18 +114,13 @@ const Profile: React.FC = () => {
             {familyCircle && (
                 <FamilyCircleCard
                     familyCircle={familyCircle}
+                    currentUser={currentUser}
+                    isImpersonating={isImpersonating}
+                    originalUserId={originalUserId}
+                    onSwitchProfile={switchProfile}
                     onManage={() => setIsFamilySettingsOpen(true)}
                 />
             )}
-
-            <ProfileSwitcher
-                currentUser={currentUser}
-                familyCircle={familyCircle}
-                isImpersonating={isImpersonating}
-                originalUserId={originalUserId || null}
-                onSwitch={switchProfile}
-                onOpenSettings={() => setIsFamilySettingsOpen(true)}
-            />
 
             <ProfileSettings
                 currentUser={currentUser}
