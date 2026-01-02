@@ -16,9 +16,9 @@ service cloud.firestore {
           || (familyCircleData.members[request.auth.uid] == null && request.auth.uid in familyCircleData.memberIds);
     }
 
-    // TEMP: Firestore-based admin disabled unless explicitly needed
+    // Check for admin custom claim
     function isAdmin() {
-      return false;
+      return request.auth.token.admin == true;
     }
 
     /* ========================
@@ -28,8 +28,9 @@ service cloud.firestore {
 
       /* -------- READ -------- */
       allow read: if isSignedIn() && (
+        isAdmin()
         // Self
-        request.auth.uid == userId
+        || request.auth.uid == userId
 
         // Parent → child
         || (
@@ -63,9 +64,10 @@ service cloud.firestore {
 
       /* -------- UPDATE -------- */
       allow update: if isSignedIn() && (
+        isAdmin()
 
         // Self updates safe fields only
-        (
+        || (
           request.auth.uid == userId
           && !request.resource.data
               .diff(resource.data)
@@ -141,6 +143,15 @@ service cloud.firestore {
 
       // For READ, UPDATE, DELETE, we check the existing document (resource.data)
       allow read, update, delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+    }
+
+    /* ========================
+       FEEDBACK
+       ======================== */
+    match /feedback/{feedbackId} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
+      allow delete: if isSignedIn() && isAdmin();
     }
 
     /* ========================

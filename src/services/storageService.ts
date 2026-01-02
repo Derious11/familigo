@@ -59,3 +59,23 @@ export const uploadReplyImage = async (userId: string, challengeId: string, file
         );
     });
 };
+
+export const uploadFeedbackImage = async (userId: string, file: Blob): Promise<string> => {
+    const uniqueId = doc(collection(db, 'temp')).id;
+    const storageRef = ref(storage, `feedback-images/${userId}/${uniqueId}`);
+
+    return new Promise((resolve, reject) => {
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+            null,
+            (error) => {
+                console.error("Feedback upload failed:", error);
+                reject(error);
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then(resolve);
+            }
+        );
+    });
+};

@@ -12,12 +12,16 @@ import CreateChallengeModal from './Challenges/CreateChallengeModal';
 import Chat from './Chat';
 import { PlusIcon } from './Icons';
 
+import FeedbackModal from './Feedback/FeedbackModal';
+import { ChatBubbleLeftIcon } from './Icons';
+
 const MainApp: React.FC = () => {
     const [activeView, setActiveView] = useState<View>('feed');
     const [isCreateChallengeModalOpen, setIsCreateChallengeModalOpen] = useState(false);
-    const context = useContext(AppContext);
-    const { currentUser } = context || {};
+    const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
     const [verificationEmailSent, setVerificationEmailSent] = useState(false);
+    const context = useContext(AppContext);
+    const { currentUser } = context;
 
     const handleResendEmail = async () => {
         const { success } = await resendVerificationEmail();
@@ -60,6 +64,7 @@ const MainApp: React.FC = () => {
                         )}
                     </div>
                 )}
+
             <div className="max-w-2xl mx-auto pb-24">
                 <Header activeView={activeView} setActiveView={setActiveView} />
                 <main className="p-4">
@@ -67,6 +72,16 @@ const MainApp: React.FC = () => {
                 </main>
             </div>
 
+            {/* Feedback Button (Left) */}
+            <button
+                onClick={() => setIsFeedbackModalOpen(true)}
+                className="fixed bottom-6 left-6 bg-white dark:bg-gray-800 text-brand-text-secondary dark:text-gray-400 p-3 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 transition-transform transform hover:scale-110 z-40"
+                aria-label="Send feedback"
+            >
+                <ChatBubbleLeftIcon className="w-6 h-6" />
+            </button>
+
+            {/* Create Challenge Button (Right) */}
             <button
                 onClick={() => setIsCreateChallengeModalOpen(true)}
                 className="fixed bottom-6 right-6 bg-brand-blue hover:bg-blue-600 text-white p-4 rounded-full shadow-lg transition-transform transform hover:scale-110 z-40"
@@ -77,6 +92,10 @@ const MainApp: React.FC = () => {
 
             {isCreateChallengeModalOpen && (
                 <CreateChallengeModal onClose={() => setIsCreateChallengeModalOpen(false)} />
+            )}
+
+            {isFeedbackModalOpen && (
+                <FeedbackModal onClose={() => setIsFeedbackModalOpen(false)} />
             )}
         </div>
     );
