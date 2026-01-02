@@ -9,6 +9,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Check if user is a member of the given family circle
+    function isFamilyMember(familyCircleId) {
+      let familyCircleData = get(/databases/$(database)/documents/familyCircles/$(familyCircleId)).data;
+      return familyCircleData.members[request.auth.uid] == true
+          || (familyCircleData.members[request.auth.uid] == null && request.auth.uid in familyCircleData.memberIds);
+    }
+
     // TEMP: Firestore-based admin disabled unless explicitly needed
     function isAdmin() {
       return false;
@@ -33,9 +40,7 @@ service cloud.firestore {
         // Same family
         || (
           resource.data.familyCircleId != null
-          && resource.data.familyCircleId
-              == get(/databases/$(database)/documents/users/$(request.auth.uid))
-                 .data.familyCircleId
+          && isFamilyMember(resource.data.familyCircleId)
         )
       );
 
@@ -94,16 +99,7 @@ service cloud.firestore {
 
       allow create: if isSignedIn();
 
-      allow read, update: if isSignedIn()
-        && (
-          // Primary: membership map
-          resource.data.members[request.auth.uid] == true
-          // Backward compatibility while the map is being populated
-          || (
-            resource.data.members[request.auth.uid] == null
-            && request.auth.uid in resource.data.memberIds
-          )
-        );
+      allow read, update: if isSignedIn() && isFamilyMember(circleId);
     }
 
     /* ========================
@@ -113,17 +109,12 @@ service cloud.firestore {
 
       allow read: if isSignedIn();
 
-      allow create, update, delete: if isSignedIn()
-        && (
-          get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
-              .data.members[request.auth.uid] == true
-          || (
-            get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
-                .data.members[request.auth.uid] == null
-            && request.auth.uid in get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
-                .data.memberIds
-          )
-        );
+      allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId);
+      
+      // Updates usually don't change the familyCircleId, so we check the existing one
+      allow update: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      
+      allow delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
     }
 
     /* ========================
@@ -133,17 +124,11 @@ service cloud.firestore {
 
       allow read: if isSignedIn();
 
-      allow create, update, delete: if isSignedIn()
-        && (
-          get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
-              .data.members[request.auth.uid] == true
-          || (
-            get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
-                .data.members[request.auth.uid] == null
-            && request.auth.uid in get(/databases/$(database)/documents/familyCircles/$(request.resource.data.familyCircleId))
-                .data.memberIds
-          )
-        );
+      allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId);
+      
+      allow update: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      
+      allow delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
     }
 
     /* ========================
@@ -151,17 +136,11 @@ service cloud.firestore {
        ======================== */
     match /messages/{messageId} {
 
-      allow read, create, update, delete: if isSignedIn()
-        && (
-          get(/databases/$(database)/documents/familyCircles/$(resource.data.familyCircleId))
-              .data.members[request.auth.uid] == true
-          || (
-            get(/databases/$(database)/documents/familyCircles/$(resource.data.familyCircleId))
-                .data.members[request.auth.uid] == null
-            && request.auth.uid in get(/databases/$(database)/documents/familyCircles/$(resource.data.familyCircleId))
-                .data.memberIds
-          )
-        );
+      // For CREATE, we must check request.resource.data because resource doesn't exist yet
+      allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId);
+
+      // For READ, UPDATE, DELETE, we check the existing document (resource.data)
+      allow read, update, delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
     }
 
     /* ========================

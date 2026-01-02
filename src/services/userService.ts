@@ -80,6 +80,7 @@ export const onUserUpdate = (
                     notificationTokens: data.notificationTokens,
                     coverPhotoUrl: data.coverPhotoUrl,
                     activityMap: data.activityMap || {},
+                    lastReadMessageCount: data.lastReadMessageCount ?? 0,
                 };
 
                 callback(user);
