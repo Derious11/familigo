@@ -243,7 +243,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                         ) : (
                             <>
                                 {/* Add Child Card */}
-                                <div className="bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-800 rounded-xl p-4">
+                                <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-4">
                                     <h4 className="font-bold text-green-800 dark:text-green-300 mb-3 flex items-center gap-2">
                                         <span>👶</span> Create Child Profile
                                     </h4>
@@ -253,18 +253,18 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                             placeholder="Child's Name"
                                             value={childName}
                                             onChange={(e) => setChildName(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-green-200 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800"
+                                            className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
                                         />
                                         <input
                                             type="date"
                                             value={childBirthDate}
                                             onChange={(e) => setChildBirthDate(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-green-200 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800"
+                                            className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
                                         />
                                         <button
                                             onClick={handleAddChild}
                                             disabled={isAddingChild || !childName || !childBirthDate}
-                                            className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50"
+                                            className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 shadow-sm"
                                         >
                                             {isAddingChild ? 'Creating...' : 'Create Child Profile'}
                                         </button>
@@ -273,12 +273,12 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
 
                                 <div className="relative flex py-1 items-center">
                                     <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-                                    <span className="flex-shrink-0 mx-2 text-xs text-gray-400">OR</span>
+                                    <span className="flex-shrink-0 mx-2 text-xs text-gray-400 font-bold">OR</span>
                                     <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
                                 </div>
 
                                 {/* Invite Teen Card */}
-                                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
+                                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
                                     <h4 className="font-bold text-brand-blue dark:text-blue-300 mb-3 flex items-center gap-2">
                                         <span>📱</span> Invite Teen (13+)
                                     </h4>
@@ -288,19 +288,19 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                             placeholder="Teen's Name"
                                             value={teenName}
                                             onChange={(e) => setTeenName(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-blue-200 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800"
+                                            className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500"
                                         />
                                         <input
                                             type="email"
                                             placeholder="Teen's Email"
                                             value={teenEmail}
                                             onChange={(e) => setTeenEmail(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-blue-200 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800"
+                                            className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500"
                                         />
                                         <button
                                             onClick={handleSendInvite}
                                             disabled={isSendingInvite || !teenEmail || !teenName}
-                                            className="w-full py-2 bg-brand-blue hover:bg-blue-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50"
+                                            className="w-full py-2 bg-brand-blue hover:bg-blue-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 shadow-sm"
                                         >
                                             {isSendingInvite ? 'Sending...' : 'Send Invite Email'}
                                         </button>

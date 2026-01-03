@@ -168,13 +168,14 @@ const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) 
             <div className="space-y-6 pb-2">
 
                 {/* 1. TYPE TOGGLE */}
-                <div className="grid grid-cols-2 gap-3 bg-gray-50 dark:bg-gray-800 p-1 rounded-2xl border border-gray-100 dark:border-gray-700">
+                {/* 1. TYPE TOGGLE */}
+                <div className="grid grid-cols-2 gap-3 p-1">
                     <button
                         type="button"
                         onClick={() => setChallengeType('individual')}
                         className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${isIndividual
-                            ? 'border-emerald-200 bg-white dark:bg-gray-700 text-emerald-600 shadow-sm'
-                            : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                            ? 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                            : 'border-transparent bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                     >
                         <UserIcon className={`w-6 h-6 mb-1 ${isIndividual ? 'text-emerald-500' : 'grayscale opacity-50'}`} />
@@ -184,8 +185,8 @@ const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) 
                         type="button"
                         onClick={() => setChallengeType('team')}
                         className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${!isIndividual
-                            ? 'border-blue-200 bg-white dark:bg-gray-700 text-blue-600 shadow-sm'
-                            : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                            ? 'border-blue-200 bg-blue-50/50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm'
+                            : 'border-transparent bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
                             }`}
                     >
                         <UserGroupIcon className={`w-6 h-6 mb-1 ${!isIndividual ? 'text-blue-500' : 'grayscale opacity-50'}`} />
@@ -220,7 +221,7 @@ const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) 
                                             onClick={() => handlePresetClick(preset)}
                                             className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all duration-200 ${isSelected
                                                 ? `${currentTheme.activeBorder} ${currentTheme.activeBg} ring-1 ${currentTheme.activeRing} ${currentTheme.activeShadow} scale-105`
-                                                : `border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 ${currentTheme.hoverBorder} ${currentTheme.hoverBg} hover:shadow-lg hover:-translate-y-1`
+                                                : `border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 ${currentTheme.hoverBorder} ${currentTheme.hoverBg} hover:shadow-lg hover:-translate-y-1`
                                                 }`}
                                         >
                                             <span className="text-2xl mb-1 filter drop-shadow-sm">{preset.emoji}</span>

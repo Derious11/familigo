@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { XMarkIcon } from '../Icons';
 
 interface ModalProps {
@@ -10,6 +10,8 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer }) => {
+    const titleId = useMemo(() => `modal-title-${Math.random().toString(36).slice(2)}`, []);
+
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -30,17 +32,28 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop"
+            onClick={onClose} /* Backdrop click closes */
+        >
             <div
-                className="modal-container w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] bg-white dark:bg-gray-800 shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={title ? titleId : undefined}
+                className="modal-container w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] bg-white dark:bg-gray-800 shadow-[0_20px_40px_rgba(0,0,0,0.12)] border border-gray-200 dark:border-slate-700"
+                onClick={(e) => e.stopPropagation()} /* Prevent backdrop close when clicking inside */
             >
                 {/* Header */}
-                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center shrink-0">
-                    {title && <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
+                    {title && (
+                        <h2 id={titleId} className="text-xl font-bold text-gray-900 dark:text-white">
+                            {title}
+                        </h2>
+                    )}
                     <button
                         onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                        aria-label="Close modal"
+                        className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
                     >
                         <XMarkIcon className="w-6 h-6" />
                     </button>
