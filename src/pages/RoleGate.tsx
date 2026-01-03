@@ -111,6 +111,8 @@ export default function RoleGate() {
                     {/* Footer */}
                     <p className="pt-6 text-[11px] text-slate-500 leading-relaxed">
                         Invite-only. Family-first. Built for safe, positive competition.
+                        <br />
+                        <a href="/faq" className="hover:text-slate-400 transition underline decoration-slate-700 underline-offset-2">Read our FAQ</a>
                     </p>
                 </div>
             </section>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePostHog } from 'posthog-js/react';
 import { ShieldCheck, User, Mail, Lock, Calendar, CheckCircle2 } from "lucide-react";
 import { signUpWithEmail } from "../services/authService";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -17,6 +18,7 @@ interface InviteInfo {
 ========================= */
 
 export default function ClaimInvite() {
+    const posthog = usePostHog();
     const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [invite, setInvite] = useState<InviteInfo | null>(null);
     const [loading, setLoading] = useState(true);
@@ -111,11 +113,18 @@ export default function ClaimInvite() {
                 new Date(birthDate),
                 undefined,
                 {
-                    inviteCode,
-                    familyCircleId: invite.familyCircleId,
                     invitedBy: "family-invite",
                 }
             );
+
+            posthog?.group('family', invite.familyCircleId);
+
+            posthog?.capture('teen_invite_accepted', {
+                $groups: { family: invite.familyCircleId },
+                family_id: invite.familyCircleId,
+                role: 'teen',
+                invite_source: 'email_link'
+            });
 
             setSuccess(true);
         } catch (err: any) {

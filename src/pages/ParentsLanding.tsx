@@ -42,7 +42,7 @@ export default function ParentsLanding() {
                             </button>
 
                             <button
-                                onClick={() => window.location.href = "/parents#how-it-works"}
+                                onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
                                 className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-900/80 px-6 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-100 transition hover:border-slate-500 hover:bg-slate-900"
                             >
                                 See How It Works
@@ -111,7 +111,7 @@ export default function ParentsLanding() {
             {/* =========================
           NO MORE NAGGING
       ========================== */}
-            <section className="border-b border-white/10 bg-slate-950">
+            <section id="how-it-works" className="border-b border-white/10 bg-slate-950">
                 <div className="mx-auto max-w-6xl px-4 py-14 md:px-6 grid gap-8 md:grid-cols-2">
                     <article className="space-y-4">
                         <h2 className="text-2xl font-semibold">

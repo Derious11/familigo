@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react';
+import { usePostHog } from 'posthog-js/react';
 import { AppContext } from '../../../App';
 import { updateFamilyProfile, promoteToAdmin, removeFromFamily, createChildProfile } from '../../../services/familyService';
 import { XMarkIcon, CameraIcon, TrashIcon, ShieldCheckIcon, UserGroupIcon, UserPlusIcon, HomeIcon } from '../../Icons'; // Make sure to add the new icons
@@ -15,6 +16,7 @@ type TabType = 'general' | 'members' | 'add';
 
 const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, initialTab = 'members' }) => {
     const { familyCircle, currentUser } = useContext(AppContext);
+    const posthog = usePostHog();
 
     // UI State
     const [activeTab, setActiveTab] = useState<TabType>(initialTab);
@@ -106,6 +108,12 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                 familyName: familyCircle.name,
                 familyCircleId: familyCircle.id,
             });
+
+            posthog?.capture('teen_invite_sent', {
+                $groups: { family: familyCircle.id },
+                family_id: familyCircle.id,
+            });
+
             alert(`Invite sent to ${teenName}!`);
             setTeenEmail('');
             setTeenName('');

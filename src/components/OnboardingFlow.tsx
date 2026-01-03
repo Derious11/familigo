@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { usePostHog } from 'posthog-js/react';
 import { User, FamilyCircle } from '../types';
 import { createFamilyCircle, joinFamilyCircle } from '../services/familyService';
 
@@ -17,6 +18,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
     const [newCircle, setNewCircle] = useState<FamilyCircle | null>(null);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const posthog = usePostHog();
 
     useEffect(() => {
         const pendingInviteCode = sessionStorage.getItem('pendingInviteCode');
@@ -37,6 +40,20 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
         }
         setIsLoading(true);
         const circle = await createFamilyCircle(user.id, familyName);
+
+        // Track event
+        posthog?.group('family', circle.id);
+
+        posthog?.capture('family_circle_created', {
+            $groups: { family: circle.id },
+            family_id: circle.id,
+        });
+
+        posthog?.capture('family_circle_joined', {
+            $groups: { family: circle.id },
+            family_id: circle.id,
+            join_source: 'invite_code'
+        });
 
         // Skip 'created' step and jump straight to app -> profile -> manage family
         sessionStorage.setItem('justCreatedFamily', 'true');
