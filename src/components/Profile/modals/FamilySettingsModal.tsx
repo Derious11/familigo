@@ -8,15 +8,16 @@ import AvatarImage from '../../ui/AvatarImage';
 
 interface FamilySettingsModalProps {
     onClose: () => void;
+    initialTab?: TabType;
 }
 
 type TabType = 'general' | 'members' | 'add';
 
-const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) => {
+const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, initialTab = 'members' }) => {
     const { familyCircle, currentUser } = useContext(AppContext);
 
     // UI State
-    const [activeTab, setActiveTab] = useState<TabType>('members'); // Default to members as it's the most common action
+    const [activeTab, setActiveTab] = useState<TabType>(initialTab);
     const [isLoading, setIsLoading] = useState(false);
 
     // Form States
@@ -370,8 +371,8 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose }) =>
                                                 key={idx}
                                                 onClick={() => setAvatarUrl(url)}
                                                 className={`w-10 h-10 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${avatarUrl === url
-                                                        ? 'border-brand-blue scale-110 shadow-sm'
-                                                        : 'border-transparent hover:border-gray-300 opacity-70 hover:opacity-100'
+                                                    ? 'border-brand-blue scale-110 shadow-sm'
+                                                    : 'border-transparent hover:border-gray-300 opacity-70 hover:opacity-100'
                                                     }`}
                                             >
                                                 <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />

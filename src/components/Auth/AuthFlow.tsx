@@ -11,14 +11,20 @@ const AuthFlow: React.FC = () => {
     const renderView = () => {
         switch (view) {
             case 'login':
-                return <AuthPage mode="login" onSwitchMode={() => setView('signup')} onPrivacy={() => setView('privacy')} />;
+                return <AuthPage mode="login" onSwitchMode={() => window.location.href = '/'} onPrivacy={() => setView('privacy')} />;
             case 'signup':
                 return <AuthPage mode="signup" onSwitchMode={() => setView('login')} onPrivacy={() => setView('privacy')} />;
             case 'privacy':
                 return <PrivacyPolicy onBack={() => setView('landing')} />;
             case 'landing':
             default:
-                return <LandingPage onNavigate={setView} />;
+                return <LandingPage onNavigate={(target) => {
+                    if (target === 'signup') {
+                        window.location.href = '/';
+                    } else {
+                        setView(target);
+                    }
+                }} />;
         }
     };
 

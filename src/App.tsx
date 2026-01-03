@@ -373,7 +373,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
             );
-        } else if (currentUser?.status === 'pending_approval') {
+        } else if (currentUser && (currentUser.status === 'pending_approval' || !familyCircle)) {
             content = (
                 <OnboardingFlow
                     user={currentUser}

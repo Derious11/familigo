@@ -1,6 +1,6 @@
 
 
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { View } from '../types';
 import Header from './Header';
 import Feed from './Feed';
@@ -22,6 +22,14 @@ const MainApp: React.FC = () => {
     const [verificationEmailSent, setVerificationEmailSent] = useState(false);
     const context = useContext(AppContext);
     const { currentUser } = context;
+
+    useEffect(() => {
+        const justCreated = sessionStorage.getItem('justCreatedFamily');
+        if (justCreated) {
+            setActiveView('profile');
+            // We do NOT remove it here, we let Profile consume it to open the modal
+        }
+    }, []);
 
     const handleResendEmail = async () => {
         const { success } = await resendVerificationEmail();

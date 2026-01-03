@@ -28,6 +28,8 @@ const Profile: React.FC = () => {
     const [isLoadingBadges, setIsLoadingBadges] = useState(true);
     const [isNotificationToggleLoading, setIsNotificationToggleLoading] = useState(false);
 
+    const [familySettingsInitialTab, setFamilySettingsInitialTab] = useState<'members' | 'add' | 'general'>('members');
+
     if (!context || !context.currentUser) {
         return <div className="p-8 text-center text-gray-500">Loading profile...</div>;
     }
@@ -50,6 +52,14 @@ const Profile: React.FC = () => {
             }
         };
         fetchBadges();
+
+        // Check if we should auto-open family settings (e.g. from onboarding)
+        const justCreated = sessionStorage.getItem('justCreatedFamily');
+        if (justCreated) {
+            setFamilySettingsInitialTab('add');
+            setIsFamilySettingsOpen(true);
+            sessionStorage.removeItem('justCreatedFamily');
+        }
     }, []);
 
     const unlockedBadgeIds = useMemo(() => {
@@ -134,7 +144,7 @@ const Profile: React.FC = () => {
             {/* Modals */}
             {isEditModalOpen && <EditProfileModal onClose={() => setIsEditModalOpen(false)} />}
             {isWeightModalOpen && <UpdateWeightModal onClose={() => setIsWeightModalOpen(false)} />}
-            {isFamilySettingsOpen && <FamilySettingsModal onClose={() => setIsFamilySettingsOpen(false)} />}
+            {isFamilySettingsOpen && <FamilySettingsModal onClose={() => setIsFamilySettingsOpen(false)} initialTab={familySettingsInitialTab} />}
             {isPrivacyOpen && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsPrivacyOpen(false)}>
                     <div onClick={(e) => e.stopPropagation()} className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-2xl h-[80vh] flex flex-col">

@@ -37,9 +37,14 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
         }
         setIsLoading(true);
         const circle = await createFamilyCircle(user.id, familyName);
+
+        // Skip 'created' step and jump straight to app -> profile -> manage family
+        sessionStorage.setItem('justCreatedFamily', 'true');
+
         setNewCircle(circle);
         setIsLoading(false);
-        setStep('created');
+        setFamilyCircle(circle);
+        // Note: setFamilyCircle triggers App.tsx to switch to MainApp
     };
 
     const handleJoinSubmit = async (e: React.FormEvent) => {
