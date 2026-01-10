@@ -281,15 +281,34 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                     <div className="flex-1 bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 font-mono text-lg font-bold text-center tracking-widest text-indigo-600 dark:text-indigo-400 select-all">
                                         {familyCircle.inviteCode}
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(familyCircle.inviteCode);
-                                            alert("Invite code copied!");
-                                        }}
-                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-sm transition-colors shadow-sm"
-                                    >
-                                        Copy
-                                    </button>
+
+                                    {/* Share / Copy Buttons */}
+                                    {navigator.share ? (
+                                        <button
+                                            onClick={() => {
+                                                navigator.share({
+                                                    title: `Join our family on FamiliGo!`,
+                                                    text: `Use this code to join our family circle: ${familyCircle.inviteCode}`,
+                                                    url: `${window.location.origin}/?inviteCode=${familyCircle.inviteCode}`
+                                                }).catch(console.error);
+                                            }}
+                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2"
+                                        >
+                                            <span>📤</span> Share
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(
+                                                    `${window.location.origin}/?inviteCode=${familyCircle.inviteCode}`
+                                                );
+                                                alert("Invite link copied to clipboard!");
+                                            }}
+                                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-sm transition-colors shadow-sm"
+                                        >
+                                            Copy Link
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

@@ -138,9 +138,22 @@ const App: React.FC = () => {
 
         captureRouteView(); // initial
         window.addEventListener('popstate', captureRouteView);
-
         return () => window.removeEventListener('popstate', captureRouteView);
     }, [posthog]);
+
+    /**
+     * Capture Invite Code from URL (Deep Linking)
+     */
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('inviteCode');
+        if (code) {
+            sessionStorage.setItem('pendingInviteCode', code.toUpperCase());
+            // Optional: Clean URL
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: newUrl }, '', newUrl);
+        }
+    }, []);
 
     /* ------------------------------------------------------------------------
        AUTH LISTENER
