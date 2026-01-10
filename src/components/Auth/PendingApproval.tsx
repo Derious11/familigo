@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Clock, ShieldCheck, Mail, CheckCircle2 } from 'lucide-react';
 import { signOutUser } from '../../services/authService';
+import { AppContext } from '../../App';
 
 const PendingApproval = () => {
+    const { currentUser: user } = useContext(AppContext);
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 text-white p-4">
             <div className="max-w-md w-full bg-slate-900 rounded-3xl p-8 text-center ring-1 ring-white/10 shadow-2xl space-y-6">
@@ -28,20 +30,37 @@ const PendingApproval = () => {
                         What happens next
                     </p>
 
-                    <ul className="space-y-2 text-sm text-slate-300">
-                        <li className="flex items-start gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5" />
-                            We review beta requests in small groups.
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <Mail className="w-4 h-4 text-indigo-400 mt-0.5" />
-                            You’ll receive an email once your account is approved.
-                        </li>
-                        <li className="flex items-start gap-2">
-                            <ShieldCheck className="w-4 h-4 text-sky-400 mt-0.5" />
-                            After approval, you can create your family and invite your kids.
-                        </li>
-                    </ul>
+                    {user?.role === 'teen' ? (
+                        <ul className="space-y-2 text-sm text-slate-300">
+                            <li className="flex items-start gap-2">
+                                <ShieldCheck className="w-4 h-4 text-sky-400 mt-0.5" />
+                                Your account is waiting for parent approval.
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5" />
+                                Ask your parent to open the app and approve you.
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <Mail className="w-4 h-4 text-indigo-400 mt-0.5" />
+                                You’ll get access immediately after they approve.
+                            </li>
+                        </ul>
+                    ) : (
+                        <ul className="space-y-2 text-sm text-slate-300">
+                            <li className="flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5" />
+                                We review beta requests in small groups.
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <Mail className="w-4 h-4 text-indigo-400 mt-0.5" />
+                                You’ll receive an email once your account is approved.
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <ShieldCheck className="w-4 h-4 text-sky-400 mt-0.5" />
+                                After approval, you can create your family and invite your kids.
+                            </li>
+                        </ul>
+                    )}
                 </div>
 
                 {/* Reassurance */}

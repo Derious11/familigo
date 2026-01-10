@@ -26,6 +26,7 @@ import { uploadReplyImage } from './services/storageService';
 
 import MainApp from './components/MainApp';
 import AuthFlow from './components/Auth/AuthFlow';
+import PendingApproval from './components/Auth/PendingApproval';
 import OnboardingFlow from './components/OnboardingFlow';
 
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -607,10 +608,12 @@ const App: React.FC = () => {
                     </div>
                 </div>
             );
-        } else if (currentUser && (currentUser.status === 'pending_approval' || !familyCircle)) {
+        } else if (currentUser?.status === 'pending_approval' && familyCircle) {
+            content = <PendingApproval />;
+        } else if (!familyCircle) {
             content = (
                 <OnboardingFlow
-                    user={currentUser}
+                    user={currentUser!}
                     setFamilyCircle={setFamilyCircle}
                 />
             );

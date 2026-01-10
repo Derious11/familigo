@@ -1,8 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { usePostHog } from 'posthog-js/react';
 import { AppContext } from '../../../App';
-import { updateFamilyProfile, promoteToAdmin, removeFromFamily, createChildProfile } from '../../../services/familyService';
+import { updateFamilyProfile, promoteToAdmin, removeFromFamily, createChildProfile, approveTeenMember } from '../../../services/familyService';
 import { XMarkIcon, CameraIcon, TrashIcon, ShieldCheckIcon, UserGroupIcon, UserPlusIcon, HomeIcon } from '../../Icons'; // Make sure to add the new icons
+import { CheckCircle as CheckCircleIcon } from 'lucide-react';
 import Modal from '../../ui/Modal';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import AvatarImage from '../../ui/AvatarImage';
@@ -74,6 +75,17 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
         } catch (error) {
             console.error("Failed to remove user:", error);
             alert("Failed to remove user.");
+        }
+    };
+
+    const handleApprove = async (userId: string) => {
+        if (!confirm("Approve this teen for family access?")) return;
+        try {
+            await approveTeenMember(familyCircle.id, userId, currentUser.id);
+            alert("Teen approved!");
+        } catch (error: any) {
+            console.error("Failed to approve teen:", error);
+            alert(`Failed to approve: ${error.message}`);
         }
     };
 
@@ -210,26 +222,34 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                             </div>
                                         </div>
 
-                                        {isAdmin && !isMe && (
-                                            <div className="flex items-center gap-1">
-                                                {!isMemberAdmin && member.role !== 'child' && (
-                                                    <button
-                                                        onClick={() => handlePromote(member.id)}
-                                                        className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                                        title="Promote to Admin"
-                                                    >
-                                                        <ShieldCheckIcon className="w-5 h-5" />
-                                                    </button>
-                                                )}
+                                        <div className="flex items-center gap-1">
+                                            {isAdmin && member.status === 'pending_approval' && (
                                                 <button
-                                                    onClick={() => handleRemove(member.id)}
-                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                    title="Remove"
+                                                    onClick={() => handleApprove(member.id)}
+                                                    className="p-2 text-emerald-500 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 rounded-lg transition-colors mr-2"
+                                                    title="Approve Teen Access"
                                                 >
-                                                    <TrashIcon className="w-5 h-5" />
+                                                    <CheckCircleIcon className="w-5 h-5" />
                                                 </button>
-                                            </div>
-                                        )}
+                                            )}
+
+                                            {!isMemberAdmin && member.role !== 'child' && (
+                                                <button
+                                                    onClick={() => handlePromote(member.id)}
+                                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                    title="Promote to Admin"
+                                                >
+                                                    <ShieldCheckIcon className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => handleRemove(member.id)}
+                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                title="Remove"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -244,78 +264,107 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                 {/* --- TAB: ADD PEOPLE --- */}
                 {activeTab === 'add' && (
                     <div className="space-y-6 animate-fade-in">
-                        {!isAdmin ? (
-                            <div className="text-center py-8 text-gray-500">
-                                Only admins can add new family members.
+                        <div className="text-center py-8 text-gray-500">
+                            Only Family admins can add new family members.
+                        </div>
+                        <>
+                            {/* Invite Adult (Copy Code) Card */}
+                            <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4">
+                                <h4 className="font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2">
+                                    <span>🤝</span> Invite Spouse / Partner
+                                </h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                                    Share this code with other adults. They can use it to join your family during signup.
+                                </p>
+
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1 bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 font-mono text-lg font-bold text-center tracking-widest text-indigo-600 dark:text-indigo-400 select-all">
+                                        {familyCircle.inviteCode}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(familyCircle.inviteCode);
+                                            alert("Invite code copied!");
+                                        }}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-sm transition-colors shadow-sm"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
                             </div>
-                        ) : (
-                            <>
-                                {/* Add Child Card */}
-                                <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-4">
-                                    <h4 className="font-bold text-green-800 dark:text-green-300 mb-3 flex items-center gap-2">
-                                        <span>👶</span> Create Child Profile
-                                    </h4>
-                                    <div className="space-y-3">
-                                        <input
-                                            type="text"
-                                            placeholder="Child's Name"
-                                            value={childName}
-                                            onChange={(e) => setChildName(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
-                                        />
-                                        <input
-                                            type="date"
-                                            value={childBirthDate}
-                                            onChange={(e) => setChildBirthDate(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
-                                        />
-                                        <button
-                                            onClick={handleAddChild}
-                                            disabled={isAddingChild || !childName || !childBirthDate}
-                                            className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 shadow-sm"
-                                        >
-                                            {isAddingChild ? 'Creating...' : 'Create Child Profile'}
-                                        </button>
-                                    </div>
-                                </div>
 
-                                <div className="relative flex py-1 items-center">
-                                    <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-                                    <span className="flex-shrink-0 mx-2 text-xs text-gray-400 font-bold">OR</span>
-                                    <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-                                </div>
+                            <div className="relative flex py-1 items-center">
+                                <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                                <span className="flex-shrink-0 mx-2 text-xs text-gray-400 font-bold">OR</span>
+                                <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                            </div>
 
-                                {/* Invite Teen Card */}
-                                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-                                    <h4 className="font-bold text-brand-blue dark:text-blue-300 mb-3 flex items-center gap-2">
-                                        <span>📱</span> Invite Teen (13+)
-                                    </h4>
-                                    <div className="space-y-3">
-                                        <input
-                                            type="text"
-                                            placeholder="Teen's Name"
-                                            value={teenName}
-                                            onChange={(e) => setTeenName(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                        <input
-                                            type="email"
-                                            placeholder="Teen's Email"
-                                            value={teenEmail}
-                                            onChange={(e) => setTeenEmail(e.target.value)}
-                                            className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500"
-                                        />
-                                        <button
-                                            onClick={handleSendInvite}
-                                            disabled={isSendingInvite || !teenEmail || !teenName}
-                                            className="w-full py-2 bg-brand-blue hover:bg-blue-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 shadow-sm"
-                                        >
-                                            {isSendingInvite ? 'Sending...' : 'Send Invite Email'}
-                                        </button>
-                                    </div>
+                            {/* Add Child Card */}
+                            <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                                <h4 className="font-bold text-green-800 dark:text-green-300 mb-3 flex items-center gap-2">
+                                    <span>👶</span> Create Child Profile
+                                </h4>
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Child's Name"
+                                        value={childName}
+                                        onChange={(e) => setChildName(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
+                                    />
+                                    <input
+                                        type="date"
+                                        value={childBirthDate}
+                                        onChange={(e) => setChildBirthDate(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
+                                    />
+                                    <button
+                                        onClick={handleAddChild}
+                                        disabled={isAddingChild || !childName || !childBirthDate}
+                                        className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 shadow-sm"
+                                    >
+                                        {isAddingChild ? 'Creating...' : 'Create Child Profile'}
+                                    </button>
                                 </div>
-                            </>
-                        )}
+                            </div>
+
+                            <div className="relative flex py-1 items-center">
+                                <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                                <span className="flex-shrink-0 mx-2 text-xs text-gray-400 font-bold">OR</span>
+                                <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
+                            </div>
+
+                            {/* Invite Teen Card */}
+                            <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                                <h4 className="font-bold text-brand-blue dark:text-blue-300 mb-3 flex items-center gap-2">
+                                    <span>📱</span> Invite Teen (13+)
+                                </h4>
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Teen's Name"
+                                        value={teenName}
+                                        onChange={(e) => setTeenName(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                    <input
+                                        type="email"
+                                        placeholder="Teen's Email"
+                                        value={teenEmail}
+                                        onChange={(e) => setTeenEmail(e.target.value)}
+                                        className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                    <button
+                                        onClick={handleSendInvite}
+                                        disabled={isSendingInvite || !teenEmail || !teenName}
+                                        className="w-full py-2 bg-brand-blue hover:bg-blue-600 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 shadow-sm"
+                                    >
+                                        {isSendingInvite ? 'Sending...' : 'Send Invite Email'}
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                        )
                     </div>
                 )}
 

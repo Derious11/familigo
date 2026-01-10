@@ -50,7 +50,8 @@ service cloud.firestore {
         // Normal signup
         (
           request.auth.uid == userId
-          && !request.resource.data.keys().hasAny(["isAdmin"])
+          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy"])
+          && request.resource.data.status == "pending_approval"
         )
 
         // Parent creates child
@@ -69,10 +70,23 @@ service cloud.firestore {
         // Self updates safe fields only
         || (
           request.auth.uid == userId
-          && !request.resource.data
-              .diff(resource.data)
-              .affectedKeys()
-              .hasAny(["isAdmin", "role", "parentId"])
+          && !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(["isAdmin", "role", "parentId", "status", "approvedAt", "approvedBy", "familyCircleId"])
+        )
+
+        // Family Admin approving Teen Member
+        || (
+           // Operator is a Family Admin
+           isFamilyMember(resource.data.familyCircleId) 
+           // (We'd ideally check adminIds, but isFamilyMember is a good start. 
+           //  For strictness, we should check adminIds, but let's stick to existing helper for now unless we add isFamilyAdmin)
+           // Actually, let's just create a helper for admin check if possible, or use the service logic (admin SDK bypasses rules? No.)
+           // Service uses Client SDK so RULES APPLY.
+           // We need a rule: "If editing another user's status, must be family admin"
+           && resource.data.familyCircleId != null
+           && get(/databases/$(database)/documents/familyCircles/$(resource.data.familyCircleId)).data.adminIds.hasAny([request.auth.uid])
+           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "approvedAt", "approvedBy"])
+           && request.resource.data.status == "active"
         )
 
         // Parent updates child (safe fields only)
@@ -101,7 +115,8 @@ service cloud.firestore {
 
       allow create: if isSignedIn();
 
-      allow read, update: if isSignedIn() && isFamilyMember(circleId);
+      allow read: if isSignedIn() && (isFamilyMember(circleId) || isAdmin());
+      allow update: if isSignedIn() && (isFamilyMember(circleId) || isAdmin());
     }
 
     /* ========================

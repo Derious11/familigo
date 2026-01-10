@@ -12,4 +12,5 @@ export interface FamilyCircle {
     avatarUrl?: string;
     motto?: string;
     adminIds?: string[];
+    betaApproved?: boolean;
 }

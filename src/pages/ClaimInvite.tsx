@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { usePostHog } from 'posthog-js/react';
 import { ShieldCheck, User, Mail, Lock, Calendar, CheckCircle2 } from "lucide-react";
 import { signUpWithEmail } from "../services/authService";
+import { redeemTeenInvite } from "../services/familyService";
 import { getFunctions, httpsCallable } from "firebase/functions";
 
 /* =========================
@@ -105,7 +106,8 @@ export default function ClaimInvite() {
 
         setSubmitting(true);
         try {
-            await signUpWithEmail(
+            // 1. Create the user account (default status 'pending_approval')
+            const { user: newUser, error: signUpError } = await signUpWithEmail(
                 name,
                 email,
                 password,
@@ -114,8 +116,22 @@ export default function ClaimInvite() {
                 undefined,
                 {
                     invitedBy: "family-invite",
+                    familyCircleId: invite.familyCircleId
                 }
             );
+
+            if (signUpError || !newUser) {
+                throw new Error(signUpError || "Failed to create account.");
+            }
+
+            // 2. Redeem the invite (Link to family)
+            const redeemResult = await redeemTeenInvite(newUser.id, invite.familyCircleId);
+
+            if (!redeemResult.success) {
+                // Logic to handle partial failure? (User created but not linked). 
+                // For now, throw error.
+                throw new Error(redeemResult.error || "Failed to join family.");
+            }
 
             posthog?.group('family', invite.familyCircleId);
 

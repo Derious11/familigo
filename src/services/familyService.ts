@@ -12,7 +12,8 @@ import {
     arrayUnion,
     arrayRemove,
     deleteField,
-    Timestamp
+    Timestamp,
+    serverTimestamp
 } from "firebase/firestore";
 import { db } from '../firebaseConfig';
 import { User, FamilyCircle } from '../types';
@@ -75,6 +76,7 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
         },
         adminIds: [userId], // Creator is the first admin
         messageCount: 0,
+        betaApproved: false, // Beta Requirement: Families start as pending
     };
 
     const circleRef = await addDoc(collection(db, "familyCircles"), newCircleData);
@@ -96,7 +98,25 @@ export const joinFamilyCircle = async (userId: string, inviteCode: string): Prom
     }
 
     const circleDoc = querySnapshot.docs[0];
-    const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[] };
+    // Raw firestore data has memberIds, but FamilyCircle type has members: User[]
+    const circleData = circleDoc.data() as {
+        name: string;
+        inviteCode: string;
+        memberIds: string[];
+        betaApproved?: boolean;
+    };
+
+    // Beta Requirement: Only Adults can join via code
+    // We need to fetch the user to check role, or rely on caller? 
+    // Ideally we check user role from DB to be secure.
+    const userDocRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) return { circle: null, error: "User not found." };
+
+    const userData = userDoc.data() as User;
+    if (userData.role !== 'adult') {
+        return { circle: null, error: "Only adults can join via invite code. Teens must use the email invite link." };
+    }
 
     if (circleData.memberIds.includes(userId)) {
         // User is already in the circle, just return it.
@@ -105,15 +125,104 @@ export const joinFamilyCircle = async (userId: string, inviteCode: string): Prom
     }
 
     const batch = writeBatch(db);
-    batch.update(doc(db, 'users', userId), { familyCircleId: circleDoc.id });
+
+    // Beta Requirement: Auto-approve if family is beta approved
+    let newStatus = userData.status;
+    let approvedUpdates = {};
+
+    if (circleData.betaApproved) {
+        newStatus = 'active';
+        approvedUpdates = {
+            approvedAt: serverTimestamp(),
+            approvedBy: 'auto'
+        };
+    }
+
+    batch.update(userDocRef, {
+        familyCircleId: circleDoc.id,
+        status: newStatus,
+        ...approvedUpdates
+    });
+
     batch.update(circleDoc.ref, {
-        memberIds: [...circleData.memberIds, userId],
-        [`members.${userId}`]: true,
+        memberIds: arrayUnion(userId), // atomic array union
+        [`members.${userId}`]: true, // keeping legacy structure for now
     });
     await batch.commit();
 
     const familyCircle = await getUserFamilyCircle(circleDoc.id);
     return { circle: familyCircle, error: null };
+};
+
+export const redeemTeenInvite = async (userId: string, familyId: string): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        const batch = writeBatch(db);
+        const userRef = doc(db, 'users', userId);
+        const familyRef = doc(db, 'familyCircles', familyId);
+
+        // 1. Update User: Link to family, keep status='pending_approval' (default from auth)
+        batch.update(userRef, {
+            familyCircleId: familyId,
+            role: 'teen', // Enforce role
+            status: 'pending_approval'
+        });
+
+        // 2. Update Family: Add member
+        batch.update(familyRef, {
+            memberIds: arrayUnion(userId),
+            [`members.${userId}`]: true
+        });
+
+        await batch.commit();
+        return { success: true, error: null };
+    } catch (e: any) {
+        console.error("Redeem Invite Error", e);
+        return { success: false, error: e.message };
+    }
+};
+
+export const approveTeenMember = async (familyId: string, teenUserId: string, adminUserId: string): Promise<void> => {
+    // 1. Verify Requestor is Admin of this family (Optimistically or Security Rules will enforce)
+    // Security rules should enforce "request.auth.uid in resource.data.adminIds"
+
+    const batch = writeBatch(db);
+    const teenRef = doc(db, 'users', teenUserId);
+
+    batch.update(teenRef, {
+        status: 'active',
+        approvedAt: serverTimestamp(),
+        approvedBy: adminUserId
+    });
+
+    await batch.commit();
+};
+
+export const approveFamilyBeta = async (familyId: string, appAdminId: string): Promise<void> => {
+    const familyRef = doc(db, 'familyCircles', familyId);
+    const familyDoc = await getDoc(familyRef);
+
+    if (!familyDoc.exists()) throw new Error("Family not found");
+
+    const data = familyDoc.data() as FamilyCircle;
+    // Find the creator/admin. Usually the first one in adminIds or just handle all current admins.
+    // For simplicity, let's look for the first adminId
+    const creatorId = data.adminIds?.[0];
+
+    const batch = writeBatch(db);
+
+    // 1. Approve Family
+    batch.update(familyRef, { betaApproved: true });
+
+    // 2. Approve Creator
+    if (creatorId) {
+        batch.update(doc(db, 'users', creatorId), {
+            status: 'active',
+            approvedAt: serverTimestamp(),
+            approvedBy: appAdminId // 'AppAdmin' or specific ID
+        });
+    }
+
+    await batch.commit();
 };
 
 // Note: onFamilyCircleUpdate was in firebaseService.ts but logic was slightly mixed with chatName.

@@ -43,6 +43,10 @@ export interface User {
         parentEmail?: string;
         challengeTarget?: string;
     };
+    inviteContext?: {
+        familyCircleId?: string;
+        invitedBy?: string;
+    };
 }
 
 export type AuthState = 'loading' | 'authenticated' | 'unauthenticated';

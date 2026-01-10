@@ -12,6 +12,10 @@ import {
     doc,
     setDoc,
     getDoc,
+    writeBatch,
+    documentId,
+    arrayUnion,
+    arrayRemove,
     Timestamp,
     serverTimestamp,
 } from "firebase/firestore";
@@ -103,21 +107,24 @@ export const signUpWithEmail = async (
 
         const allBadges = await getBadges();
 
-            const newUser: Omit<User, 'id' | 'emailVerified'> = {
-                name,
-                email: user.email!,
-                role,
-                birthDate,
-                avatarUpdatedAt: serverTimestamp(),
-                streak: 1,
-                lastActiveDate: new Date(),
-                badges: allBadges.map(b => ({ ...b, unlocked: false })),
-                weightUnit: 'lbs',
-                weightHistory: [],
+        const newUser: Omit<User, 'id' | 'emailVerified'> = {
+            name,
+            email: user.email!,
+            role,
+            birthDate,
+            avatarUpdatedAt: new Date(),
+            streak: 1,
+            lastActiveDate: new Date(),
+            badges: allBadges.map(b => ({ ...b, unlocked: false })),
+            weightUnit: 'lbs',
+            weightHistory: [],
             notificationTokens: [],
             // Default new parent signups to pending_approval if they have early access data
             // or if we enforce it for all parents. For now, let's tie it to earlyAccessData presence or role.
-            status: role === 'adult' ? 'pending_approval' : 'active',
+            // Default new users to pending_approval. 
+            // - Adults: Will be activated if they join an existing Beta-Approved family, or if they are the creator and get Admin approval.
+            // - Teens: Will be activated by their parent.
+            status: 'pending_approval',
             earlyAccessData,
             inviteContext,
             familyCircleId: inviteContext?.familyCircleId,
@@ -164,8 +171,8 @@ export const signInWithGoogle = async (
                 name: user.displayName || 'New User',
                 email: user.email!,
                 role: role,
-                birthDate: new Date(), // Default to today or handle later
-                avatarUpdatedAt: serverTimestamp(),
+                birthDate: new Date(),
+                avatarUpdatedAt: new Date(),
                 streak: 1,
                 lastActiveDate: new Date(),
                 badges: allBadges.map(b => ({ ...b, unlocked: false })),
@@ -173,7 +180,8 @@ export const signInWithGoogle = async (
                 weightHistory: [],
                 notificationTokens: [],
                 // Default new parent signups to pending_approval if they have early access data
-                status: role === 'adult' ? 'pending_approval' : 'active',
+                // Default new users to pending_approval.
+                status: 'pending_approval',
                 earlyAccessData: earlyAccessData
             };
             await setDoc(doc(db, 'users', user.uid), newUser);
