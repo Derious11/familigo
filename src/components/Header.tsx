@@ -70,16 +70,39 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
             <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <img src="/assets/FamiliGo_logo.png" alt="FamiliGo Logo" className="h-12 w-auto object-contain" />
-                    <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-brand-blue to-brand-pink tracking-tight">
-                        FamiliGo
-                    </h1>
+                    <div>
+                        <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-brand-blue to-brand-pink tracking-tight leading-none">
+                            FamiliGo
+                        </h1>
+                        {familyCircle?.motto && (
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 italic truncate max-w-[140px] sm:max-w-none">
+                                "{familyCircle.motto}"
+                            </p>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {currentUser && (
-                        <div className="flex items-center gap-2 bg-orange-100/50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-full px-3 py-1 border border-orange-200 dark:border-orange-800">
-                            <FireIcon className="w-5 h-5 text-orange-500 dark:text-orange-400" />
-                            <span className="font-bold">{currentUser.streak}</span>
-                        </div>
+                        <>
+                            {/* Streak */}
+                            <div className="flex items-center gap-1 bg-orange-100/50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-full px-2 py-1 border border-orange-200 dark:border-orange-800">
+                                <FireIcon className="w-4 h-4 text-orange-500 dark:text-orange-400" />
+                                <span className="font-bold text-xs">{currentUser.streak}</span>
+                            </div>
+
+                            {/* Level & XP */}
+                            <div className="flex flex-col items-end ml-1">
+                                <div className="text-[10px] font-bold text-amber-500 dark:text-amber-400 leading-none mb-1">
+                                    LVL {currentUser.level || 1}
+                                </div>
+                                <div className="w-12 sm:w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-amber-300 to-amber-500 rounded-full"
+                                        style={{ width: `${Math.min(((currentUser.xp || 0) % 500) / 500 * 100, 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </>
                     )}
                     <ThemeToggle />
                 </div>

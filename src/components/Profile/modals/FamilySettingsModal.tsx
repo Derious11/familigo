@@ -383,7 +383,6 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                 </div>
                             </div>
                         </>
-                        )
                     </div>
                 )}
 

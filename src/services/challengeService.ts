@@ -194,16 +194,18 @@ export const addReplyToChallenge = async (
 
     const challengeRef = doc(db, 'challenges', challengeId);
 
+    const challengeUpdates: any = {};
+
     if (isCompletion) {
-        batch.update(challengeRef, {
-            completedBy: arrayUnion(user.id)
-        });
+        challengeUpdates.completedBy = arrayUnion(user.id);
     }
 
     if (contributionValue) {
-        batch.update(challengeRef, {
-            currentTotal: increment(contributionValue)
-        });
+        challengeUpdates.currentTotal = increment(contributionValue);
+    }
+
+    if (Object.keys(challengeUpdates).length > 0) {
+        batch.update(challengeRef, challengeUpdates);
     }
 
     await batch.commit();
