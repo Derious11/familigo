@@ -105,7 +105,12 @@ export const signUpWithEmail = async (
 
         await sendEmailVerification(user);
 
-        const allBadges = await getBadges();
+        let allBadges = [];
+        try {
+            allBadges = await getBadges();
+        } catch (err) {
+            console.warn("Failed to load badges during signup. Proceeding without badges.", err);
+        }
 
         const newUser: Omit<User, 'id' | 'emailVerified'> = {
             name,
@@ -130,7 +135,17 @@ export const signUpWithEmail = async (
             familyCircleId: inviteContext?.familyCircleId,
         };
 
-        await setDoc(doc(db, 'users', user.uid), newUser);
+        try {
+            await setDoc(doc(db, 'users', user.uid), newUser);
+        } catch (err) {
+            console.error("Failed to create user profile document.", err);
+            try {
+                await user.delete();
+            } catch (deleteErr) {
+                console.warn("Failed to rollback auth user after profile write failure.", deleteErr);
+            }
+            return { user: null, error: "Unable to finish account setup. Please try again." };
+        }
 
         return { user: { id: user.uid, ...newUser, emailVerified: user.emailVerified }, error: null };
     }
@@ -166,7 +181,12 @@ export const signInWithGoogle = async (
         const additionalUserInfo = getAdditionalUserInfo(result);
         if (additionalUserInfo?.isNewUser) {
             // If it's a new user, create a document for them in Firestore
-            const allBadges = await getBadges();
+            let allBadges = [];
+            try {
+                allBadges = await getBadges();
+            } catch (err) {
+                console.warn("Failed to load badges during Google signup. Proceeding without badges.", err);
+            }
             const newUser: Omit<User, 'id' | 'emailVerified'> = {
                 name: user.displayName || 'New User',
                 email: user.email!,
@@ -184,7 +204,17 @@ export const signInWithGoogle = async (
                 status: 'pending_approval',
                 earlyAccessData: earlyAccessData
             };
-            await setDoc(doc(db, 'users', user.uid), newUser);
+            try {
+                await setDoc(doc(db, 'users', user.uid), newUser);
+            } catch (err) {
+                console.error("Failed to create user profile document.", err);
+                try {
+                    await user.delete();
+                } catch (deleteErr) {
+                    console.warn("Failed to rollback auth user after profile write failure.", deleteErr);
+                }
+                return { user: null, error: "Unable to finish account setup. Please try again." };
+            }
         } else {
             // Existing user - logic is handled by onAuthStateChanged
             // If we assume account linking is automatic, we don't need to do manual linking here.
