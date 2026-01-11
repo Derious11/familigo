@@ -1,4 +1,4 @@
-import { Users, Trophy, LogIn } from "lucide-react";
+import { Trophy, LogIn } from "lucide-react";
 import { useEffect } from "react";
 
 export default function RoleGate() {
@@ -27,7 +27,11 @@ export default function RoleGate() {
                 {/* Brand */}
                 <div className="flex items-center gap-2">
                     <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-lg">
-                        <Users className="h-5 w-5 text-slate-950" />
+                        <img
+                            src="/assets/FamiliGo_logo_nbg.png"
+                            alt="FamiliGo"
+                            className="h-full w-full object-contain brightness-110 drop-shadow-[0_0_10px_rgba(255,255,255,0.35)]"
+                        />
                     </div>
                     <span className="font-semibold tracking-wide">FamiliGo</span>
                 </div>
@@ -51,7 +55,11 @@ export default function RoleGate() {
                     {/* Brand Hero */}
                     <div className="flex flex-col items-center gap-2">
                         <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-xl">
-                            <Users className="h-7 w-7 text-slate-950" />
+                            <img
+                                src="/assets/FamiliGo_logo_nbg.png"
+                                alt="FamiliGo"
+                                className="h-full w-full object-contain brightness-110 drop-shadow-[0_0_12px_rgba(255,255,255,0.35)]"
+                            />
                         </div>
                         <h1 className="text-3xl font-bold tracking-tight">FamiliGo</h1>
                         <p className="text-xs text-slate-400 tracking-wide uppercase">

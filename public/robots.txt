@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /login
+Disallow: /claim-invite
+
+Sitemap: https://www.familigo.life/sitemap.xml

@@ -8,7 +8,7 @@ interface LandingPageProps {
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
     return (
         <div className="text-center">
-            <img src="/assets/FamiliGo_logo.png" alt="FamiliGo Logo" className="mx-auto h-20 w-20 mb-4" />
+            <img src="/assets/FamiliGo_logo_nbg.png" alt="FamiliGo Logo" className="mx-auto h-20 w-20 mb-4" />
             <h1 className="text-5xl font-bold text-brand-blue mb-4">FamiliGo</h1>
             <p className="text-xl text-brand-text-secondary dark:text-gray-400 mb-8">
                 Turn fitness into a fun, shared game for the whole family.

@@ -6,8 +6,16 @@ import {
     Swords,
     MessageCircle,
 } from "lucide-react";
+import { usePageSeo } from "../lib/seo";
 
 export default function TeensLanding() {
+    usePageSeo({
+        title: "FamiliGo for Teens | Family Fitness Competition",
+        description:
+            "Challenge your parents with streaks, XP, and weekly podiums. A private family fitness competition built for teens.",
+        canonicalPath: "/teens",
+    });
+
     const goToInviteParent = () => {
         localStorage.setItem("familiGoRole", "teen");
         window.location.href = "/invite-parent";

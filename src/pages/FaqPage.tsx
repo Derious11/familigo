@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { usePageSeo } from "../lib/seo";
 
 type FaqItem = {
     q: string;
@@ -49,6 +50,86 @@ function FaqAccordionItem({
 }
 
 export default function FaqPage() {
+    const faqSchema = useMemo(
+        () => [
+            {
+                q: "Are there any fitness apps designed for kids and families?",
+                a:
+                    "Yes. FamiliGo is built specifically for families with kids and teens. It focuses on shared challenges, age-appropriate participation, and consistency over pressure.",
+            },
+            {
+                q: "Does Apple Fitness have family sharing?",
+                a:
+                    "Apple Fitness+ supports Family Sharing, but it is not built around shared family challenges or parent-led routines. FamiliGo focuses on family connection and accountability across ages.",
+            },
+            {
+                q: "How can me and my parents exercise together?",
+                a:
+                    "Use shared challenges instead of trying to work out at the same time. Each person participates on their own schedule while contributing to the same family goal.",
+            },
+            {
+                q: "What is the best free home fitness app?",
+                a:
+                    "It depends on your goals. For family motivation and follow-through, FamiliGo focuses on habit-building through simple challenges and includes a free tier.",
+            },
+            {
+                q: "Is there a free family fitness challenge app?",
+                a:
+                    "Yes. FamiliGo supports a free experience for creating a family circle and completing challenges together.",
+            },
+            {
+                q: "Is FamiliGo available on iPhone and Android?",
+                a:
+                    "Yes. FamiliGo is designed to work across iPhone and Android so your family does not need to be on the same device type.",
+            },
+            {
+                q: "Is FamiliGo competitive?",
+                a:
+                    "No. FamiliGo is about contribution, not comparison. There are no public leaderboards and no pressure to perform.",
+            },
+            {
+                q: "Do teens have to work out with their parents?",
+                a:
+                    "No. Teens can participate independently and still contribute to the family goal. FamiliGo supports independence and connection.",
+            },
+            {
+                q: "Is FamiliGo a workplace fitness challenge app?",
+                a:
+                    "No. Workplace challenge apps are designed for adult rankings. FamiliGo is designed for households and focuses on encouragement and consistency.",
+            },
+            {
+                q: "Is FamiliGo similar to Strive Fitness?",
+                a:
+                    "FamiliGo is family-first with shared goals, age-appropriate motivation, and a home-friendly approach.",
+            },
+            {
+                q: "How do we start using FamiliGo?",
+                a:
+                    "Create a parent account, set up your family circle, start your first challenge, and move together your way.",
+            },
+        ],
+        []
+    );
+
+    usePageSeo({
+        title: "FamiliGo FAQ | Family Fitness App Questions",
+        description:
+            "Answers about FamiliGo, a private family fitness app for parents and teens. Learn about challenges, streaks, and how to get started.",
+        canonicalPath: "/faq",
+        jsonLd: {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": faqSchema.map((item) => ({
+                "@type": "Question",
+                "name": item.q,
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": item.a,
+                },
+            })),
+        },
+    });
+
     const faqs: FaqItem[] = useMemo(
         () => [
             {

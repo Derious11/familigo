@@ -1,6 +1,14 @@
 import { ShieldCheck, Trophy, Flame, Users, CheckCircle2 } from "lucide-react";
+import { usePageSeo } from "../lib/seo";
 
 export default function ParentsLanding() {
+    usePageSeo({
+        title: "FamiliGo for Parents | Family Fitness Challenges",
+        description:
+            "A private, family-first fitness app that turns movement into a game with streaks, XP, and invite-only challenges.",
+        canonicalPath: "/parents",
+    });
+
     const goToEarlyAccess = () => {
         localStorage.setItem("familiGoRole", "parent");
         window.location.href = "/early-access?role=parent";
