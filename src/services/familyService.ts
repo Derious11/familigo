@@ -15,6 +15,7 @@ import {
     Timestamp,
     serverTimestamp
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from '../firebaseConfig';
 import { User, FamilyCircle } from '../types';
 import { getBadges } from './userService';
@@ -89,69 +90,23 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
     };
 };
 
-export const joinFamilyCircle = async (userId: string, inviteCode: string): Promise<{ circle: FamilyCircle | null, error: string | null }> => {
-    const q = query(collection(db, 'familyCircles'), where('inviteCode', '==', inviteCode));
-    const querySnapshot = await getDocs(q);
+export const joinFamilyCircle = async (inviteCode: string): Promise<{ circle: FamilyCircle | null, error: string | null }> => {
+    try {
+        const functions = getFunctions();
+        const joinFamilyFn = httpsCallable(functions, 'joinFamily');
 
-    if (querySnapshot.empty) {
-        return { circle: null, error: "Invalid invite code. Please check and try again." };
+        const result: any = await joinFamilyFn({ inviteCode });
+
+        if (result.data.success) {
+            const familyCircle = await getUserFamilyCircle(result.data.familyId);
+            return { circle: familyCircle, error: null };
+        } else {
+            return { circle: null, error: result.data.message || "Failed to join family." };
+        }
+    } catch (error: any) {
+        console.error("Error joining family:", error);
+        return { circle: null, error: error.message || "Failed to join family." };
     }
-
-    const circleDoc = querySnapshot.docs[0];
-    // Raw firestore data has memberIds, but FamilyCircle type has members: User[]
-    const circleData = circleDoc.data() as {
-        name: string;
-        inviteCode: string;
-        memberIds: string[];
-        betaApproved?: boolean;
-    };
-
-    // Beta Requirement: Only Adults can join via code
-    // We need to fetch the user to check role, or rely on caller? 
-    // Ideally we check user role from DB to be secure.
-    const userDocRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) return { circle: null, error: "User not found." };
-
-    const userData = userDoc.data() as User;
-    if (userData.role !== 'adult') {
-        return { circle: null, error: "Only adults can join via invite code. Teens must use the email invite link." };
-    }
-
-    if (circleData.memberIds.includes(userId)) {
-        // User is already in the circle, just return it.
-        const familyCircle = await getUserFamilyCircle(circleDoc.id);
-        return { circle: familyCircle, error: null };
-    }
-
-    const batch = writeBatch(db);
-
-    // Beta Requirement: Auto-approve if family is beta approved
-    let newStatus = userData.status;
-    let approvedUpdates = {};
-
-    if (circleData.betaApproved) {
-        newStatus = 'active';
-        approvedUpdates = {
-            approvedAt: serverTimestamp(),
-            approvedBy: 'auto'
-        };
-    }
-
-    batch.update(userDocRef, {
-        familyCircleId: circleDoc.id,
-        status: newStatus,
-        ...approvedUpdates
-    });
-
-    batch.update(circleDoc.ref, {
-        memberIds: arrayUnion(userId), // atomic array union
-        [`members.${userId}`]: true, // keeping legacy structure for now
-    });
-    await batch.commit();
-
-    const familyCircle = await getUserFamilyCircle(circleDoc.id);
-    return { circle: familyCircle, error: null };
 };
 
 export const redeemTeenInvite = async (userId: string, familyId: string): Promise<{ success: boolean; error: string | null }> => {

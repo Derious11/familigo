@@ -72,7 +72,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle }
             return;
         }
         setIsLoading(true);
-        const { circle, error } = await joinFamilyCircle(user.id, inviteCode);
+        const { circle, error } = await joinFamilyCircle(inviteCode);
         setIsLoading(false);
         if (circle) {
             setFamilyCircle(circle);
