@@ -36,7 +36,7 @@ export const sendTeenInviteEmail = functions.https.onCall(
 
     const resend = new Resend(resendApiKey);
 
-    const inviteLink = `https://familigo-11643.web.app/claim-invite?code=${inviteCode}`;
+    const inviteLink = `https://www.familigo.life/claim-invite?code=${inviteCode}`;
 
     try {
       const payload = {
