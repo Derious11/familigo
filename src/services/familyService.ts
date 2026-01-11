@@ -109,30 +109,19 @@ export const joinFamilyCircle = async (inviteCode: string): Promise<{ circle: Fa
     }
 };
 
-export const redeemTeenInvite = async (userId: string, familyId: string): Promise<{ success: boolean; error: string | null }> => {
+export const redeemTeenInvite = async (inviteCode: string): Promise<{ success: boolean; error: string | null }> => {
     try {
-        const batch = writeBatch(db);
-        const userRef = doc(db, 'users', userId);
-        const familyRef = doc(db, 'familyCircles', familyId);
+        const functions = getFunctions();
+        const redeemInviteFn = httpsCallable(functions, 'redeemTeenInvite');
 
-        // 1. Update User: Link to family, keep status='pending_approval' (default from auth)
-        batch.update(userRef, {
-            familyCircleId: familyId,
-            role: 'teen', // Enforce role
-            status: 'pending_approval'
-        });
-
-        // 2. Update Family: Add member
-        batch.update(familyRef, {
-            memberIds: arrayUnion(userId),
-            [`members.${userId}`]: true
-        });
-
-        await batch.commit();
-        return { success: true, error: null };
+        const result: any = await redeemInviteFn({ inviteCode });
+        if (result.data?.success) {
+            return { success: true, error: null };
+        }
+        return { success: false, error: result.data?.message || "Failed to redeem invite." };
     } catch (e: any) {
         console.error("Redeem Invite Error", e);
-        return { success: false, error: e.message };
+        return { success: false, error: e.message || "Failed to redeem invite." };
     }
 };
 

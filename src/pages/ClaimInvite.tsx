@@ -125,7 +125,7 @@ export default function ClaimInvite() {
             }
 
             // 2. Redeem the invite (Link to family)
-            const redeemResult = await redeemTeenInvite(newUser.id, invite.familyCircleId);
+            const redeemResult = await redeemTeenInvite(inviteCode);
 
             if (!redeemResult.success) {
                 // Logic to handle partial failure? (User created but not linked). 

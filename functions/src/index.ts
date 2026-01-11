@@ -8,6 +8,7 @@ import { onUserStatusChanged } from "./triggers/users";
 import { sendTeenInviteEmail } from "./callables/email";
 import { validateTeenInvite } from "./callables/validateTeenInvite";
 import { joinFamily } from "./callables/joinFamily";
+import { redeemTeenInvite } from "./callables/redeemTeenInvite";
 
 // Export triggers
 export {
@@ -23,4 +24,5 @@ export {
   sendTeenInviteEmail,
   validateTeenInvite,
   joinFamily,
+  redeemTeenInvite,
 };
