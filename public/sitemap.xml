@@ -26,16 +26,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.familigo.life/landingpagea</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.familigo.life/landingpageb</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://www.familigo.life/faq</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>

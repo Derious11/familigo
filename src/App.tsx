@@ -98,6 +98,12 @@ function withFamilyGroup(familyId?: string | null) {
         : {};
 }
 
+declare global {
+    interface Window {
+        gtag?: (...args: any[]) => void;
+    }
+}
+
 /* ============================================================================
    MAIN APP
 ============================================================================ */
@@ -134,6 +140,12 @@ const App: React.FC = () => {
                 route: getPublicRoute(),
                 path: window.location.pathname.toLowerCase()
             });
+
+            if (window.gtag) {
+                window.gtag("config", "G-CTHC8XG4T9", {
+                    page_path: window.location.pathname.toLowerCase(),
+                });
+            }
         };
 
         captureRouteView(); // initial
