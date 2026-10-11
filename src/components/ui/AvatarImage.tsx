@@ -7,6 +7,7 @@ interface AvatarImageProps {
     className?: string;
     title?: string;
     cacheKey?: string | number;
+    hasAvatar?: boolean;
 }
 
 const AvatarImage: React.FC<AvatarImageProps> = ({
@@ -15,13 +16,15 @@ const AvatarImage: React.FC<AvatarImageProps> = ({
     className = "",
     title,
     cacheKey,
+    hasAvatar,
 }) => {
     const [src, setSrc] = useState<string>(AVATAR_PLACEHOLDER);
 
     useEffect(() => {
         let isMounted = true;
 
-        if (!userId) {
+        setSrc(AVATAR_PLACEHOLDER);
+        if (!userId || hasAvatar === false) {
             setSrc(AVATAR_PLACEHOLDER);
             return;
         }
@@ -33,7 +36,7 @@ const AvatarImage: React.FC<AvatarImageProps> = ({
         return () => {
             isMounted = false;
         };
-    }, [userId, cacheKey]);
+    }, [userId, cacheKey, hasAvatar]);
 
     return (
         <img

@@ -149,7 +149,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
                 await uploadProfileImage(context.currentUser.id, imageBlob);
                 clearAvatarCache(context.currentUser.id);
                 await updateUserAvatar(context.currentUser.id);
-                context.updateCurrentUser({ avatarUpdatedAt: new Date() });
+                context.updateCurrentUser({ avatarUpdatedAt: new Date(), hasAvatar: true });
             }
 
             onClose();
@@ -241,6 +241,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
                                     ) : (
                                         <AvatarImage
                                             userId={context?.currentUser?.id}
+                                            hasAvatar={context?.currentUser?.hasAvatar}
                                             cacheKey={context?.currentUser?.avatarUpdatedAt?.getTime?.()}
                                             className="w-full h-full object-cover"
                                         />
@@ -298,3 +299,4 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
 };
 
 export default EditProfileModal;
+

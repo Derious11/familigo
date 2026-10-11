@@ -16,6 +16,7 @@ import {
     arrayUnion,
 } from "firebase/firestore";
 import { db } from '../firebaseConfig';
+import { EXERCISES } from '../constants';
 import { User, Challenge, Reply, Exercise } from '../types';
 import { getUserTokens, addXp } from './userService';
 import { sendPushNotification } from "./webPushService";
@@ -33,7 +34,18 @@ export const getExercises = async (): Promise<Exercise[]> => {
     const exercisesCol = collection(db, 'exercises');
     const q = query(exercisesCol, orderBy('name'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Exercise);
+    const exercises = new Map(EXERCISES.map(exercise => [exercise.name.toLowerCase(), exercise]));
+    snapshot.docs.forEach(doc => {
+        const exercise = doc.data() as Exercise;
+        const fallback = exercises.get(exercise.name.toLowerCase());
+        exercises.set(exercise.name.toLowerCase(), {
+            ...exercise,
+            visualGuideUrl: fallback?.visualGuideUrl.startsWith('/assets/')
+                ? fallback.visualGuideUrl
+                : exercise.visualGuideUrl,
+        });
+    });
+    return [...exercises.values()].sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export const onChallengesUpdate = (familyCircleId: string, callback: (challenges: Challenge[]) => void, onError?: (error: Error) => void): (() => void) => {

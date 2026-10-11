@@ -260,7 +260,7 @@ export const createChildProfile = async (
         birthDate,
         parentId,
         familyCircleId: familyId,
-        avatarUpdatedAt: new Date(),
+        hasAvatar: false,
         streak: 0,
         lastActiveDate: new Date(),
         badges: [],

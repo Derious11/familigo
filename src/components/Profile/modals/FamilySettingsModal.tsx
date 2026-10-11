@@ -202,6 +202,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                             <div className="relative">
                                                 <AvatarImage
                                                     userId={member.id}
+                                                    hasAvatar={member.hasAvatar}
                                                     cacheKey={member.avatarUpdatedAt?.getTime?.()}
                                                     alt={member.name}
                                                     className="w-10 h-10 rounded-full object-cover bg-gray-200"
@@ -481,3 +482,4 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
 };
 
 export default FamilySettingsModal;
+

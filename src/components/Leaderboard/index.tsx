@@ -64,6 +64,7 @@ const Leaderboard: React.FC = () => {
                         <div className="relative mb-2">
                             <AvatarImage
                                 userId={top3[1].id}
+                                hasAvatar={top3[1].hasAvatar}
                                 cacheKey={top3[1].avatarUpdatedAt?.getTime?.()}
                                 alt={top3[1].name}
                                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-gray-300 shadow-lg object-cover"
@@ -84,6 +85,7 @@ const Leaderboard: React.FC = () => {
                         <div className="relative mb-2">
                             <AvatarImage
                                 userId={top3[0].id}
+                                hasAvatar={top3[0].hasAvatar}
                                 cacheKey={top3[0].avatarUpdatedAt?.getTime?.()}
                                 alt={top3[0].name}
                                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-yellow-400 shadow-xl object-cover ring-4 ring-yellow-400/30"
@@ -105,6 +107,7 @@ const Leaderboard: React.FC = () => {
                         <div className="relative mb-2">
                             <AvatarImage
                                 userId={top3[2].id}
+                                hasAvatar={top3[2].hasAvatar}
                                 cacheKey={top3[2].avatarUpdatedAt?.getTime?.()}
                                 alt={top3[2].name}
                                 className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-orange-300 shadow-lg object-cover"
@@ -139,6 +142,7 @@ const Leaderboard: React.FC = () => {
                                 <div className="relative">
                                     <AvatarImage
                                         userId={member.id}
+                                        hasAvatar={member.hasAvatar}
                                         cacheKey={member.avatarUpdatedAt?.getTime?.()}
                                         alt={member.name}
                                         className={`w-10 h-10 rounded-full object-cover ${isMe ? 'ring-2 ring-brand-blue ring-offset-2 dark:ring-offset-gray-800' : 'bg-gray-200'}`}

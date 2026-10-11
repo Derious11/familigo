@@ -1,3 +1,4 @@
+import { getAppBaseUrl } from "../init";
 import * as functions from "firebase-functions/v1";
 import { Resend } from "resend";
 import { defineString } from "firebase-functions/params";
@@ -46,7 +47,7 @@ export const onUserStatusChanged = functions.firestore
                     <p>Great news! Your account has been approved and your family beta access is ready.</p>
                     <p>You can now log in and start your family fitness journey.</p>
                     <br/>
-                    <a href="https://familigo.life/app" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to App</a>
+                    <a href="${getAppBaseUrl()}/app" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to App</a>
                 `,
                 });
                 console.log("Welcome email sent.");

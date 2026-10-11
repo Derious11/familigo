@@ -62,6 +62,7 @@ export const onUserUpdate = (
                     id: snap.id,
                     name: data.name ?? "",
                     avatarUrl: data.avatarUrl || undefined,
+                    hasAvatar: data.hasAvatar,
                     avatarUpdatedAt: data.avatarUpdatedAt instanceof Timestamp
                         ? data.avatarUpdatedAt.toDate()
                         : data.avatarUpdatedAt,
@@ -173,6 +174,7 @@ export const updateUserAvatar = async (
 ) => {
     await updateDoc(doc(db, "users", userId), {
         avatarUpdatedAt: serverTimestamp(),
+        hasAvatar: true,
         avatarUrl: avatarUrl ?? deleteField(),
     });
 };

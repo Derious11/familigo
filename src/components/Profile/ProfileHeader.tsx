@@ -61,6 +61,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
                         <div className="w-28 h-28 rounded-full border-[5px] border-white dark:border-gray-800 shadow-xl bg-white overflow-hidden">
                             <AvatarImage
                                 userId={currentUser.id}
+                                hasAvatar={currentUser.hasAvatar}
                                 cacheKey={currentUser.avatarUpdatedAt?.getTime?.()}
                                 alt={currentUser.name}
                                 className="w-full h-full object-cover"
@@ -136,3 +137,4 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
 };
 
 export default ProfileHeader;
+

@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:dev": "vite build --mode development",
+    "preview": "vite preview",
+    "deploy:dev": "npm run build:dev && npx -y firebase-tools@latest deploy --only hosting,firestore,auth,storage,functions --config firebase.development.json --project familigo-dev-11643",
+    "deploy:dev:functions": "npx -y firebase-tools@latest deploy --only functions --config firebase.development.json --project familigo-dev-11643",
+    "deploy:dev:storage": "npx -y firebase-tools@latest deploy --only storage --config firebase.development.json --project familigo-dev-11643"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.4",

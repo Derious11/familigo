@@ -116,7 +116,7 @@ export const signUpWithEmail = async (
             name,
             email: user.email!,
             role,
-            birthDate,
+            ...(birthDate ? { birthDate } : {}),
             avatarUpdatedAt: new Date(),
             streak: 1,
             lastActiveDate: new Date(),
@@ -130,8 +130,7 @@ export const signUpWithEmail = async (
             // - Adults: Will be activated if they join an existing Beta-Approved family, or if they are the creator and get Admin approval.
             // - Teens: Will be activated by their parent.
             status: 'pending_approval',
-            inviteContext,
-            familyCircleId: inviteContext?.familyCircleId,
+            ...(inviteContext ? { inviteContext, familyCircleId: inviteContext.familyCircleId } : {}),
         };
         if (earlyAccessData) {
             newUser.earlyAccessData = earlyAccessData;
@@ -204,7 +203,7 @@ export const signInWithGoogle = async (
                 // Default new parent signups to pending_approval if they have early access data
                 // Default new users to pending_approval.
                 status: 'pending_approval',
-                earlyAccessData: earlyAccessData || undefined
+                ...(earlyAccessData ? { earlyAccessData } : {})
             };
             try {
                 await setDoc(doc(db, 'users', user.uid), newUser);

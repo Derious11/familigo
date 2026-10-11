@@ -74,6 +74,7 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({
                                 >
                                     <AvatarImage
                                         userId={member.id}
+                                        hasAvatar={member.hasAvatar}
                                         cacheKey={member.avatarUpdatedAt?.getTime?.()}
                                         alt={member.name}
                                         className="w-8 h-8 rounded-full bg-white"
@@ -117,3 +118,4 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({
 };
 
 export default FamilyCircleCard;
+

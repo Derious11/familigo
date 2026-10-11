@@ -1,3 +1,4 @@
+import { getAppBaseUrl } from "../init";
 import * as functions from "firebase-functions/v1";
 import { Resend } from "resend";
 import { defineString } from "firebase-functions/params";
@@ -36,7 +37,7 @@ export const sendTeenInviteEmail = functions.https.onCall(
 
     const resend = new Resend(resendApiKey);
 
-    const inviteLink = `https://www.familigo.life/claim-invite?code=${inviteCode}`;
+    const inviteLink = `${getAppBaseUrl()}/claim-invite?code=${inviteCode}`;
 
     try {
       const payload = {

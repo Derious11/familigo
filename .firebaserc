@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "familigo-11643"
+    "default": "familigo-11643",
+    "production": "familigo-11643",
+    "development": "familigo-dev-11643"
   }
 }

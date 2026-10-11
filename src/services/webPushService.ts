@@ -3,7 +3,7 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { messaging } from '../firebaseConfig';
 import { addNotificationToken, removeNotificationToken } from './userService';
 
-const VAPID_KEY = "BMfIUjjBmlJPDzcYwv5czBovIThXoRlqD5o3qtaeeHNC4AkinV1If2t8AsB11OEzqxrN4K1Ygpoh7zyF9BAqBzE";
+const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 let currentToken: string | null = null;
 
 // This function initializes the service worker and sets up a listener for foreground messages.
@@ -43,6 +43,9 @@ export const initializeWebPush = (onNotification?: (notification: { title?: stri
 
 // This function requests permission from the user to send notifications.
 export const requestNotificationPermission = async (userId: string): Promise<{ success: boolean; token?: string; error?: string }> => {
+    if (!VAPID_KEY) {
+        return { success: false, error: 'Push notifications are not configured for this environment.' };
+    }
     if (typeof messaging === 'undefined') {
         return { success: false, error: "Messaging not supported." };
     }

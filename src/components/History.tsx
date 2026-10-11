@@ -100,6 +100,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ challenge }) => {
                     <AvatarImage
                         key={member.id}
                         userId={member.id}
+                        hasAvatar={member.hasAvatar}
                         cacheKey={member.avatarUpdatedAt?.getTime?.()}
                         alt={member.name}
                         title={member.name}
@@ -112,3 +113,4 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ challenge }) => {
 };
 
 export default History;
+

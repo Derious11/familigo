@@ -15,7 +15,7 @@ const EXERCISE_PRESETS = [
     { name: 'Squats', emoji: '🏋️', defaultTarget: '30 Reps', defaultUnit: 'Reps' },
     { name: 'Plank', emoji: '⏱️', defaultTarget: '1 Minute', defaultUnit: 'Minutes' },
     { name: 'Run', emoji: '🏃', defaultTarget: '1 Mile', defaultUnit: 'Miles' },
-    { name: 'Go for a Walk', emoji: '🚶', defaultTarget: '30 Minutes', defaultUnit: 'Minutes' },
+    { name: 'Walk', emoji: '🚶', defaultTarget: '30 Minutes', defaultUnit: 'Minutes' },
     { name: 'Burpees', emoji: '🔥', defaultTarget: '15 Reps', defaultUnit: 'Reps' },
 ];
 

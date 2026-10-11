@@ -1,5 +1,5 @@
 import * as functions from "firebase-functions/v1";
-import {db} from "../init";
+import {db, getAppBaseUrl} from "../init";
 import {getTokensForUsers, sendNotifications} from "../utils/notifications";
 
 const REGION = "us-central1";
@@ -77,7 +77,7 @@ export const onChallengeCreated = functions
           webpush: {
             notification: {
               icon:
-                "https://familigo-11643.web.app/assets/FamiliGo_logo.png",
+                `${getAppBaseUrl()}/assets/FamiliGo_logo.png`,
             },
           },
         }),
@@ -160,7 +160,7 @@ export const onReplyCreated = functions
 
       const notificationBody = `${user.name}: ${text || "posted a photo"}`;
       const notificationIcon =
-        "https://familigo-11643.web.app/assets/FamiliGo_logo.png";
+        `${getAppBaseUrl()}/assets/FamiliGo_logo.png`;
       await sendNotifications(
         tokenRecords,
         (tokens) => ({
@@ -264,7 +264,7 @@ export const onMessageCreated = functions
           tokens,
           webpush: {
             notification: {
-              icon: "https://familigo-11643.web.app/assets/FamiliGo_logo.png",
+              icon: `${getAppBaseUrl()}/assets/FamiliGo_logo.png`,
             },
           },
         }),

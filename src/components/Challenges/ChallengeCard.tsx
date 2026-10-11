@@ -9,6 +9,8 @@ import { TrashIcon, ChatBubbleLeftIcon, ClockIcon } from '../Icons';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import confetti from 'canvas-confetti';
 import AvatarImage from '../ui/AvatarImage';
+import { EXERCISES } from '../../constants';
+import ExerciseVideo from './ExerciseVideo';
 
 interface ChallengeCardProps {
     challenge: Challenge;
@@ -88,6 +90,13 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    const bundledGuide = EXERCISES.find(exercise =>
+        exercise.name.toLowerCase() === challenge.exercise.name.toLowerCase()
+    )?.visualGuideUrl;
+    const guideUrl = bundledGuide?.startsWith('/assets/')
+        ? bundledGuide
+        : challenge.exercise.visualGuideUrl;
+    const isVideoGuide = /\.mp4(?:[?#]|$)/i.test(guideUrl || '');
     const isChallenger = currentUser?.id === challenge.challenger.id;
 
     /* ---------- Load Replies ---------- */
@@ -235,16 +244,24 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 <h3 className="text-xl font-bold">{challenge.exercise.name}</h3>
                 <p className="text-sm mb-3">{challenge.target}</p>
 
-                {challenge.exercise.visualGuideUrl && (
+                {guideUrl && (
                     <div className="mb-3 rounded-xl overflow-hidden shadow-sm aspect-video">
+                        {isVideoGuide ? (
+                            <ExerciseVideo
+                                key={guideUrl}
+                                src={guideUrl}
+                                name={challenge.exercise.name}
+                            />
+                        ) : (
                         <img
-                            src={challenge.exercise.visualGuideUrl}
+                            src={guideUrl}
                             alt={challenge.exercise.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = 'none';
                             }}
                         />
+                        )}
                     </div>
                 )}
 
@@ -285,6 +302,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                         <AvatarImage
                             userId={currentUser?.id}
                             cacheKey={currentUser?.avatarUpdatedAt?.getTime?.()}
+                        hasAvatar={currentUser?.hasAvatar}
                             className="w-8 h-8 rounded-full mt-1"
                         />
                         <div className="flex-1 relative">

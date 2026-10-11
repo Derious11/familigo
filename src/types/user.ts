@@ -17,6 +17,7 @@ export interface User {
     birthDate?: Date;
     parentId?: string; // For teens and children
     avatarUrl?: string;
+    hasAvatar?: boolean;
     avatarUpdatedAt?: Date;
     streak: number;
     lastActiveDate?: Date;
