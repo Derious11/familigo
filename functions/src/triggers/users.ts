@@ -1,16 +1,16 @@
 import { getAppBaseUrl } from "../init";
 import * as functions from "firebase-functions/v1";
 import { Resend } from "resend";
-import { defineString } from "firebase-functions/params";
+import { defineSecret } from "firebase-functions/params";
 
-const resendApiKeyParam = defineString("RESEND_API_KEY");
+const resendApiKeyParam = defineSecret("RESEND_API_KEY");
 
 /**
  * Triggered when a user document is written.
  * Checks if status changed from pending_approval -> active.
  * Sends welcome email.
  */
-export const onUserStatusChanged = functions.firestore
+export const onUserStatusChanged = functions.runWith({ secrets: [resendApiKeyParam] }).firestore
     .document("users/{userId}")
     .onUpdate(async (change, context) => {
         const before = change.before.data();

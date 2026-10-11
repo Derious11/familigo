@@ -1,0 +1,11 @@
+#!/bin/sh
+while read -r local_ref local_sha remote_ref remote_sha
+do
+  case "$local_sha" in 0000000000000000000000000000000000000000) continue ;; esac
+  revisions=$(git rev-list "$local_sha" --not --remotes) || exit 1
+  if [ -z "$revisions" ]; then revisions=$local_sha; fi
+  for revision in $revisions
+  do
+    node scripts/check-secrets.mjs --ref "$revision" || exit 1
+  done
+done

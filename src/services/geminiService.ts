@@ -2,8 +2,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-// FIX: Per coding guidelines, API key should be taken directly from process.env and not checked for existence.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 interface ChallengeSuggestion {
   name: string;
@@ -12,8 +10,11 @@ interface ChallengeSuggestion {
 }
 
 export const suggestChallenge = async (): Promise<ChallengeSuggestion | null> => {
-    // FIX: Removed API key check as per guidelines, assuming it's always available.
+    // Private AI credentials must stay on a server. Keep suggestions unavailable
+    // until a server endpoint is implemented instead of exposing a browser key.
+    if (!process.env.API_KEY) return null;
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: "Suggest a fun, simple, at-home bodyweight exercise challenge for a family. Include a target like reps or time. Make the description fun and encouraging.",

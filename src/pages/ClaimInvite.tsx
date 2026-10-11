@@ -124,7 +124,7 @@ export default function ClaimInvite() {
                 throw new Error(signUpError || "Failed to create account.");
             }
 
-            // 2. Redeem the invite (Link to family)
+            // 2. Redeem the invitation and approve the account on the server.
             const redeemResult = await redeemTeenInvite(inviteCode);
 
             if (!redeemResult.success) {
@@ -178,7 +178,7 @@ export default function ClaimInvite() {
                     <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-400 mb-4" />
                     <h1 className="text-xl font-semibold mb-2">You’re In!</h1>
                     <p className="text-sm text-slate-300 mb-6">
-                        Your account has been created and linked to{" "}
+                        Your account is approved and linked to{" "}
                         <span className="font-semibold">{invite?.familyName}</span>.
                     </p>
                     <button

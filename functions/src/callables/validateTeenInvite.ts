@@ -1,39 +1,14 @@
 import * as functions from "firebase-functions/v1";
-import * as admin from "firebase-admin";
-
-const db = admin.firestore();
-
-export const validateTeenInvite = functions.https.onCall(
-    async (data, _context) => {
-        const { code } = data;
-
-        if (!code) {
-            throw new functions.https.HttpsError(
-                "invalid-argument",
-                "Invite code is required."
-            );
-        }
-
-        const snapshot = await db
-            .collection("familyCircles")
-            .where("inviteCode", "==", code)
-            .limit(1)
-            .get();
-
-        if (snapshot.empty) {
-            throw new functions.https.HttpsError(
-                "not-found",
-                "This invite link is invalid."
-            );
-        }
-
-        const doc = snapshot.docs[0];
-        const family = doc.data();
-
-        return {
-            valid: true,
-            familyCircleId: doc.id,
-            familyName: family.name,
-        };
-    }
-);
+import { db } from "../init";
+import { assertInviteAdmin } from "../invitePolicy";
+export const validateTeenInvite = functions.https.onCall(async (data) => {
+  const code = data?.code;
+  if (typeof code !== "string" || !code || code.includes("/") || code.length > 128) throw new functions.https.HttpsError("invalid-argument", "A valid invitation is required.");
+  const snapshot = await db.collection("teenInvites").doc(code).get();
+  if (!snapshot.exists || snapshot.data()?.claimedBy) throw new functions.https.HttpsError("not-found", "Please ask your family admin for a new email invitation.");
+  const invite = snapshot.data()!;
+  const circleSnap = await db.collection("familyCircles").doc(invite.familyCircleId).get();
+  if (!circleSnap.exists) throw new functions.https.HttpsError("not-found", "Circle not found.");
+  assertInviteAdmin(circleSnap.data()!, invite.invitedBy);
+  return { valid: true, familyCircleId: circleSnap.id, familyName: circleSnap.data()!.name };
+});

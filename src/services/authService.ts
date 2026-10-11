@@ -128,7 +128,7 @@ export const signUpWithEmail = async (
             // or if we enforce it for all parents. For now, let's tie it to earlyAccessData presence or role.
             // Default new users to pending_approval. 
             // - Adults: Will be activated if they join an existing Beta-Approved family, or if they are the creator and get Admin approval.
-            // - Teens: Will be activated by their parent.
+            // - Teens: A valid admin email invitation activates them server-side; other teens require approval.
             status: 'pending_approval',
             ...(inviteContext ? { inviteContext, familyCircleId: inviteContext.familyCircleId } : {}),
         };

@@ -25,3 +25,11 @@ dist-ssr
 
 # Cloud Functions environment files may contain server credentials
 functions/.env.*
+.env
+.env.*
+!.env.development
+!.env.production
+!.env.example
+.secret.local
+*.pem
+*service-account*.json

@@ -1,120 +1,36 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-
 import { db } from "../init";
-
+import { assertInviteCapacity } from "../invitePolicy";
 
 export const joinFamily = functions.https.onCall(async (data, context) => {
-    try {
-        console.log("joinFamily: Called with data", JSON.stringify(data));
-
-        // 1. Auth Check
-        if (!context.auth) {
-            console.warn("joinFamily: Unauthenticated call");
-            throw new functions.https.HttpsError(
-                "unauthenticated",
-                "You must be logged in to join a family."
-            );
-        }
-        const userId = context.auth.uid;
-        console.log("joinFamily: User ID", userId);
-        const { inviteCode } = data;
-
-        if (!inviteCode) {
-            console.warn("joinFamily: Missing inviteCode");
-            throw new functions.https.HttpsError(
-                "invalid-argument",
-                "Invite code is required."
-            );
-        }
-
-        // 2. Find Family by Invite Code
-        console.log("joinFamily: Querying family by inviteCode", inviteCode);
-        const circleQuery = await db.collection("familyCircles")
-            .where("inviteCode", "==", inviteCode)
-            .limit(1)
-            .get();
-
-        if (circleQuery.empty) {
-            console.warn("joinFamily: No family found for code", inviteCode);
-            throw new functions.https.HttpsError(
-                "not-found",
-                "Invalid invite code. Please check and try again."
-            );
-        }
-
-        const circleDoc = circleQuery.docs[0];
-        const circleData = circleDoc.data();
-        const familyId = circleDoc.id;
-        console.log("joinFamily: Found family", familyId);
-
-        // 3. User Validation
-        console.log("joinFamily: Fetching user profile", userId);
-        const userRef = db.collection("users").doc(userId);
-        const userSnap = await userRef.get();
-
-        if (!userSnap.exists) {
-            console.error("joinFamily: User profile missing", userId);
-            throw new functions.https.HttpsError("not-found", "User profile not found.");
-        }
-        const userData = userSnap.data();
-
-        // Check Role
-        if (userData?.role !== "adult") {
-            console.warn("joinFamily: User is not adult", userData?.role);
-            throw new functions.https.HttpsError(
-                "failed-precondition",
-                "Only adults can join via invite code. Teens must use the email invite link."
-            );
-        }
-
-        // Check if already in family
-        if (circleData.memberIds?.includes(userId)) {
-            console.log("joinFamily: User already in family");
-            return {
-                success: true,
-                familyId: familyId,
-                message: "Already a member."
-            };
-        }
-
-        // 4. Beta Logic / Auto-Approval
-        const updateData: any = {
-            familyCircleId: familyId,
-        };
-
-        if (circleData.betaApproved) {
-            console.log("joinFamily: Family is beta approved, auto-approving user");
-            updateData.status = "active";
-            updateData.approvedAt = admin.firestore.FieldValue.serverTimestamp();
-            updateData.approvedBy = "auto";
-        }
-
-        // 5. Atomic Update
-        console.log("joinFamily: Executing batch update");
-        const batch = db.batch();
-
-        batch.update(userRef, updateData);
-
-        batch.update(circleDoc.ref, {
-            memberIds: admin.firestore.FieldValue.arrayUnion(userId),
-            [`members.${userId}`]: true
-        });
-
-        await batch.commit();
-        console.log("joinFamily: Success");
-
-        return {
-            success: true,
-            familyId: familyId
-        };
-    } catch (error: any) {
-        console.error("joinFamily: Critical Error", error);
-        // Ensure we re-throw HttpsError so client gets the right code
-        if (error instanceof functions.https.HttpsError) {
-            throw error;
-        }
-        // For unknown errors, log and throw internal
-        throw new functions.https.HttpsError("internal", error.message || "Internal server error");
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "Please sign in to join a family.");
+  const uid = context.auth.uid;
+  const code = data?.inviteCode;
+  if (typeof code !== "string" || !code || code.length > 128) throw new functions.https.HttpsError("invalid-argument", "An invite code is required.");
+  const circles = await db.collection("familyCircles").where("inviteCode", "==", code).limit(1).get();
+  if (circles.empty) throw new functions.https.HttpsError("not-found", "Invalid invite code.");
+  const circleRef = circles.docs[0].ref;
+  const userRef = db.collection("users").doc(uid);
+  return db.runTransaction(async transaction => {
+    const [circleSnap, userSnap] = await Promise.all([transaction.get(circleRef), transaction.get(userRef)]);
+    const circle = circleSnap.data();
+    const user = userSnap.data();
+    if (!circle || circle.inviteCode !== code || !user) throw new functions.https.HttpsError("not-found", "Circle or account not found.");
+    if (user.role !== "adult") throw new functions.https.HttpsError("failed-precondition", "Teens must use their email invitation.");
+    if (circle.memberIds?.includes(uid)) return { success: true, familyId: circleRef.id, alreadyMember: true };
+    if ((user.familyCircleId && user.familyCircleId !== circleRef.id) || !["active", "pending_approval"].includes(user.status)) {
+      throw new functions.https.HttpsError("failed-precondition", "This account cannot join this circle.");
     }
+    const memberIds: string[] = circle.memberIds || [];
+    const members = await Promise.all(memberIds.map(id => transaction.get(db.collection("users").doc(id))));
+    const inviter = members.find((member, index) => circle.adminIds?.includes(memberIds[index]) && member.data()?.status === "active");
+    if (!inviter) throw new functions.https.HttpsError("failed-precondition", "An approved family admin is required to join this circle.");
+    const count = typeof circle.inviteCount === "number" ? circle.inviteCount :
+      members.filter((member, index) => memberIds[index] !== circle.adminIds[0] && ["adult", "teen"].includes(member.data()?.role)).length;
+    assertInviteCapacity(count);
+    transaction.update(userRef, { familyCircleId: circleRef.id, status: "active", approvedBy: inviter.id, approvedAt: admin.firestore.FieldValue.serverTimestamp() });
+    transaction.update(circleRef, { inviteCount: count + 1, memberIds: admin.firestore.FieldValue.arrayUnion(uid), [`members.${uid}`]: true });
+    return { success: true, familyId: circleRef.id };
+  });
 });

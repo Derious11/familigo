@@ -115,9 +115,6 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
             await sendInvite({
                 email: teenEmail,
                 teenName,
-                parentName: currentUser.name,
-                inviteCode: familyCircle.inviteCode,
-                familyName: familyCircle.name,
                 familyCircleId: familyCircle.id,
             });
 
@@ -359,6 +356,9 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                 <h4 className="font-bold text-brand-blue dark:text-blue-300 mb-3 flex items-center gap-2">
                                     <span>📱</span> Invite Teen (13+)
                                 </h4>
+                                <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                                    Up to 5 invitations per circle, shared with adult joins. Invited teens are automatically approved. Resending to the same email does not use another slot.
+                                </p>
                                 <div className="space-y-3">
                                     <input
                                         type="text"

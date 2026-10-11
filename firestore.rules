@@ -21,6 +21,12 @@ service cloud.firestore {
       return request.auth.token.admin == true;
     }
 
+    function isOwnChild(childId, circleId) {
+      let child = getAfter(/databases/$(database)/documents/users/$(childId)).data;
+      return child.role == "child" && child.parentId == request.auth.uid
+        && child.familyCircleId == circleId;
+    }
+
     /* ========================
        USERS
        ======================== */
@@ -50,7 +56,7 @@ service cloud.firestore {
         // Normal signup
         (
           request.auth.uid == userId
-          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy"])
+          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy", "parentId"])
           && request.resource.data.status == "pending_approval"
         )
 
@@ -58,8 +64,10 @@ service cloud.firestore {
         || (
           request.auth.uid != userId
           && request.resource.data.parentId == request.auth.uid
+          && request.resource.data.role == "child"
           && request.resource.data.familyCircleId != null
-          && !request.resource.data.keys().hasAny(["isAdmin"])
+          && isFamilyMember(request.resource.data.familyCircleId)
+          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy"])
         )
       );
 
@@ -100,7 +108,11 @@ service cloud.firestore {
                 "role",
                 "parentId",
                 "email",
-                "emailVerified"
+                "emailVerified",
+                "status",
+                "approvedAt",
+                "approvedBy",
+                "familyCircleId"
               ])
         )
       );
@@ -113,10 +125,39 @@ service cloud.firestore {
        ======================== */
     match /familyCircles/{circleId} {
 
-      allow create: if isSignedIn();
+      // Adult and teen admission is handled by the callable functions. Only
+      // parent-managed child creation may add a member through the client SDK.
+      function validMembershipChange() {
+        let added = request.resource.data.memberIds.toSet().difference(resource.data.memberIds.toSet());
+        let removed = resource.data.memberIds.toSet().difference(request.resource.data.memberIds.toSet());
+        return request.auth.uid in resource.data.adminIds
+          && request.resource.data.members.keys().hasOnly(request.resource.data.memberIds)
+          && (added.size() == 0 || (
+            added.size() == 1 && removed.size() == 0
+            && added.hasOnly([request.resource.data.memberIds[request.resource.data.memberIds.size() - 1]])
+            && isOwnChild(request.resource.data.memberIds[request.resource.data.memberIds.size() - 1], circleId)
+          ));
+      }
+
+      allow create: if isSignedIn()
+        && request.resource.data.adminIds == [request.auth.uid]
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.members.keys().hasOnly([request.auth.uid])
+        && request.resource.data.members[request.auth.uid] == true
+        && !request.resource.data.keys().hasAny(["inviteCount", "invitationIds"]);
 
       allow read: if isSignedIn() && (isFamilyMember(circleId) || isAdmin());
-      allow update: if isSignedIn() && (isFamilyMember(circleId) || isAdmin());
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          isFamilyMember(circleId)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["inviteCount", "invitationIds"])
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["memberIds", "members"])
+            || validMembershipChange())
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["adminIds", "betaApproved"])
+            || request.auth.uid in resource.data.adminIds)
+          && request.resource.data.adminIds.toSet().difference(resource.data.adminIds.toSet()).hasOnly(resource.data.memberIds)
+        )
+      );
     }
 
     /* ========================
