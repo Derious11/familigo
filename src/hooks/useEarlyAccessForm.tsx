@@ -1,5 +1,7 @@
 import { useMemo,useState } from "react";
 import { signInWithGoogle,signUpWithEmail } from "../services/authService";
+import { getAuth } from 'firebase/auth';
+import { redeemAccessInvite } from '../services/adminService';
 type FieldErrors = Partial<Record<
     "parentName" | "parentEmail" | "parentPassword" | "kidCount",
     string
@@ -12,6 +14,17 @@ function isValidEmail(email: string) {
 export function useEarlyAccessForm() {
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [accessCode, setAccessCode] = useState(() => new URLSearchParams(window.location.search).get('accessCode') || '');
+
+    const finishSignup = async () => {
+        if (accessCode.trim()) {
+            await getAuth().currentUser?.getIdToken(true);
+            await redeemAccessInvite(accessCode);
+            window.location.assign('/app/onboarding');
+        } else {
+            setSubmitted(true);
+        }
+    };
 
     // Parent fields
     const [parentName, setParentName] = useState("");
@@ -63,10 +76,11 @@ export function useEarlyAccessForm() {
             }
 
             // Auth listener + status gating handles routing.
-            setSubmitted(true);
+            if (!getAuth().currentUser) return;
+            await finishSignup();
         } catch (err) {
             console.error(err);
-            setFormError("Google sign-in failed. Please try again.");
+            setFormError(accessCode.trim() ? 'Your invitation could not be applied. Sign in with the invited email and redeem your code on the approval screen.' : 'Google sign-in failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -96,17 +110,17 @@ export function useEarlyAccessForm() {
                 return;
             }
 
-            setSubmitted(true);
+            await finishSignup();
         } catch (err) {
             console.error("Early access submission failed:", err);
-            setFormError("Something went wrong. Please try again.");
+            setFormError(accessCode.trim() ? 'Your account may have been created, but the invitation could not be applied. Sign in and redeem your code on the approval screen.' : 'Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     return {
-        submitted, loading, parentName, setParentName, parentEmail, setParentEmail,
+        submitted, loading, accessCode, setAccessCode, parentName, setParentName, parentEmail, setParentEmail,
         parentPassword, setParentPassword, kidCount, setKidCount, kidAges, setKidAges,
         errors, formError, handleGoogleSignIn, handleCreateAccount,
     };

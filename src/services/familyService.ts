@@ -77,7 +77,7 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
         },
         adminIds: [userId], // Creator is the first admin
         messageCount: 0,
-        betaApproved: false, // Beta Requirement: Families start as pending
+        betaApproved: creator.familyCreationApproved === true,
     };
 
     // Bootstrap membership atomically so rules can validate the new circle with getAfter.

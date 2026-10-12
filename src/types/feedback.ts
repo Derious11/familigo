@@ -14,4 +14,7 @@ export interface Feedback {
     timestamp: Date;
     userAgent?: string;
     version?: string; // App version if available
+    status?: 'new' | 'investigating' | 'resolved';
+    internalNotes?: string;
+    updatedAt?: Date;
 }

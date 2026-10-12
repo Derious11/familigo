@@ -315,7 +315,7 @@ const App: React.FC = () => {
             });
         }
         // Onboarding
-        if (currentUser && !familyCircle && !path.startsWith(`${appPath}/onboarding`)) {
+        if (currentUser?.status === 'active' && !familyCircle && path !== '/app/admin' && !path.startsWith(`${appPath}/onboarding`)) {
             window.history.replaceState({}, '', `${appPath}/onboarding`);
             posthog?.capture('route_viewed', {
                 route: 'app-onboarding',
@@ -473,7 +473,10 @@ const App: React.FC = () => {
     }
     // AUTHENTICATED ROUTES
     else if (authState === 'authenticated') {
-        if (familyError) {
+        if (window.location.pathname.toLowerCase() === '/app/admin') {
+            content = <AdminPage />;
+        }
+        else if (familyError) {
             content = <ErrorState />;
         }
         else if (currentUser?.status === 'pending_approval') {
@@ -481,9 +484,6 @@ const App: React.FC = () => {
         }
         else if (!familyCircle) {
             content = (<OnboardingFlow user={currentUser!} setFamilyCircle={setFamilyCircle}/>);
-        }
-        else if (window.location.pathname.toLowerCase() === '/app/admin') {
-            content = <AdminPage />;
         }
         else {
             content = <MainApp />;

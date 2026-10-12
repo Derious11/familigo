@@ -75,6 +75,7 @@ export const onUserUpdate = (
                     xp: data.xp ?? 0,
                     level: data.level ?? 1,
                     status: data.status,
+                    familyCreationApproved: data.familyCreationApproved === true,
                     currentWeight: data.currentWeight,
                     weightUnit: data.weightUnit,
                     weightHistory: data.weightHistory,

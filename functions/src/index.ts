@@ -9,6 +9,8 @@ import { sendTeenInviteEmail } from "./callables/email";
 import { validateTeenInvite } from "./callables/validateTeenInvite";
 import { joinFamily } from "./callables/joinFamily";
 import { redeemTeenInvite } from "./callables/redeemTeenInvite";
+export { sendAccessInvite, redeemAccessInvite } from './callables/accessInvites';
+export { approveWaitlistUsers, revokeAccessInvite, updateAdminFeedback } from './callables/admin';
 
 // Export triggers
 export {

@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "scripts": {
-    "test:invites": "npm run build && node --test test/invitations.cjs",
+    "test:invites": "npm run build && node --test test/invitations.cjs test/accessInvites.cjs",
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
     "build:watch": "tsc --watch",

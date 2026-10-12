@@ -41,7 +41,8 @@ service cloud.firestore {
         && circle.adminIds == [request.auth.uid]
         && circle.memberIds == [request.auth.uid]
         && circle.members.keys().hasOnly([request.auth.uid])
-        && circle.members[request.auth.uid] == true && circle.betaApproved == false;
+        && circle.members[request.auth.uid] == true
+        && circle.betaApproved == (resource.data.get("familyCreationApproved", false) == true);
     }
 
     /* ========================
@@ -73,8 +74,9 @@ service cloud.firestore {
         // Normal signup
         (
           request.auth.uid == userId
-          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy", "parentId"])
+          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy", "parentId", "familyCreationApproved"])
           && request.resource.data.status == "pending_approval"
+          && (!request.resource.data.keys().hasAny(["createdAt"]) || request.resource.data.createdAt == request.time)
         )
 
         // Parent creates child
@@ -84,7 +86,7 @@ service cloud.firestore {
           && request.resource.data.role == "child"
           && request.resource.data.familyCircleId != null
           && isFamilyMember(request.resource.data.familyCircleId)
-          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy"])
+          && !request.resource.data.keys().hasAny(["isAdmin", "approvedAt", "approvedBy", "familyCreationApproved"])
         )
       );
 
@@ -97,7 +99,7 @@ service cloud.firestore {
         || (
           request.auth.uid == userId
           && !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(["isAdmin", "role", "parentId", "status", "approvedAt", "approvedBy", "familyCircleId"])
+              .hasAny(["isAdmin", "role", "parentId", "status", "approvedAt", "approvedBy", "familyCircleId", "familyCreationApproved", "createdAt"])
         )
 
         // Family Admin approving Teen Member
@@ -130,6 +132,8 @@ service cloud.firestore {
                 "status",
                 "approvedAt",
                 "approvedBy",
+                "familyCreationApproved",
+                "createdAt",
                 "familyCircleId"
               ])
         )
@@ -160,7 +164,7 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "adult"
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "active"
-        && request.resource.data.betaApproved == false
+        && request.resource.data.betaApproved == (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("familyCreationApproved", false) == true)
         && request.resource.data.adminIds == [request.auth.uid]
         && request.resource.data.memberIds == [request.auth.uid]
         && request.resource.data.members.keys().hasOnly([request.auth.uid])
@@ -245,6 +249,21 @@ service cloud.firestore {
     /* ========================
        DENY ALL ELSE
        ======================== */
+    match /accessInvites/{inviteId} {
+      allow read: if isSignedIn() && isAdmin();
+      allow write: if false;
+    }
+
+    match /adminFeedback/{feedbackId} {
+      allow read: if isSignedIn() && isAdmin();
+      allow write: if false;
+    }
+
+    match /adminAudit/{eventId} {
+      allow read: if isSignedIn() && isAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

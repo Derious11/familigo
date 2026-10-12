@@ -10,7 +10,7 @@ interface OnboardingFlowProps {
 }
 type OnboardingStep = 'initial' | 'create' | 'join' | 'created';
 const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle, readOnly = false }) => {
-    const [step, setStep] = useState<OnboardingStep>('initial');
+    const [step, setStep] = useState<OnboardingStep>(user.familyCreationApproved ? 'create' : 'initial');
     const [familyName, setFamilyName] = useState('');
     const [inviteCode, setInviteCode] = useState('');
     const [newCircle, setNewCircle] = useState<FamilyCircle | null>(null);
@@ -20,6 +20,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle, 
     useEffect(() => {
         if (readOnly)
             return;
+        if (user.familyCreationApproved) {
+            sessionStorage.removeItem('pendingInviteCode');
+            setStep('create');
+            return;
+        }
         const pendingInviteCode = sessionStorage.getItem('pendingInviteCode');
         if (pendingInviteCode) {
             setStep('join');
@@ -27,7 +32,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, setFamilyCircle, 
             // Clear the code from storage so it's not used again
             sessionStorage.removeItem('pendingInviteCode');
         }
-    }, [readOnly]);
+    }, [readOnly, user.familyCreationApproved]);
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');

@@ -114,6 +114,7 @@ export const signUpWithEmail = async (
 
         const newUser: Omit<User, 'id' | 'emailVerified'> = {
             name,
+            createdAt: new Date(),
             email: user.email!,
             role,
             ...(birthDate ? { birthDate } : {}),
@@ -137,7 +138,7 @@ export const signUpWithEmail = async (
         }
 
         try {
-            await setDoc(doc(db, 'users', user.uid), newUser);
+            await setDoc(doc(db, 'users', user.uid), { ...newUser, createdAt: serverTimestamp() });
         } catch (err) {
             console.error("Failed to create user profile document.", err);
             try {
@@ -190,6 +191,7 @@ export const signInWithGoogle = async (
             }
             const newUser: Omit<User, 'id' | 'emailVerified'> = {
                 name: user.displayName || 'New User',
+                createdAt: new Date(),
                 email: user.email!,
                 role: role,
                 birthDate: new Date(),
@@ -206,7 +208,7 @@ export const signInWithGoogle = async (
                 ...(earlyAccessData ? { earlyAccessData } : {})
             };
             try {
-                await setDoc(doc(db, 'users', user.uid), newUser);
+                await setDoc(doc(db, 'users', user.uid), { ...newUser, createdAt: serverTimestamp() });
             } catch (err) {
                 console.error("Failed to create user profile document.", err);
                 try {

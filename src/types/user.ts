@@ -12,6 +12,7 @@ export interface User {
     id: string;
     name: string;
     email?: string; // Optional for child accounts
+    createdAt?: Date;
     isAdmin?: boolean; // From Firebase Custom Claims
     role?: UserRole;
     birthDate?: Date;
@@ -38,6 +39,7 @@ export interface User {
     status?: 'active' | 'pending_approval' | 'suspended';
     approvedAt?: any; // Firestore Timestamp
     approvedBy?: string;
+    familyCreationApproved?: boolean; // Granted only by the app admin's invitation callable.
     earlyAccessData?: {
         kidCount?: number;
         kidAges?: string;
