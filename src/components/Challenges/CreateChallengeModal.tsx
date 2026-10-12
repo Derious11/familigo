@@ -2,19 +2,19 @@ import React,{ useContext,useEffect,useId,useState } from 'react';
 import { AppContext } from '../../App';
 import { getExercises } from '../../services/challengeService';
 import { Exercise } from '../../types';
-import { BoltIcon,UserGroupIcon,UserIcon } from '../Icons';
+import { BoltIcon,CheckIcon } from '../Icons';
 import Modal from '../ui/Modal';
 interface CreateChallengeModalProps {
     onClose: () => void;
 }
 // --- VISUAL PRESETS ---
 const EXERCISE_PRESETS = [
-    { name: 'Push-ups', emoji: '💪', defaultTarget: '20 Reps', defaultUnit: 'Reps' },
-    { name: 'Squats', emoji: '🏋️', defaultTarget: '30 Reps', defaultUnit: 'Reps' },
-    { name: 'Plank', emoji: '⏱️', defaultTarget: '1 Minute', defaultUnit: 'Minutes' },
-    { name: 'Run', emoji: '🏃', defaultTarget: '1 Mile', defaultUnit: 'Miles' },
-    { name: 'Walk', emoji: '🚶', defaultTarget: '30 Minutes', defaultUnit: 'Minutes' },
-    { name: 'Burpees', emoji: '🔥', defaultTarget: '15 Reps', defaultUnit: 'Reps' }
+    { name: 'Push-ups', icon: 'push-ups', defaultTarget: '20 Reps', defaultUnit: 'Reps' },
+    { name: 'Squats', icon: 'squats', defaultTarget: '30 Reps', defaultUnit: 'Reps' },
+    { name: 'Plank', icon: 'plank', defaultTarget: '1 Minute', defaultUnit: 'Minutes' },
+    { name: 'Run', icon: 'run', defaultTarget: '1 Mile', defaultUnit: 'Miles' },
+    { name: 'Walk', icon: 'walk', defaultTarget: '30 Minutes', defaultUnit: 'Minutes' },
+    { name: 'Burpees', icon: 'burpees', defaultTarget: '15 Reps', defaultUnit: 'Reps' }
 ];
 const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) => {
     const context = useContext(AppContext);
@@ -157,16 +157,18 @@ const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) 
                 {/* 1. TYPE TOGGLE */}
                 {/* 1. TYPE TOGGLE */}
                 <div className="app-challenge-types grid grid-cols-2 gap-3 p-1" role="group" aria-label="Challenge type">
-                    <button type="button" disabled={isSubmitting} aria-pressed={isIndividual} onClick={() => setChallengeType('individual')} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${isIndividual
+                    <button type="button" disabled={isSubmitting} aria-pressed={isIndividual} onClick={() => setChallengeType('individual')} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${isIndividual
             ? 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 shadow-sm'
             : 'border-transparent bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                        <UserIcon className={`w-6 h-6 mb-1 ${isIndividual ? 'text-emerald-500' : 'grayscale opacity-50'}`}/>
+                        <img src="/assets/brand/activities/gogo-solo.webp" srcSet="/assets/brand/activities/gogo-solo.webp 2x, /assets/brand/activities/gogo-solo@3x.webp 3x" width={48} height={48} alt="" aria-hidden="true" draggable={false} className="mb-1 h-12 w-12 object-contain" />
+                        {isIndividual && <CheckIcon aria-hidden="true" className="absolute right-1.5 top-1.5 h-3.5 w-3.5" />}
                         <span className="text-xs font-bold">Solo Challenge</span>
                     </button>
-                    <button type="button" disabled={isSubmitting} aria-pressed={!isIndividual} onClick={() => setChallengeType('team')} className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${!isIndividual
+                    <button type="button" disabled={isSubmitting} aria-pressed={!isIndividual} onClick={() => setChallengeType('team')} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${!isIndividual
             ? 'border-blue-200 bg-blue-50/50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-sm'
             : 'border-transparent bg-gray-50 dark:bg-gray-800 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                        <UserGroupIcon className={`w-6 h-6 mb-1 ${!isIndividual ? 'text-blue-500' : 'grayscale opacity-50'}`}/>
+                        <img src="/assets/brand/activities/gogo-team.webp" srcSet="/assets/brand/activities/gogo-team.webp 2x, /assets/brand/activities/gogo-team@3x.webp 3x" width={48} height={48} alt="" aria-hidden="true" draggable={false} className="mb-1 h-12 w-12 object-contain" />
+                        {!isIndividual && <CheckIcon aria-hidden="true" className="absolute right-1.5 top-1.5 h-3.5 w-3.5" />}
                         <span className="text-xs font-bold">Team Goal</span>
                     </button>
                 </div>
@@ -188,10 +190,20 @@ const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) 
         <div className="app-activity-presets grid grid-cols-3 gap-3" role="group" aria-label="Activities">
                                 {EXERCISE_PRESETS.map((preset) => {
                 const isSelected = exerciseName === preset.name;
-                return (<button key={preset.name} type="button" aria-pressed={isSelected} onClick={() => handlePresetClick(preset)} className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all duration-200 ${isSelected
+                return (<button key={preset.name} type="button" aria-pressed={isSelected} onClick={() => handlePresetClick(preset)} className={`relative flex flex-col items-center p-3 rounded-xl border-2 transition-all duration-200 ${isSelected
                         ? `${currentTheme.activeBorder} ${currentTheme.activeBg} ring-1 ${currentTheme.activeRing} ${currentTheme.activeShadow} scale-105`
                         : `border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 ${currentTheme.hoverBorder} ${currentTheme.hoverBg} hover:shadow-lg hover:-translate-y-1`}`}>
-                                            <span className="text-2xl mb-1 filter drop-shadow-sm">{preset.emoji}</span>
+                                            <img
+                                                src={`/assets/brand/activities/gogo-${preset.icon}.webp`}
+                                                srcSet={`/assets/brand/activities/gogo-${preset.icon}.webp 2x, /assets/brand/activities/gogo-${preset.icon}@3x.webp 3x`}
+                                                width={48}
+                                                height={48}
+                                                alt=""
+                                                aria-hidden="true"
+                                                draggable={false}
+                                                className="mb-1 h-12 w-12 object-contain"
+                                            />
+                                            {isSelected && <CheckIcon aria-hidden="true" className="absolute right-1.5 top-1.5 h-3.5 w-3.5 text-blue-600 dark:text-blue-200" />}
                                             <span className={`text-xs font-bold ${isSelected
                         ? currentTheme.activeText
                         : 'text-gray-600 dark:text-gray-400'}`}>

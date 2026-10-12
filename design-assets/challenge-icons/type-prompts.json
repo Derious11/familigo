@@ -1,0 +1,9 @@
+{
+  "generator": "Built-in image_gen",
+  "reference": "design-assets/marketing/gogo-thumbs-up.png",
+  "base": "Use case: stylized-concept. Create ONE production FamiliGo challenge type selector icon matching the existing simplified polished 3D GoGo activity icons. Input image is identity/style reference only: preserve GoGo swept blue hair, white face, large navy eyes, blue hoodie, navy pants with white side stripes, blue/white sneakers and mascot proportions. Gentle studio lighting, bright friendly encouraging expression. True transparent background, square canvas, full bodies visible with 10 percent clear padding, centered bold silhouette readable at 48px. Blue #1E60FF, cyan #4CC3FF, white, navy. No text or tiny clothing lettering, no circle/badge/background, no cast floor shadow, no glow, no props. ",
+  "poses": {
+    "solo": "SOLO CHALLENGE. Exactly ONE GoGo standing confidently, one hand giving a cheerful thumbs-up beside the chest, other hand on hip, feet planted in relaxed stance. Entire character visible. Communicate individual participation and encouragement.",
+    "team": "TEAM GOAL. Exactly TWO matching GoGo mascots side by side, slightly angled toward each other, inside hands meeting in a high-five above their heads, outer hands relaxed, feet planted. Both full bodies and distinct faces visible. Equal partners, same costume and identity. Clear friendly teamwork silhouette, no overlap obscuring faces, no additional characters."
+  }
+}

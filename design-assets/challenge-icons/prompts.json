@@ -1,0 +1,13 @@
+{
+  "generator": "Built-in image_gen",
+  "reference": "design-assets/marketing/gogo-thumbs-up.png",
+  "basePrompt": "Use case: stylized-concept. Create ONE production FamiliGo activity selector icon. Input image is identity/style reference only: preserve GoGo swept blue hair, white face, large navy eyes, blue hoodie, navy pants with white side stripes, blue/white sneakers, proportions. Simplified polished 3D full body, gentle consistent studio lighting, cheerful encouraging expression. True transparent background, square canvas, entire character visible with 10 percent clear padding, centered balanced silhouette readable at 48px. Blue #1E60FF and cyan #4CC3FF accents, white and navy. No text or tiny clothing lettering, no circle/badge/background, no cast floor shadow, no glow, no props, no extra characters. Pose: ",
+  "poses": {
+    "push-ups": "PUSH-UPS. Side view facing right, straight horizontal body from shoulders through heels, palms flat on ground, arms partially bent in push-up lowering position, toes supported. Hands and feet fully visible and clearly separated. Anatomically plausible, do not depict forearm plank.",
+    "squats": "SQUATS. Three-quarter view facing slightly right, feet planted shoulder-width, hips lowered, both knees bent, hands together in front of chest. Recognizable comfortable bodyweight squat, no lunge.",
+    "plank": "PLANK. Side view facing right, straight horizontal body, BOTH FOREARMS flat on ground, elbows beneath shoulders, toes supported. Forearm support must clearly differ from palms-supported push-up.",
+    "run": "RUN. Side/three-quarter view facing right, bent pumping arms, long dynamic stride, one foot airborne, cheerful smile. Clear runner silhouette, one restrained cyan speed mark optional.",
+    "walk": "WALK. Three-quarter view facing right, upright relaxed posture, arms naturally swinging, short comfortable stride, one foot firmly planted. Gentle relaxed walking distinct from running.",
+    "burpees": "BURPEES finishing jump. Front/three-quarter view, both arms reaching straight upward, legs close together, feet airborne with slightly bent knees. Clear vertical jump silhouette, no spread star/jumping jack pose."
+  }
+}
