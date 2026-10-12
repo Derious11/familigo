@@ -2,7 +2,7 @@ import { getDownloadURL, ref } from "firebase/storage";
 import { storage } from "../firebaseConfig";
 
 const AVATAR_ROOT = "profile-pictures";
-export const AVATAR_PLACEHOLDER = "/assets/FamiliGo_logo_nbg.png";
+export const AVATAR_PLACEHOLDER = "/assets/brand/icon-180.png";
 
 type CacheKey = string | number | undefined;
 

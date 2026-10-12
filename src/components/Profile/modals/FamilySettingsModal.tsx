@@ -140,6 +140,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
         <div className="flex p-1 mb-4 bg-gray-100 dark:bg-gray-700/50 rounded-xl">
             <button
                 onClick={() => setActiveTab('members')}
+                aria-pressed={activeTab === 'members'}
                 className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'members'
                     ? 'bg-white dark:bg-gray-600 shadow-sm text-brand-blue dark:text-white'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -149,6 +150,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
             </button>
             <button
                 onClick={() => setActiveTab('add')}
+                aria-pressed={activeTab === 'add'}
                 className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'add'
                     ? 'bg-white dark:bg-gray-600 shadow-sm text-brand-blue dark:text-white'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -158,6 +160,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
             </button>
             <button
                 onClick={() => setActiveTab('general')}
+                aria-pressed={activeTab === 'general'}
                 className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'general'
                     ? 'bg-white dark:bg-gray-600 shadow-sm text-brand-blue dark:text-white'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
@@ -325,12 +328,14 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                     <input
                                         type="text"
                                         placeholder="Child's Name"
+                                        aria-label="Child’s name"
                                         value={childName}
                                         onChange={(e) => setChildName(e.target.value)}
                                         className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
                                     />
                                     <input
                                         type="date"
+                                        aria-label="Child’s date of birth"
                                         value={childBirthDate}
                                         onChange={(e) => setChildBirthDate(e.target.value)}
                                         className="w-full px-3 py-2 text-sm border border-green-300 dark:border-green-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-green-500 focus:border-green-500"
@@ -363,12 +368,14 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                     <input
                                         type="text"
                                         placeholder="Teen's Name"
+                                        aria-label="Teen’s name"
                                         value={teenName}
                                         onChange={(e) => setTeenName(e.target.value)}
                                         className="w-full px-3 py-2 text-sm border border-blue-300 dark:border-blue-800 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500"
                                     />
                                     <input
                                         type="email"
+                                        aria-label="Teen’s email address"
                                         placeholder="Teen's Email"
                                         value={teenEmail}
                                         onChange={(e) => setTeenEmail(e.target.value)}
@@ -403,6 +410,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Motto</label>
                                 <textarea
+                                    aria-label="Family motto"
                                     value={motto}
                                     onChange={(e) => setMotto(e.target.value)}
                                     rows={2}
@@ -419,6 +427,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                         <input
                                             type="text"
                                             value={avatarUrl}
+                                            aria-label="Family avatar URL"
                                             onChange={(e) => setAvatarUrl(e.target.value)}
                                             placeholder="https://..."
                                             className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

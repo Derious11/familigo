@@ -1,13 +1,17 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 // Read the index for commits, or a named tree for CI. Never print credential values.
 const staged = process.argv.includes('--staged');
+const worktree = process.argv.includes('--worktree');
 const refOption = process.argv.indexOf('--ref');
 const ref = staged ? null : (refOption >= 0 ? process.argv[refOption + 1] : 'HEAD');
 if (!staged && !ref) throw new Error('--ref requires a Git revision');
-const files = execFileSync('git', staged
+const files = [...new Set(execFileSync('git', worktree
+  ? ['ls-files', '--cached', '--others', '--exclude-standard', '-z']
+  : staged
   ? ['ls-files', '-z']
-  : ['ls-tree', '-r', '--name-only', '-z', ref], { encoding: 'utf8' }).split('\0').filter(Boolean);
+  : ['ls-tree', '-r', '--name-only', '-z', ref], { encoding: 'utf8' }).split('\0').filter(Boolean))];
 const patterns = [
   /\bre_[A-Za-z0-9_]{20,}\b/,
   /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}\b/,
@@ -22,7 +26,12 @@ for (const file of files) {
     console.error(`${file}: private environment files must not be tracked`);
     failed = true;
   }
-  const content = execFileSync('git', ['show', staged ? `:${file}` : `${ref}:${file}`], { maxBuffer: 64 * 1024 * 1024 });
+  let content;
+  if (worktree) {
+    try { content = readFileSync(file); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+  } else {
+    content = execFileSync('git', ['show', staged ? `:${file}` : `${ref}:${file}`], { maxBuffer: 64 * 1024 * 1024 });
+  }
   if (content.includes(0)) continue;
   content.toString('utf8').split(/\r?\n/).forEach((line, index) => {
     // Firebase browser keys are intentionally public. Other Google keys are blocked.

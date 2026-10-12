@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect, useContext, useCallback } from 'react';
+import React,{ useCallback,useContext,useEffect,useRef,useState } from 'react';
 import { AppContext } from '../../App';
-import { CameraIcon, MicrophoneIcon, XMarkIcon, CheckIcon, PhotoIcon } from '../Icons'; // Added PhotoIcon
 import { AddReplyPayload } from '../../types';
+import { CameraIcon,CheckIcon,MicrophoneIcon,XMarkIcon } from '../Icons'; // Added PhotoIcon
+import Modal from '../ui/Modal';
 
 interface CreateReplyModalProps {
     onClose: () => void;
@@ -48,6 +49,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
     }, []);
 
     const handleClose = () => {
+        if (isLoading) return;
         cleanup();
         onClose();
     };
@@ -71,7 +73,8 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
             };
 
             await context?.addReply(challengeId, payload, undefined, true);
-            handleClose();
+            cleanup();
+            onClose();
         } catch (err: any) {
             console.error('Failed to submit reply:', err);
             setError('Could not complete challenge. Please try again.');
@@ -160,6 +163,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                 <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                     <button
+                        aria-label="Close camera"
                         onClick={() => setIsCameraOpen(false)}
                         className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full"
                     >
@@ -168,6 +172,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                 </div>
                 <div className="bg-black p-6 pb-10 flex justify-center">
                     <button
+                        aria-label="Capture photo"
                         onClick={takePicture}
                         className="w-16 h-16 bg-white rounded-full border-4 border-gray-300 ring-4 ring-white/30 active:scale-95 transition-transform"
                     ></button>
@@ -178,27 +183,15 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
 
     // 2. Main Composer View
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={handleClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
-
-                {/* Header */}
-                <div className="bg-gradient-to-r from-brand-green to-emerald-600 p-6 text-center text-white relative">
-                    <button onClick={handleClose} className="absolute top-4 right-4 text-white/80 hover:text-white">
-                        <XMarkIcon className="w-6 h-6" />
-                    </button>
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2 backdrop-blur-sm">
-                        <CheckIcon className="w-6 h-6 text-white" />
-                    </div>
-                    <h3 className="text-xl font-bold">Challenge Complete!</h3>
-                    <p className="text-blue-50 text-sm opacity-90">Great job hitting your goal.</p>
-                </div>
-
-                <div className="p-6 space-y-4">
+        <Modal isOpen={true} onClose={handleClose} title="Complete Challenge">
+            <p className="app-dialog-description">Great job hitting your goal. Add a note or photo if you like, then confirm your completion.</p>
+            <div className="space-y-4">
                     {error && <p className="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">{error}</p>}
 
                     {/* Text Area with Integrated Mic */}
                     <div className="relative">
                         <textarea
+                            aria-label="Completion note (optional)"
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             placeholder="Add a note... (Optional)"
@@ -213,6 +206,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                                         : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                                     }`}
                                 title="Voice to Text"
+                                aria-label={isRecording ? 'Stop voice input' : 'Start voice input'}
                             >
                                 <MicrophoneIcon className="w-5 h-5" />
                             </button>
@@ -258,8 +252,7 @@ const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeI
                         )}
                     </button>
                 </div>
-            </div>
-        </div>
+        </Modal>
     );
 };
 

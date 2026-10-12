@@ -1,8 +1,61 @@
 {
-    "rewrites": [
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "redirects": [
+    {
+      "destination": "/",
+      "permanent": true,
+      "source": "/landing-v2"
+    },
+    {
+      "destination": "/",
+      "permanent": true,
+      "source": "/landingpagea"
+    },
+    {
+      "destination": "/",
+      "permanent": true,
+      "source": "/landingpageb"
+    },
+    {
+      "destination": "/",
+      "permanent": true,
+      "source": "/parents"
+    },
+    {
+      "destination": "/",
+      "permanent": true,
+      "source": "/teens"
+    },
+    {
+      "destination": "/early-access",
+      "permanent": true,
+      "source": "/early-access-v2"
+    },
+    {
+      "destination": "/login",
+      "permanent": true,
+      "source": "/login-v2"
+    },
+    {
+      "destination": "/app",
+      "permanent": true,
+      "source": "/app-preview"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/firebase-runtime-config.js",
+      "headers": [
         {
-            "source": "/(.*)",
-            "destination": "/index.html"
+          "key": "Cache-Control",
+          "value": "no-store"
         }
-    ]
+      ]
+    }
+  ]
 }

@@ -27,6 +27,23 @@ service cloud.firestore {
         && child.familyCircleId == circleId;
     }
 
+    // Only an approved parent without a family can bootstrap their own new circle.
+    // It must be created in the same batch, with no other members or elevated approval.
+    function validFamilyBootstrap(userId) {
+      let circleId = request.resource.data.familyCircleId;
+      let circle = getAfter(/databases/$(database)/documents/familyCircles/$(circleId)).data;
+      return request.auth.uid == userId
+        && resource.data.role == "adult" && resource.data.status == "active"
+        && resource.data.get("familyCircleId", null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["familyCircleId"])
+        && circleId is string && circleId.size() > 0
+        && !exists(/databases/$(database)/documents/familyCircles/$(circleId))
+        && circle.adminIds == [request.auth.uid]
+        && circle.memberIds == [request.auth.uid]
+        && circle.members.keys().hasOnly([request.auth.uid])
+        && circle.members[request.auth.uid] == true && circle.betaApproved == false;
+    }
+
     /* ========================
        USERS
        ======================== */
@@ -74,6 +91,7 @@ service cloud.firestore {
       /* -------- UPDATE -------- */
       allow update: if isSignedIn() && (
         isAdmin()
+        || validFamilyBootstrap(userId)
 
         // Self updates safe fields only
         || (
@@ -140,6 +158,9 @@ service cloud.firestore {
       }
 
       allow create: if isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "adult"
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "active"
+        && request.resource.data.betaApproved == false
         && request.resource.data.adminIds == [request.auth.uid]
         && request.resource.data.memberIds == [request.auth.uid]
         && request.resource.data.members.keys().hasOnly([request.auth.uid])
@@ -165,7 +186,7 @@ service cloud.firestore {
        ======================== */
     match /challenges/{challengeId} {
 
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (isAdmin() || isFamilyMember(resource.data.familyCircleId));
 
       allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId);
       

@@ -1,356 +1,56 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-    ShieldCheck,
-    Mail,
-    User,
-    Users,
-    Send,
-    CheckCircle2,
-    Lock,
-    AlertTriangle,
-} from "lucide-react";
-import { signUpWithEmail, signInWithGoogle } from "../services/authService";
-
-type FieldErrors = Partial<Record<
-    "parentName" | "parentEmail" | "parentPassword" | "kidCount",
-    string
->>;
-
-function isValidEmail(email: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-}
+import { ArrowLeft,ArrowRight,Check,CheckCircle2,Heart,LoaderCircle } from 'lucide-react';
+import { useEffect,useRef } from 'react';
+import MarketingBrand from '../components/MarketingBrand';
+import { GoogleIcon,useEarlyAccessForm } from '../hooks/useEarlyAccessForm';
+import { usePageSeo } from '../lib/seo';
+import './early-access.css';
+import './marketing-landing.css';
 
 export default function EarlyAccess() {
-    const [submitted, setSubmitted] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const {
+        submitted, loading, parentName, setParentName, parentEmail, setParentEmail,
+        parentPassword, setParentPassword, kidCount, setKidCount, kidAges, setKidAges,
+        errors, formError, handleGoogleSignIn, handleCreateAccount,
+    } = useEarlyAccessForm();
+    const form = useRef<HTMLFormElement>(null);
+    const successHeading = useRef<HTMLHeadingElement>(null);
+    usePageSeo({ title: 'Join Early Access | FamiliGo', description: 'Create your parent account and request access to the FamiliGo beta. A little movement. A lot more together.', canonicalPath: '/early-access', noIndex: true });
+    useEffect(() => { form.current?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus(); }, [errors]);
+    useEffect(() => { if (submitted) successHeading.current?.focus(); }, [submitted]);
 
-    // Parent fields
-    const [parentName, setParentName] = useState("");
-    const [parentEmail, setParentEmail] = useState("");
-    const [parentPassword, setParentPassword] = useState("");
-    const [kidCount, setKidCount] = useState<number | "">("");
-    const [kidAges, setKidAges] = useState("");
-
-    // UX state
-    const [errors, setErrors] = useState<FieldErrors>({});
-    const [formError, setFormError] = useState<string | null>(null);
-
-    const normalizedKidCount = useMemo(() => {
-        const n = Number(kidCount);
-        return Number.isFinite(n) ? n : 0;
-    }, [kidCount]);
-
-    const validate = () => {
-        const next: FieldErrors = {};
-        const name = parentName.trim();
-        const email = parentEmail.trim();
-        const password = parentPassword;
-
-        if (!name || name.length < 2) next.parentName = "Please enter your name.";
-        if (!email || !isValidEmail(email)) next.parentEmail = "Enter a valid email address.";
-        if (!password || password.length < 8)
-            next.parentPassword = "Password must be at least 8 characters.";
-        if (!normalizedKidCount || normalizedKidCount < 1)
-            next.kidCount = "Enter at least 1 kid.";
-
-        setErrors(next);
-        return Object.keys(next).length === 0;
-    };
-
-    const handleGoogleSignIn = async () => {
-        setFormError(null);
-        setErrors({});
-
-        setLoading(true);
-        try {
-            const { error } = await signInWithGoogle("adult", {
-                kidCount: normalizedKidCount,
-                kidAges: kidAges.trim(),
-            });
-
-            if (error) {
-                setFormError(typeof error === "string" ? error : "Google sign-in failed. Please try again.");
-                return;
-            }
-
-            // Auth listener + status gating handles routing.
-            setSubmitted(true);
-        } catch (err) {
-            console.error(err);
-            setFormError("Google sign-in failed. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleCreateAccount = async () => {
-        setFormError(null);
-
-        if (!validate()) return;
-
-        setLoading(true);
-        try {
-            const { error } = await signUpWithEmail(
-                parentName.trim(),
-                parentEmail.trim(),
-                parentPassword,
-                "adult",
-                undefined,
-                {
-                    kidCount: normalizedKidCount,
-                    kidAges: kidAges.trim(),
-                }
-            );
-
-            if (error) {
-                setFormError(error);
-                return;
-            }
-
-            setSubmitted(true);
-        } catch (err) {
-            console.error("Early access submission failed:", err);
-            setFormError("Something went wrong. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    /* =========================
-       Pending / Success Screen
-    ========================== */
-    if (submitted) {
-        return (
-            <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4">
-                <section className="max-w-md w-full rounded-3xl bg-slate-900 p-6 ring-1 ring-white/5 text-center space-y-5">
-                    <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-400" />
-                    <h1 className="text-xl font-semibold">Request received</h1>
-                    <p className="text-sm text-slate-300">
-                        Your parent account has been created and is pending approval.
-                    </p>
-
-                    <div className="rounded-2xl bg-slate-800 p-4 text-left space-y-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                            What happens next
-                        </p>
-                        <ul className="text-xs text-slate-300 space-y-1">
-                            <li>• We review beta requests in waves.</li>
-                            <li>• You’ll receive an email once you’re approved.</li>
-                            <li>• After approval, you can add your kids and start challenges.</li>
-                        </ul>
-                    </div>
-
-                    <p className="text-[11px] text-slate-400">
-                        If you used Google, you’ll sign in the same way later. If you created a password, keep it safe.
-                    </p>
-
-                    <button
-                        onClick={() => (window.location.href = "/")}
-                        className="mt-2 rounded-full bg-gradient-to-r from-emerald-400 to-indigo-500 px-6 py-2 text-xs font-semibold uppercase tracking-wider text-slate-950"
-                    >
-                        Back to Home
-                    </button>
-                </section>
-            </main>
-        );
-    }
-
-    /* =========================
-       Main Form (Parent Only)
-    ========================== */
-    return (
-        <main className="min-h-screen bg-slate-950 text-white">
-            <section className="mx-auto max-w-lg px-4 py-16">
-                <header className="mb-8 text-center space-y-3">
-                    <div className="mx-auto h-12 w-12 rounded-2xl bg-gradient-to-tr from-emerald-400 to-indigo-500 flex items-center justify-center shadow-lg">
-                        <ShieldCheck className="h-6 w-6 text-slate-950" />
-                    </div>
-
-                    <h1 className="text-2xl font-semibold">Join the FamiliGo beta</h1>
-
-                    <p className="text-sm text-slate-300">
-                        Parents create the family account. Once approved, you’ll be able to add your kids and start challenges.
-                    </p>
-
-                    <p className="text-xs text-slate-400">
-                        No public feeds. No strangers. Family-only competition.
-                    </p>
-                </header>
-
-                <div className="rounded-3xl bg-slate-900 p-6 ring-1 ring-white/5 space-y-5">
-                    {/* Primary OAuth CTA */}
-                    <button
-                        onClick={handleGoogleSignIn}
-                        disabled={loading}
-                        type="button"
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-white p-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100 disabled:opacity-50"
-                    >
-                        <GoogleIcon />
-                        Continue with Google (Request Access)
-                    </button>
-
-                    <p className="text-center text-xs text-slate-400">
-                        We’ll confirm access after a quick review.
-                    </p>
-
-                    <Divider label="Or create an account" />
-
-                    {formError && (
-                        <div className="flex items-start gap-2 rounded-2xl bg-red-500/10 ring-1 ring-red-500/20 p-3">
-                            <AlertTriangle className="h-4 w-4 text-red-300 mt-0.5" />
-                            <p className="text-xs text-red-200">{formError}</p>
-                        </div>
-                    )}
-
-                    <Input
-                        icon={<User />}
-                        placeholder="Your full name"
-                        value={parentName}
-                        onChange={setParentName}
-                        error={errors.parentName}
-                    />
-                    <Input
-                        icon={<Mail />}
-                        placeholder="Your email"
-                        value={parentEmail}
-                        onChange={setParentEmail}
-                        error={errors.parentEmail}
-                        inputMode="email"
-                    />
-                    <Input
-                        icon={<Lock />}
-                        placeholder="Create a password (8+ characters)"
-                        value={parentPassword}
-                        onChange={setParentPassword}
-                        error={errors.parentPassword}
-                        type="password"
-                    />
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <Input
-                            icon={<Users />}
-                            placeholder="Number of kids"
-                            value={kidCount}
-                            onChange={(v) => setKidCount(v === "" ? "" : Number(v))}
-                            error={errors.kidCount}
-                            type="number"
-                        />
-                        <Input
-                            icon={<Users />}
-                            placeholder="Kids’ ages (optional)"
-                            value={kidAges}
-                            onChange={setKidAges}
-                            hint="Example: 9, 12, 15"
-                        />
-                    </div>
-
-                    <button
-                        onClick={handleCreateAccount}
-                        disabled={loading}
-                        className="mt-2 w-full rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-indigo-500 px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-950 shadow-lg transition hover:brightness-110 disabled:opacity-50"
-                    >
-                        {loading ? (
-                            "Processing..."
-                        ) : (
-                            <>
-                                <Send className="inline-block h-4 w-4 mr-2" />
-                                Create Parent Account & Request Access
-                            </>
-                        )}
-                    </button>
-
-                    <p className="text-[11px] text-slate-500 text-center">
-                        By creating an account, you’re requesting beta access. You’ll receive an email when approved.
-                    </p>
-                </div>
+    return <div className="fg-landing fg-access">
+        <a className="fg-skip" href="#access-main">Skip to account creation</a>
+        <header className="fg-header"><div className="fg-container fg-nav">
+            <MarketingBrand />
+            <a className="fg-access-back" href="/"><ArrowLeft size={16} aria-hidden="true" /><span>Back to the fun</span></a>
+        </div></header>
+        <main id="access-main" className="fg-container fg-access-grid">
+            <section className="fg-access-story" aria-label="Welcome to FamiliGo">
+                <p className="fg-eyebrow"><span className="fg-live-dot" /> Your family’s next adventure</p>
+                <h1>A little movement.<br /><span>A lot more <br />together.</span></h1>
+                <p className="fg-access-intro">Make room for playful challenges, shared goals, and a few more “let’s do that again” moments.</p>
+                <div className="fg-access-gogo"><img src="/assets/brand/gogo-thumbs-up.webp" width="1024" height="1536" alt="GoGo, FamiliGo’s cheerful blue mascot, giving a thumbs-up." /><div className="fg-access-gogo-note"><Heart size={17} aria-hidden="true" /><span>Every family has a starting line.<br /><strong>Yours begins together.</strong></span></div></div>
+                <div className="fg-access-steps"><p className="fg-eyebrow">Here’s what happens next</p><ol><li><span>1</span>Create your parent account.</li><li><span>2</span>We review beta requests in waves.</li><li><span>3</span>Once approved, add your family and play.</li></ol></div>
             </section>
+
+            {submitted ? <section className="fg-access-card fg-access-success" aria-labelledby="success-heading"><span className="fg-access-success-icon"><CheckCircle2 size={35} aria-hidden="true" /></span><p className="fg-eyebrow">You’re on your way</p><h2 id="success-heading" ref={successHeading} tabIndex={-1}>Your starting line<br />is right here.</h2><p>Your parent account has been created and your beta access request is pending approval.</p><div className="fg-access-next"><h3>What happens next</h3><ul><li><Check size={16} aria-hidden="true" /> We review requests in waves.</li><li><Check size={16} aria-hidden="true" /> You’ll receive an email once approved.</li><li><Check size={16} aria-hidden="true" /> Then you can add your kids and start challenges.</li></ul></div><p className="fg-access-small">Used Google? Sign in the same way next time. Created a password? Keep it safe.</p><a className="fg-button" href="/">Back to FamiliGo <ArrowRight size={18} aria-hidden="true" /></a></section>
+            : <section className="fg-access-card" aria-labelledby="access-heading">
+                <span className="fg-access-beta">EARLY ACCESS</span><h2 id="access-heading">Bring your family.<br /><span>Start something fun.</span></h2><p className="fg-access-description">Create a parent or guardian account to request beta access. We’ll email you when you’re approved.</p>
+                <button className="fg-access-google" onClick={handleGoogleSignIn} disabled={loading} type="button"><span aria-hidden="true"><GoogleIcon /></span>Continue with Google</button>
+                <div className="fg-access-divider"><span>or use your email</span></div>
+                {formError && <p className="fg-access-error fg-access-form-error" role="alert">{formError}</p>}
+                <form ref={form} noValidate aria-busy={loading} onSubmit={event => { event.preventDefault(); void handleCreateAccount(); }}>
+                    <fieldset disabled={loading}>
+                        <div className="fg-access-field"><label htmlFor="parent-name">Your name</label><input id="parent-name" name="parentName" type="text" autoComplete="name" placeholder="Your full name" required value={parentName} onChange={event => setParentName(event.target.value)} aria-invalid={!!errors.parentName} aria-describedby={errors.parentName ? 'parent-name-error' : undefined} />{errors.parentName && <p id="parent-name-error" className="fg-access-error">{errors.parentName}</p>}</div>
+                        <div className="fg-access-field"><label htmlFor="parent-email">Email address</label><input id="parent-email" name="parentEmail" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" required value={parentEmail} onChange={event => setParentEmail(event.target.value)} aria-invalid={!!errors.parentEmail} aria-describedby={errors.parentEmail ? 'parent-email-error' : undefined} />{errors.parentEmail && <p id="parent-email-error" className="fg-access-error">{errors.parentEmail}</p>}</div>
+                        <div className="fg-access-field"><label htmlFor="parent-password">Create a password</label><input id="parent-password" name="parentPassword" type="password" autoComplete="new-password" placeholder="At least 8 characters" required minLength={8} value={parentPassword} onChange={event => setParentPassword(event.target.value)} aria-invalid={!!errors.parentPassword} aria-describedby={errors.parentPassword ? 'parent-password-error' : 'password-hint'} />{errors.parentPassword ? <p id="parent-password-error" className="fg-access-error">{errors.parentPassword}</p> : <p id="password-hint" className="fg-access-hint">Use at least 8 characters.</p>}</div>
+                        <div className="fg-access-fields-row"><div className="fg-access-field"><label htmlFor="kid-count">Number of kids</label><input id="kid-count" name="kidCount" type="number" min="1" step="1" inputMode="numeric" placeholder="e.g. 2" required value={kidCount} onChange={event => setKidCount(event.target.value === '' ? '' : Number(event.target.value))} aria-invalid={!!errors.kidCount} aria-describedby={errors.kidCount ? 'kid-count-error' : undefined} />{errors.kidCount && <p id="kid-count-error" className="fg-access-error">{errors.kidCount}</p>}</div><div className="fg-access-field"><label htmlFor="kid-ages">Kids’ ages <span>(optional)</span></label><input id="kid-ages" name="kidAges" type="text" placeholder="e.g. 9, 12" value={kidAges} onChange={event => setKidAges(event.target.value)} aria-describedby="kid-ages-hint" /><p id="kid-ages-hint" className="fg-access-hint">Ages only, no names needed.</p></div></div>
+                        <button type="submit" className="fg-button fg-access-submit">{loading ? <><LoaderCircle size={18} className="fg-access-spinner" aria-hidden="true" />Creating your account…</> : <>Create Account & Request Access <ArrowRight size={17} aria-hidden="true" /></>}</button>
+                    </fieldset>
+                </form>
+                <p className="fg-access-approval">Creating an account requests beta access.<br />Family challenges become available after approval.</p><p className="fg-access-login">Already part of FamiliGo? <a href="/login">Log in</a></p>
+            </section>}
         </main>
-    );
-}
-
-/* =========================
-   Reusable Components
-========================== */
-
-function Divider({ label }: { label: string }) {
-    return (
-        <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-700" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-slate-900 px-2 text-slate-500">{label}</span>
-            </div>
-        </div>
-    );
-}
-
-function GoogleIcon() {
-    return (
-        <svg className="h-5 w-5" viewBox="0 0 24 24">
-            <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-            />
-            <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-            />
-            <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-            />
-            <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-            />
-        </svg>
-    );
-}
-
-function Input({
-    icon,
-    placeholder,
-    value,
-    onChange,
-    type = "text",
-    error,
-    hint,
-    inputMode,
-}: {
-    icon: React.ReactNode;
-    placeholder: string;
-    value: string | number | "";
-    onChange: (v: any) => void;
-    type?: string;
-    error?: string;
-    hint?: string;
-    inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
-}) {
-    return (
-        <div className="space-y-1">
-            <div
-                className={[
-                    "flex items-center gap-3 rounded-2xl bg-slate-800 p-3 ring-1",
-                    error ? "ring-red-500/30" : "ring-white/5",
-                ].join(" ")}
-            >
-                <div className={error ? "text-red-200" : "text-slate-400"}>{icon}</div>
-                <input
-                    type={type}
-                    inputMode={inputMode}
-                    placeholder={placeholder}
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    className="w-full bg-transparent text-sm text-white placeholder-slate-400 outline-none"
-                />
-            </div>
-
-            {error ? (
-                <p className="text-[11px] text-red-200">{error}</p>
-            ) : hint ? (
-                <p className="text-[11px] text-slate-500">{hint}</p>
-            ) : null}
-        </div>
-    );
+        <footer className="fg-container fg-access-footer"><span>© {new Date().getFullYear()} FamiliGo</span><nav aria-label="Help and privacy"><a href="/privacy">Privacy policy</a><a href="mailto:support@familigo.life">Need a hand?</a></nav></footer>
+    </div>;
 }

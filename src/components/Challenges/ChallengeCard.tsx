@@ -1,16 +1,15 @@
-import React, { useContext, useState, useEffect, useMemo } from 'react';
+import React,{ useContext,useEffect,useMemo,useState } from 'react';
 import { AppContext } from '../../App';
-import { Challenge, Reply } from '../../types';
-import { onRepliesUpdate, updateReaction } from '../../services/challengeService';
-import LogWeightReplyModal from './LogWeightReplyModal';
-import LogActivityModal from './LogActivityModal';
-import CreateReplyModal from './CreateReplyModal';
-import { TrashIcon, ChatBubbleLeftIcon, ClockIcon } from '../Icons';
-import ConfirmDeleteModal from '../ConfirmDeleteModal';
-import confetti from 'canvas-confetti';
-import AvatarImage from '../ui/AvatarImage';
 import { EXERCISES } from '../../constants';
+import { onRepliesUpdate,updateReaction } from '../../services/challengeService';
+import { Challenge,Reply } from '../../types';
+import ConfirmDeleteModal from '../ConfirmDeleteModal';
+import { ChatBubbleLeftIcon,ClockIcon,TrashIcon } from '../Icons';
+import AvatarImage from '../ui/AvatarImage';
+import CreateReplyModal from './CreateReplyModal';
 import ExerciseVideo from './ExerciseVideo';
+import LogActivityModal from './LogActivityModal';
+import LogWeightReplyModal from './LogWeightReplyModal';
 
 interface ChallengeCardProps {
     challenge: Challenge;
@@ -109,9 +108,6 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
         return () => {
             unsubscribe();
-            try {
-                confetti.reset();
-            } catch { }
         };
     }, [challenge.id, challenge.familyCircleId]);
 
@@ -142,8 +138,6 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     const handleCompleteChallenge = () => {
         if (!currentUser || !isActive) return;
         if (challenge.type !== 'team' && hasReplied) return;
-
-        confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
 
         if (challenge.exercise.name === 'Weight Check-in')
             setIsLogWeightModalOpen(true);
@@ -215,9 +209,9 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
         : { bar: 'bg-green-500', text: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' };
 
     return (
-        <div className={`bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 ${!isActive ? 'opacity-75 grayscale-[0.5]' : ''}`}>
+        <div className={`app-challenge-card bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 ${!isActive ? 'opacity-75 grayscale-[0.5]' : ''}`}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <div className="app-challenge-header flex items-center justify-between px-4 pt-4 pb-2">
                 <div className="flex items-center gap-2">
                     <AvatarImage
                         userId={challenge.challenger.id}
@@ -232,7 +226,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 <div className="flex items-center gap-2">
                     {isActive && <Countdown expiryDate={challenge.expiresAt} />}
                     {isChallenger && (
-                        <button onClick={() => setItemToDelete({ type: 'challenge', id: challenge.id })}>
+                        <button aria-label={`Delete ${challenge.exercise.name} challenge`} onClick={() => setItemToDelete({ type: 'challenge', id: challenge.id })}>
                             <TrashIcon className="w-4 h-4" />
                         </button>
                     )}
@@ -240,7 +234,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
             </div>
 
             {/* Body */}
-            <div className="px-4 pb-4">
+            <div className="app-challenge-body px-4 pb-4">
                 <h3 className="text-xl font-bold">{challenge.exercise.name}</h3>
                 <p className="text-sm mb-3">{challenge.target}</p>
 
@@ -267,7 +261,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
                 {familyCircle && (
                     <>
-                        <div className="flex justify-between text-xs mb-1">
+                        <div className="app-challenge-progress flex justify-between text-xs mb-1">
                             <span>Progress</span>
                             <span>{progressText}</span>
                         </div>
@@ -277,7 +271,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
             </div>
 
             {/* Actions */}
-            <div className="px-4 pb-4 flex gap-3">
+            <div className="app-challenge-actions px-4 pb-4 flex gap-3">
                 {isActive && (
                     <button
                         onClick={handleCompleteChallenge}
@@ -290,7 +284,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                         {!isTeamChallenge && hasReplied ? '✓ Done' : isTeamChallenge ? 'Log Contribution' : 'Mark Complete'}
                     </button>
                 )}
-                <button onClick={() => setShowComments((s) => !s)}>
+                <button aria-label={`${showComments ? 'Hide' : 'Show'} comments for ${challenge.exercise.name}`} aria-expanded={showComments} onClick={() => setShowComments((s) => !s)}>
                     <ChatBubbleLeftIcon className="w-5 h-5" />
                 </button>
             </div>

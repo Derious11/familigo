@@ -1,0 +1,13 @@
+{
+  "scope": "Atomic family bootstrap and challenge-read isolation; not a certification of the whole rules file",
+  "score": 5,
+  "summary": "The new branch derives approval and role from the existing user document, restricts the caller to their own user, allows only familyCircleId to change, and requires a simultaneously created circle with exactly the caller as its sole admin and member and no elevated beta approval. Invalid batches roll back atomically.",
+  "findings": [],
+  "validation": [
+    "Pending account cannot create a family",
+    "Approved parent can atomically create and join their own new family",
+    "Existing-family reassignment and role escalation remain denied",
+    "Additional negative bootstrap cases are tested by scripts/test-redesign-journey.mjs"
+  ],
+  "resolvedFindings": [{ "severity": "moderate", "issue": "Challenge reads were allowed to all signed-in users.", "resolution": "Reads now require family membership or the trusted administrator claim; emulator tests verify foreign-family reads are denied." }]
+}

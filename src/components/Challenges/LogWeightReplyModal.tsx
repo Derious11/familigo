@@ -1,7 +1,7 @@
+import Modal from '../ui/Modal';
 
-import React, { useState, useContext } from 'react';
+import React,{ useContext,useState } from 'react';
 import { AppContext } from '../../App';
-import { XMarkIcon } from '../Icons';
 import { updateUserWeight } from '../../services/userService';
 import { Challenge } from '../../types';
 
@@ -59,15 +59,9 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up border border-white/20" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <XMarkIcon className="w-6 h-6" />
-                </button>
-                <div className="p-6">
-                    <h2 className="text-2xl font-bold text-center mb-1 text-brand-text-primary dark:text-gray-100">Log Your Weight</h2>
-                    <p className="text-center text-sm text-brand-text-secondary dark:text-gray-400 mb-4">Complete the challenge by entering your weight.</p>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+        <Modal isOpen={true} onClose={() => { if (!isLoading) onClose(); }} title="Log Your Weight">
+            <p className="app-dialog-description">Your weight stays in your profile. The challenge receives a completion message.</p>
+            <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label htmlFor="weight-log" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Your Weight</label>
                             <div className="mt-1">
@@ -111,18 +105,7 @@ const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, chal
                             </button>
                         </div>
                     </form>
-                </div>
-            </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.3s ease-out forwards;
-                }
-            `}</style>
-        </div>
+        </Modal>
     );
 };
 

@@ -1,3 +1,4 @@
+import Modal from '../../ui/Modal';
 
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { AppContext } from '../../../App';
@@ -214,14 +215,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
             default:
                 return (
                     <div>
-                        <h3 className="text-xl font-bold text-center mb-6 text-brand-text-primary dark:text-gray-100">Edit Profile</h3>
+
                         <ErrorMessage message={error} />
 
                         {/* Name Input */}
                         <div className="mb-6">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Display Name</label>
+                            <label htmlFor="edit-profile-name" className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Display Name</label>
                             <input
                                 type="text"
+                                id="edit-profile-name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-brand-blue outline-none transition-all font-semibold"
@@ -276,27 +278,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm relative animate-fade-in-up border border-gray-100 dark:border-gray-700" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <XMarkIcon className="w-6 h-6" />
-                </button>
-                <div className="p-6">
-                    {renderContent()}
-                </div>
-            </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(20px) scale(0.95); }
-                    to { opacity: 1; transform: translateY(0) scale(1); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-                }
-            `}</style>
-        </div>
+        <Modal isOpen={true} onClose={() => { if (!isLoading) onClose(); }} title="Edit Profile">
+            {renderContent()}
+        </Modal>
     );
 };
 
 export default EditProfileModal;
-

@@ -33,4 +33,7 @@ functions/.env.*
 !.env.example
 .secret.local
 *.pem
+.local-tools/
+.test-artifacts/
+.codex-remote-attachments/
 *service-account*.json

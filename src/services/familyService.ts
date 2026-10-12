@@ -80,8 +80,12 @@ export const createFamilyCircle = async (userId: string, familyName: string): Pr
         betaApproved: false, // Beta Requirement: Families start as pending
     };
 
-    const circleRef = await addDoc(collection(db, "familyCircles"), newCircleData);
-    await updateDoc(doc(db, 'users', userId), { familyCircleId: circleRef.id });
+    // Bootstrap membership atomically so rules can validate the new circle with getAfter.
+    const circleRef = doc(collection(db, "familyCircles"));
+    const batch = writeBatch(db);
+    batch.set(circleRef, newCircleData);
+    batch.update(doc(db, 'users', userId), { familyCircleId: circleRef.id });
+    await batch.commit();
 
     return {
         id: circleRef.id,

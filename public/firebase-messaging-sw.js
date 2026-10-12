@@ -31,7 +31,7 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title ?? "FamiliGo";
   const notificationOptions = {
     body: payload.notification?.body,
-    icon: "/assets/FamiliGo_logo.png",
+    icon: "/assets/brand/icon-192.png",
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);

@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+  const env = loadEnv(mode === 'emulator' ? 'development' : mode, '.', '');
   const firebaseConfig = {
     apiKey: env.VITE_FIREBASE_API_KEY,
     authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => {
     appId: env.VITE_FIREBASE_APP_ID,
     measurementId: env.VITE_FIREBASE_MEASUREMENT_ID,
   };
+  if (mode === 'emulator') {
+    Object.assign(firebaseConfig, { apiKey: 'demo-emulator-key', authDomain: 'localhost', projectId: 'demo-familigo-redesign', storageBucket: 'demo-familigo-redesign.appspot.com', appId: 'demo-familigo-redesign', messagingSenderId: '000000000000' });
+  }
   for (const [key, value] of Object.entries(firebaseConfig)) {
     if (key !== 'measurementId' && !value) {
       throw new Error(`Missing Firebase ${key} configuration for ${mode}.`);
@@ -20,6 +23,9 @@ export default defineConfig(({ mode }) => {
   }
   if (mode === 'development' && firebaseConfig.projectId !== 'familigo-dev-11643') {
     throw new Error('Development must use the familigo-dev-11643 Firebase project.');
+  }
+  if (mode === 'production' && firebaseConfig.projectId !== 'familigo-11643') {
+    throw new Error('Production must use the familigo-11643 Firebase project.');
   }
   const workerConfig = `self.FIREBASE_CONFIG = ${JSON.stringify(firebaseConfig)};`;
   return {

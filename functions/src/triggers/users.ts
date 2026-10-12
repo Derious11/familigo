@@ -47,7 +47,7 @@ export const onUserStatusChanged = functions.runWith({ secrets: [resendApiKeyPar
                     <p>Great news! Your account has been approved and your family beta access is ready.</p>
                     <p>You can now log in and start your family fitness journey.</p>
                     <br/>
-                    <a href="${getAppBaseUrl()}/app" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to App</a>
+                    <a href="${getAppBaseUrl()}/login" style="background-color: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 12px;">Log In to FamiliGo</a>
                 `,
                 });
                 console.log("Welcome email sent.");

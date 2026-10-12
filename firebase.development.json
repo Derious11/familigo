@@ -40,6 +40,48 @@
           }
         ]
       }
+    ],
+    "redirects": [
+      {
+        "source": "/landing-v2",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/landingpagea",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/landingpageb",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/parents",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/teens",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/early-access-v2",
+        "destination": "/early-access",
+        "type": 301
+      },
+      {
+        "source": "/login-v2",
+        "destination": "/login",
+        "type": 301
+      },
+      {
+        "source": "/app-preview",
+        "destination": "/app",
+        "type": 301
+      }
     ]
   },
   "firestore": {

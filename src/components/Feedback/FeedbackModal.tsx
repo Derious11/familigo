@@ -1,3 +1,4 @@
+import Modal from '../ui/Modal';
 import React, { useState, useContext, useRef } from 'react';
 import { AppContext } from '../../App';
 import { auth } from '../../firebaseConfig';
@@ -59,21 +60,14 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Send Feedback</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                        <XMarkIcon className="w-6 h-6" />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <Modal isOpen={true} onClose={() => { if (!isSubmitting) onClose(); }} title="Send Feedback">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             What were you trying to do? <span className="text-red-500">*</span>
                         </label>
                         <textarea
+                            aria-label="What were you trying to do?"
                             required
                             value={issue}
                             onChange={(e) => setIssue(e.target.value)}
@@ -88,6 +82,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
                             What happened? (Optional)
                         </label>
                         <textarea
+                            aria-label="What happened? (optional)"
                             value={whatWorked}
                             onChange={(e) => setWhatWorked(e.target.value)}
                             className="w-full px-3 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 focus:ring-2 focus:ring-brand-blue"
@@ -103,6 +98,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
                                 <button
                                     key={star}
                                     type="button"
+                                    aria-label={`Rate ${star} out of 5`}
+                                    aria-pressed={rating === star}
                                     onClick={() => setRating(star)}
                                     className={`p-1 transition-colors ${rating && rating >= star ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
                                 >
@@ -116,6 +113,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Screenshot (Optional)</label>
                         <input
                             type="file"
+                            aria-label="Feedback screenshot (optional)"
                             accept="image/*"
                             onChange={handleFileChange}
                             ref={fileInputRef}
@@ -141,8 +139,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({ onClose }) => {
                         </button>
                     </div>
                 </form>
-            </div>
-        </div>
+        </Modal>
     );
 };
 

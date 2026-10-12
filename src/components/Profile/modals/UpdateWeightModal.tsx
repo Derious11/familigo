@@ -1,3 +1,4 @@
+import Modal from '../../ui/Modal';
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../../../App';
 import { XMarkIcon } from '../../Icons';
@@ -50,14 +51,8 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm relative animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <XMarkIcon className="w-6 h-6" />
-                </button>
-                <div className="p-6">
-                    <h2 className="text-2xl font-bold text-center mb-4 text-brand-text-primary dark:text-gray-100">Update Weight</h2>
-                    <form onSubmit={handleSubmit} className="space-y-4">
+        <Modal isOpen={true} onClose={() => { if (!isLoading) onClose(); }} title="Update Weight">
+            <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label htmlFor="weight" className="block text-sm font-medium text-brand-text-secondary dark:text-gray-400">Your Weight</label>
                             <div className="mt-1">
@@ -101,18 +96,7 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
                             </button>
                         </div>
                     </form>
-                </div>
-            </div>
-            <style>{`
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in-up {
-                    animation: fade-in-up 0.3s ease-out forwards;
-                }
-            `}</style>
-        </div>
+        </Modal>
     );
 };
 
