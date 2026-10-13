@@ -1,8 +1,11 @@
 // Read-only smoke check: unauthenticated calls cannot record any activity.
 import assert from 'node:assert/strict';
 
-const origin = 'http://localhost:3000';
-const base = 'https://us-central1-familigo-dev-11643.cloudfunctions.net';
+const projectIndex = process.argv.indexOf('--project');
+const project = projectIndex < 0 ? 'familigo-dev-11643' : process.argv[projectIndex + 1];
+assert.ok(['familigo-dev-11643', 'familigo-11643'].includes(project), 'Choose an explicit FamiliGo project.');
+const origin = project === 'familigo-11643' ? 'https://www.familigo.life' : 'http://localhost:3000';
+const base = `https://us-central1-${project}.cloudfunctions.net`;
 const names = ['recordChallenge', 'recordChallengeReply', 'recordChallengeReaction', 'updateAchievementProfile', 'reconcileAchievements'];
 for (const name of names) {
     const endpoint = `${base}/${name}`;

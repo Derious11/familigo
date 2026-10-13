@@ -38,7 +38,8 @@ service cloud.firestore {
     function validMessage(data) {
       return data.keys().hasOnly(["familyCircleId", "senderId", "senderName", "text", "type", "timestamp", "authoredBy"])
         && data.text is string && data.text.size() > 0 && data.text.size() <= 2000
-        && data.senderName is string && data.type in ["text", "system"]
+        && data.senderName is string && data.senderName.size() > 0 && data.senderName.size() <= 120
+        && data.type in ["text", "system"]
         && data.authoredBy == request.auth.uid && canPostAs(data.senderId, data.familyCircleId);
     }
 

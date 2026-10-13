@@ -219,6 +219,14 @@ Controlled achievement tests must use only Auth/Firestore, as shown above:
 enabling automatic Functions triggers races their manual handler assertions.
 The signup journey uses Auth/Firestore/Functions separately.
 
+Production release preparation resolves both findings: notification helpers now
+import FieldPath and FieldValue from `firebase-admin/firestore`, with three
+regression tests; sender names are limited to 120 characters in the shared
+create/update rules validator and the chat client. The operational backfill uses
+the shared reconciliation engine with existing IAM credentials and does not
+impersonate an app administrator. See `achievement-production-release.md` for
+the coordinated release and verification record.
+
 Deploy to development for beta review only when authorized:
 
 ```powershell

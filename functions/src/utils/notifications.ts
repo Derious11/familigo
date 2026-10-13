@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import {FieldPath, FieldValue} from "firebase-admin/firestore";
 import {db, messaging} from "../init";
 
 const MAX_IN_QUERY = 30;
@@ -54,7 +55,7 @@ export const getTokensForUsers = async (
   for (const chunk of chunks) {
     const usersQuery = await db
       .collection("users")
-      .where(admin.firestore.FieldPath.documentId(), "in", chunk)
+      .where(FieldPath.documentId(), "in", chunk)
       .get();
 
     usersQuery.forEach((doc) => {
@@ -95,7 +96,7 @@ const removeInvalidTokens = async (
         .collection("users")
         .doc(userId)
         .update({
-          notificationTokens: admin.firestore.FieldValue.arrayRemove(token),
+          notificationTokens: FieldValue.arrayRemove(token),
         })
         .catch((error) => {
           console.error(

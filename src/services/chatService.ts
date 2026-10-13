@@ -17,11 +17,13 @@ import { db, auth } from '../firebaseConfig';
 import { User, Message } from '../types';
 
 export const sendMessage = async (familyCircleId: string, user: User, text: string, type: 'text' | 'system' = 'text') => {
+    const senderName = user.name?.trim() || 'Family member';
+    if (senderName.length > 120) throw new Error('Your display name must be 120 characters or fewer to send a message.');
     const messagesRef = collection(db, 'messages');
     await addDoc(messagesRef, {
         familyCircleId,
         senderId: user.id,
-        senderName: user.name,
+        senderName,
         text,
         type,
         timestamp: serverTimestamp(),

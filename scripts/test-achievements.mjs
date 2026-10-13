@@ -93,6 +93,8 @@ try {
   await assert.rejects(setDoc(doc(client,'messages','forged-system'),{familyCircleId:circle,senderId:uid,senderName:'Parent',text:'Fake award',type:'achievement',badgeId:'streak_star',timestamp:serverTimestamp(),authoredBy:uid}));
   await assert.rejects(setDoc(doc(client,'messages','forged-person'),{familyCircleId:circle,senderId:other,senderName:'Teen',text:'Pretend',type:'text',timestamp:serverTimestamp(),authoredBy:uid})); pass('clients cannot forge achievement messages or another member');
   await setDoc(doc(client,'messages',entity('hello')),{familyCircleId:circle,senderId:uid,senderName:'Parent',text:'Hello family',type:'text',timestamp:serverTimestamp(),authoredBy:uid});
+  await assert.rejects(setDoc(doc(client,'messages',entity('oversized-name')),{familyCircleId:circle,senderId:uid,senderName:'x'.repeat(121),text:'Hello',type:'text',timestamp:serverTimestamp(),authoredBy:uid}));
+  await assert.rejects(updateDoc(doc(client,'messages',entity('hello')),{senderName:'x'.repeat(121)}));
   const messageSnapshot=await db.doc('messages/'+entity('hello')).get();
   await Promise.all([backend.achievementChatCreated.run(messageSnapshot),backend.achievementChatCreated.run(messageSnapshot)]);
   assert.ok((await profile(uid)).state.awards.say_hello);
