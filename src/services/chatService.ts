@@ -13,7 +13,7 @@ import {
     increment,
     Timestamp
 } from "firebase/firestore";
-import { db } from '../firebaseConfig';
+import { db, auth } from '../firebaseConfig';
 import { User, Message } from '../types';
 
 export const sendMessage = async (familyCircleId: string, user: User, text: string, type: 'text' | 'system' = 'text') => {
@@ -25,6 +25,7 @@ export const sendMessage = async (familyCircleId: string, user: User, text: stri
         text,
         type,
         timestamp: serverTimestamp(),
+        authoredBy: auth.currentUser?.uid,
     });
 
     // Atomically increment the message count on the family circle

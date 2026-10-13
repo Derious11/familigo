@@ -1,0 +1,12 @@
+{
+  "score": 4,
+  "summary": "Scoped review of the achievement-related Firestore rules: award state, pins, receipts, challenge completions and reaction attribution are server-owned; reads are restricted to the owner or family; client chat updates retain sender and family identity. A minor resource-size gap remains in the human-message senderName field. This does not certify unchanged legacy rules or production deployment readiness.",
+  "findings": [
+    {
+      "check": "Storage Abuse / Type Safety",
+      "severity": "minor",
+      "issue": "validMessage checks senderName is a string but does not impose a length limit. An authorized family member can submit an unnecessarily large sender name up to Firestore's document limit.",
+      "recommendation": "Add a bounded senderName length and matching client validation before a broader production release. Keep text length, ownership and immutable-field checks intact."
+    }
+  ]
+}

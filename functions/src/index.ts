@@ -11,6 +11,15 @@ import { joinFamily } from "./callables/joinFamily";
 import { redeemTeenInvite } from "./callables/redeemTeenInvite";
 export { sendAccessInvite, redeemAccessInvite } from './callables/accessInvites';
 export { approveWaitlistUsers, revokeAccessInvite, updateAdminFeedback } from './callables/admin';
+export {
+  recordChallenge,
+  recordChallengeReply,
+  recordChallengeReaction,
+  updateAchievementProfile,
+  achievementChatCreated,
+  achievementChallengeCreated,
+} from "./achievements/backend";
+export {reconcileAchievements} from "./achievements/reconcile";
 
 // Export triggers
 export {

@@ -4,6 +4,7 @@ import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { getFirestore, setLogLevel, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getMessaging } from "firebase/messaging";
+import {getFunctions, connectFunctionsEmulator} from 'firebase/functions';
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -23,6 +24,7 @@ if (import.meta.env.MODE === 'emulator') {
     connectAuthEmulator(auth, 'http://127.0.0.1:9095', { disableWarnings: true });
     connectFirestoreEmulator(db, '127.0.0.1', 8085);
     connectStorageEmulator(storage, '127.0.0.1', 9195);
+    connectFunctionsEmulator(getFunctions(), '127.0.0.1', 5005);
 }
 
 // Add this:

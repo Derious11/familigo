@@ -5,5 +5,6 @@ export interface Message {
     senderName: string;
     text: string;
     timestamp: Date;
-    type: 'text' | 'system';
+    type: 'text' | 'system' | 'achievement';
+    badgeId?: string;
 }

@@ -31,7 +31,7 @@ try {
     pass('parent signup creates an account pending approval');
     await assert.rejects(services.createFamilyCircle(parent.id, 'Pending Test Family'));
     pass('pending accounts cannot create a family');
-    await store.doc(`users/${parent.id}`).update({ status: 'active', approvedBy: 'emulator-fixture-admin' });
+    await store.doc(`users/${parent.id}`).update({ status: 'active', email: null, approvedBy: 'emulator-fixture-admin' });
     const circle = await services.createFamilyCircle(parent.id, 'Redesign Test Family');
     const userDoc = await getDoc(doc(services.db, 'users', parent.id));
     assert.equal(userDoc.data().familyCircleId, circle.id);
@@ -52,6 +52,16 @@ try {
     assert.equal(challenges.size, 1);
     const challenge = challenges.docs[0];
     pass('first solo challenge is created using the real service');
+    const receiptRef=store.doc(`achievementEvents/create_${challenge.id}`);
+    const deadline=Date.now()+15000;
+    while (!(await receiptRef.get()).data()?.processedAt && Date.now()<deadline) {
+        await new Promise(resolve=>setTimeout(resolve,200));
+    }
+    assert.ok((await receiptRef.get()).data()?.processedAt);
+    const achievement=(await store.doc(`achievementProfiles/${parent.id}`).get()).data();
+    assert.ok(achievement.state.awards.game_on);
+    assert.equal(achievement.state.metrics.created,1);
+    pass('real Firestore trigger processes the durable creation job and awards Game On');
     await services.addReplyToChallenge(parentUser, challenge.id, circle.id, undefined, 'Completed the challenge!', undefined, true);
     const completedChallenge = await getDoc(doc(services.db, 'challenges', challenge.id));
     assert.ok(completedChallenge.data().completedBy.includes(parent.id));
@@ -73,7 +83,7 @@ try {
     pass('the parent can log in again after setup and completion');
     const second = await services.signUpWithEmail('Second Test Parent', `other-${Date.now()}@example.test`, 'Synthetic-Test-Only-42!', 'adult');
     assert.equal(second.error, null);
-    await store.doc(`users/${second.user.id}`).update({ status: 'active' });
+    await store.doc(`users/${second.user.id}`).update({ status: 'active', email: null });
     await assert.rejects(getDoc(doc(services.db, 'challenges', challenge.id)));
     pass('a signed-in user outside the family cannot read its challenges');
     await assert.rejects(updateDoc(doc(services.db, 'users', second.user.id), { familyCircleId: 'unrelated-fixture' }));
@@ -86,9 +96,9 @@ try {
         assert.equal((await store.doc(`familyCircles/${circleRef.id}`).get()).exists, false);
     }
     pass('bootstrap denies existing circles, extra admins, beta self-approval, and concurrent role changes atomically');
-    console.log(`Journey verification complete: ${completed} checks; demo project only. No functions ran and no real emails were sent.`);
+    console.log(`Journey verification complete: ${completed} checks; trusted activity callables used against the demo project only.`);
 } finally {
     await signOut(services.auth);
     await admin.app().delete();
-    process.exit(completed === 10 ? 0 : 1);
+    process.exit(completed === 11 ? 0 : 1);
 }

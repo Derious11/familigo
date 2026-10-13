@@ -32,6 +32,9 @@ export interface Challenge {
     replies?: Reply[]; // Kept for potential future use or old data structures
     expiresAt: Date;
     completedBy: string[];
+    participantIds?: string[];
+    participationScope?: 'family';
+    completionTimes?: Record<string, number>;
 }
 
 export interface AddReplyPayload {

@@ -86,7 +86,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-900/20 text-purple-500 mb-2 group-hover:scale-110 transition-transform">
                             <ShieldCheckIcon className="w-7 h-7"/>
                         </div>
-                        <div className="text-xl font-black text-gray-800 dark:text-gray-100">{currentUser.badges.filter(b => b.unlocked).length}</div>
+                        <div className="text-xl font-black text-gray-800 dark:text-gray-100">{(currentUser.achievementCount || 0) + currentUser.badges.filter(b => b.unlocked).length}</div>
                         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Badges</div>
                     </div>
 

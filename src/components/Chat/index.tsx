@@ -6,6 +6,8 @@ import { Message } from '../../types';
 import AppTabIntro from '../AppTabIntro';
 import { CheckIcon,PaperAirplaneIcon,PencilIcon,TrashIcon,XMarkIcon } from '../Icons';
 import AvatarImage from '../ui/AvatarImage';
+import {BADGES} from '../../services/achievementService';
+import '../Profile/achievements.css';
 const Chat: React.FC = () => {
     const context = useContext(AppContext);
     const { currentUser, familyCircle } = context || {};
@@ -122,6 +124,10 @@ const Chat: React.FC = () => {
 
                 {messages.map((msg, index) => {
             const isMe = msg.senderId === currentUser.id;
+            if (msg.type === 'achievement') {
+                const badge = BADGES.find(b => b.id === msg.badgeId);
+                return <div key={msg.id} className="achievement-announcement"><span aria-hidden="true">{badge?.icon || '🏆'}</span><div>{msg.senderId && <AvatarImage userId={msg.senderId} alt={msg.senderName} className="w-8 h-8 rounded-full mb-2" cacheKey={getAvatarCacheKey(msg.senderId)}/>}<b>{msg.senderName} unlocked {badge?.name || 'an achievement'}!</b><p>{msg.text}</p><details><summary>Badge details</summary><p>{badge?.description}</p><small>{msg.timestamp.toLocaleDateString()}</small></details></div></div>;
+            }
             const showAvatar = !isMe && (index === 0 || messages[index - 1].senderId !== msg.senderId || messages[index - 1].type === 'system');
             if (msg.type === 'system') {
                 return (<div key={msg.id} className="flex justify-center my-4">

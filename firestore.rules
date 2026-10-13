@@ -27,6 +27,21 @@ service cloud.firestore {
         && child.familyCircleId == circleId;
     }
 
+    // Server-owned achievement profiles: state, pins and celebration claims.
+    // Human messages: immutable family/sender/type, text <= 2000, server timestamp.
+    function canPostAs(senderId, circleId) {
+      let sender = get(/databases/$(database)/documents/users/$(senderId)).data;
+      return sender.familyCircleId == circleId
+        && (sender.get("status", "active") == "active")
+        && (request.auth.uid == senderId || (sender.role == "child" && sender.parentId == request.auth.uid));
+    }
+    function validMessage(data) {
+      return data.keys().hasOnly(["familyCircleId", "senderId", "senderName", "text", "type", "timestamp", "authoredBy"])
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 2000
+        && data.senderName is string && data.type in ["text", "system"]
+        && data.authoredBy == request.auth.uid && canPostAs(data.senderId, data.familyCircleId);
+    }
+
     // Only an approved parent without a family can bootstrap their own new circle.
     // It must be created in the same batch, with no other members or elevated approval.
     function validFamilyBootstrap(userId) {
@@ -70,7 +85,8 @@ service cloud.firestore {
       );
 
       /* -------- CREATE -------- */
-      allow create: if isSignedIn() && (
+      allow create: if isSignedIn() && !request.resource.data.keys().hasAny(["achievementState", "achievementCount", "pinnedBadgeIds"])
+        && request.resource.data.get("badges", []) == [] && (
         // Normal signup
         (
           request.auth.uid == userId
@@ -91,7 +107,7 @@ service cloud.firestore {
       );
 
       /* -------- UPDATE -------- */
-      allow update: if isSignedIn() && (
+      allow update: if isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["badges", "achievementState", "achievementCount", "pinnedBadgeIds"]) && (
         isAdmin()
         || validFamilyBootstrap(userId)
 
@@ -192,10 +208,10 @@ service cloud.firestore {
 
       allow read: if isSignedIn() && (isAdmin() || isFamilyMember(resource.data.familyCircleId));
 
-      allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId);
+      allow create: if false; // Validated by recordChallenge callable.
       
       // Updates usually don't change the familyCircleId, so we check the existing one
-      allow update: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      allow update: if false; // Enrollment, totals and completions are server-owned.
       
       allow delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
     }
@@ -205,11 +221,11 @@ service cloud.firestore {
        ======================== */
     match /replies/{replyId} {
 
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
 
-      allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId);
+      allow create: if false; // Validated by recordChallengeReply callable.
       
-      allow update: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      allow update: if false; // Reaction attribution is server-owned.
       
       allow delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
     }
@@ -220,10 +236,32 @@ service cloud.firestore {
     match /messages/{messageId} {
 
       // For CREATE, we must check request.resource.data because resource doesn't exist yet
-      allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId);
+      allow create: if isSignedIn() && isFamilyMember(request.resource.data.familyCircleId)
+        && validMessage(request.resource.data) && request.resource.data.timestamp == request.time;
 
       // For READ, UPDATE, DELETE, we check the existing document (resource.data)
-      allow read, update, delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      allow read: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      allow update: if isSignedIn() && isFamilyMember(resource.data.familyCircleId)
+        && resource.data.type == "text" && validMessage(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text"]);
+      allow delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId)
+        && resource.data.type in ["text", "system"] && canPostAs(resource.data.senderId, resource.data.familyCircleId);
+    }
+
+    match /achievementProfiles/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId
+        || (get(/databases/$(database)/documents/users/$(userId)).data.get("familyCircleId", null) != null
+          && isFamilyMember(get(/databases/$(database)/documents/users/$(userId)).data.familyCircleId))
+      );
+      allow write: if false;
+    }
+    match /familyAchievements/{circleId} {
+      allow read: if isSignedIn() && isFamilyMember(circleId);
+      allow write: if false;
+    }
+    match /achievementEvents/{eventId} {
+      allow read, write: if false;
     }
 
     /* ========================

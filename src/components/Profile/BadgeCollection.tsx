@@ -1,46 +1,247 @@
-import React from 'react';
-import { Badge } from '../../types';
-import { ShieldCheckIcon } from '../Icons';
-interface BadgeCollectionProps {
-    badges: Omit<Badge, 'unlocked'>[];
-    unlockedIds: Set<string>;
-    isLoading: boolean;
-}
-const BadgeCollection: React.FC<BadgeCollectionProps> = ({ badges, unlockedIds, isLoading }) => {
-    return (<div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Recent Achievements</h3>
-
-            {isLoading ? (<div className="py-4 text-center text-sm text-gray-400">Loading trophies...</div>) : !badges.some(badge => unlockedIds.has(badge.id)) ? (<div className="app-badges-empty"><ShieldCheckIcon className="w-10 h-10"/><p>Little wins belong here.</p><span>Your earned badges will appear in this collection.</span></div>) : (
-        // Changed to horizontal scroll for better "collection" feel
-        <div className="flex overflow-x-auto pb-4 gap-4 -mx-2 px-2 snap-x">
-                    {badges.map(badge => {
-                const isUnlocked = unlockedIds.has(badge.id);
-                // Sort unlocked first visually
-                if (!isUnlocked)
-                    return null; // Optional: Only show unlocked in this quick view?
-                // Let's show all but highlight unlocked - wait, the original code had `if (!isUnlocked) return null;` commented out?
-                // Original code:
-                // if (!isUnlocked) return null; // Optional: Only show unlocked in this quick view?
-                // Let's show all but highlight unlocked
-                // Actually, looking at the original code provided in the prompt:
-                // 294:                             if (!isUnlocked) return null; // Optional: Only show unlocked in this quick view?
-                // It seems the user wants to show only unlocked ones or maybe all?
-                // The comment says "Let's show all but highlight unlocked" but the code `if (!isUnlocked) return null;` effectively hides locked ones.
-                // However, line 306 shows a placeholder for locked badges count.
-                // So I will stick to the logic: Show unlocked ones, and then a summary card for locked ones.
-                return (<div key={badge.id} className="flex-shrink-0 w-24 snap-center flex flex-col items-center gap-2 p-3 rounded-xl bg-gradient-to-b from-yellow-50 to-white dark:from-gray-700 dark:to-gray-800 border border-yellow-200 dark:border-gray-600 shadow-sm">
-                                <div className="text-3xl">{badge.icon}</div>
-                                <span className="text-xs font-bold text-center leading-tight text-gray-700 dark:text-gray-200 line-clamp-2">{badge.name}</span>
-                            </div>);
-            })}
-                    {/* Show placeholder for locked badges count */}
-                    <div className="flex-shrink-0 w-24 flex flex-col items-center justify-center p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-dashed border-gray-300">
-                        <div className="text-gray-300 mb-1"><ShieldCheckIcon className="w-8 h-8"/></div>
-                        <span className="text-xs text-gray-400 text-center">
-                            {badges.length - unlockedIds.size} Locked
-                        </span>
+import React, { useEffect, useState } from "react";
+import {
+  AchievementProfile,
+  achievementCall,
+  BADGES,
+  watchAchievements,
+  BadgeDefinition,
+  metricAt,
+} from "../../services/achievementService";
+import { User } from "../../types";
+import "./achievements.css";
+export default function BadgeCollection({
+  user,
+  familyCircleId,
+}: {
+  user: User;
+  familyCircleId?: string;
+}) {
+  const [profile, setProfile] = useState<AchievementProfile>();
+  const [family, setFamily] = useState<AchievementProfile>();
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setProfile(undefined);
+    setError("");
+    return watchAchievements(user.id, setProfile, false, () =>
+      setError("Could not load achievements. Check your connection."),
+    );
+  }, [user.id]);
+  useEffect(() => {
+    setFamily(undefined);
+    if (familyCircleId)
+      return watchAchievements(familyCircleId, setFamily, true, () =>
+        setError("Could not load family achievements."),
+      );
+  }, [familyCircleId]);
+  const personal = BADGES.filter((b) => b.scope === "user");
+  const state = profile?.state;
+  const pins = profile?.pinnedBadgeIds || [];
+  const save = async (ids: string[]) => {
+    if (!familyCircleId) return;
+    setSaving(true);
+    setError("");
+    try {
+      await achievementCall("updateAchievementProfile", {
+        actorId: user.id,
+        familyCircleId,
+        pinnedBadgeIds: ids,
+      });
+    } catch {
+      setError(
+        "Could not save pins. Choose up to three earned badges and try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+  const progress = (b: BadgeDefinition) =>
+    Math.min(b.target, metricAt(state, b.metric, Date.now()));
+  const locked = personal.filter((b) => !state?.awards[b.id]);
+  const upcoming = [...locked]
+    .sort((a, b) => progress(b) / b.target - progress(a) / a.target)
+    .slice(0, 3);
+  const card = (b: BadgeDefinition, compact = false) => {
+    const award = state?.awards[b.id];
+    const pinned = pins.includes(b.id);
+    return (
+      <article
+        key={b.id}
+        className={`achievement-card ${award ? "earned" : "locked"}`}
+      >
+        <span className="achievement-icon" aria-hidden="true">
+          {b.icon}
+        </span>
+        <div>
+          <p className="achievement-category">{b.category}</p>
+          <h4>{b.name}</h4>
+          <p>{b.description}</p>
+          {award ? (
+            <>
+              <small>
+                Earned {new Date(award.unlockedAt).toLocaleDateString()}
+              </small>
+              {!compact && (
+                <button
+                  disabled={
+                    saving || !familyCircleId || (!pinned && pins.length >= 3)
+                  }
+                  aria-pressed={pinned}
+                  onClick={() =>
+                    save(
+                      pinned
+                        ? pins.filter((id) => id !== b.id)
+                        : [...pins, b.id],
+                    )
+                  }
+                >
+                  {pinned ? "Unpin" : "Pin to Profile"}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <label htmlFor={`progress-${compact ? "next-" : ""}${b.id}`}>
+                {progress(b)} / {b.target}
+              </label>
+              <progress
+                id={`progress-${compact ? "next-" : ""}${b.id}`}
+                value={progress(b)}
+                max={b.target}
+              />
+            </>
+          )}
+        </div>
+      </article>
+    );
+  };
+  return (
+    <section
+      id="achievements"
+      className="achievement-collection"
+      aria-label="Achievements"
+    >
+      <h3>Featured Achievements</h3>
+      <p className="achievement-hint">
+        Pin up to three favorite wins to your profile.
+      </p>
+      {error && <p role="alert">{error}</p>}
+      {!profile ? (
+        <p role="status">Loading achievements…</p>
+      ) : (
+        <>
+          <div className="achievement-pins">
+            {pins.length ? (
+              pins.map((id, i) => {
+                const b = BADGES.find((b) => b.id === id);
+                if (!b) return null;
+                return (
+                  <div key={id}>
+                    <span aria-hidden="true">{b.icon}</span>
+                    <b>{b.name}</b>
+                    <div>
+                      <button
+                        disabled={saving || i === 0}
+                        aria-label={`Move ${b.name} earlier`}
+                        onClick={() => {
+                          const ids = [...pins];
+                          [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]];
+                          save(ids);
+                        }}
+                      >
+                        ←
+                      </button>
+                      <button
+                        disabled={saving || i === pins.length - 1}
+                        aria-label={`Move ${b.name} later`}
+                        onClick={() => {
+                          const ids = [...pins];
+                          [ids[i + 1], ids[i]] = [ids[i], ids[i + 1]];
+                          save(ids);
+                        }}
+                      >
+                        →
+                      </button>
+                      <button
+                        disabled={saving}
+                        aria-label={`Unpin ${b.name}`}
+                        onClick={() =>
+                          save(pins.filter((value) => value !== id))
+                        }
+                      >
+                        ×
+                      </button>
                     </div>
-                </div>)}
-        </div>);
-};
-export default BadgeCollection;
+                  </div>
+                );
+              })
+            ) : (
+              <p>Your favorite earned badges will appear here.</p>
+            )}
+          </div>
+          {!!upcoming.length && (
+            <>
+              <h3>Your Next Achievements</h3>
+              <div className="achievement-grid">
+                {upcoming.map((b) => card(b, true))}
+              </div>
+            </>
+          )}
+          <h3>Earned Badges · {personal.length - locked.length}</h3>
+          {personal.length === locked.length ? (
+            <p>Small steps count. Your first badge is waiting!</p>
+          ) : (
+            <div className="achievement-grid">
+              {personal.filter((b) => state?.awards[b.id]).map((b) => card(b))}
+            </div>
+          )}
+          <details>
+            <summary>Locked Badges · {locked.length}</summary>
+            <div className="achievement-grid">{locked.map((b) => card(b))}</div>
+          </details>
+        </>
+      )}
+      {familyCircleId && (
+        <>
+          <h3>Family Achievements</h3>
+          {BADGES.filter((b) => b.scope === "family").map((b) => (
+            <article
+              key={b.id}
+              className={`achievement-card ${family?.state.awards[b.id] ? "earned" : "locked"}`}
+            >
+              <span className="achievement-icon" aria-hidden="true">
+                {b.icon}
+              </span>
+              <div>
+                <h4>{b.name}</h4>
+                <p>{b.description}</p>
+                {family?.state.awards[b.id] && (
+                  <small>
+                    Earned{" "}
+                    {new Date(
+                      family.state.awards[b.id].unlockedAt,
+                    ).toLocaleDateString()}
+                  </small>
+                )}
+              </div>
+            </article>
+          ))}
+        </>
+      )}
+      {!!user.badges.filter(
+        (b) => b.unlocked && !BADGES.some((def) => def.id === b.id),
+      ).length && (
+        <details>
+          <summary>Earlier FamiliGo badges</summary>
+          {user.badges
+            .filter((b) => b.unlocked && !BADGES.some((def) => def.id === b.id))
+            .map((b) => (
+              <p key={b.id}>
+                {b.icon} {b.name} — {b.description}
+              </p>
+            ))}
+        </details>
+      )}
+    </section>
+  );
+}

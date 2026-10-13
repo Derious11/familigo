@@ -4,6 +4,7 @@ import { getAdminUsers, getAccessInvites, getAdminFamilies, getAdminChallenges, 
 import { getAllFeedback } from '../../services/feedbackService';
 import { User, Feedback } from '../../types';
 import { getInviteProgress, challengeHasCompletion, lastRecordedActivity } from '../../lib/adminInsights.mjs';
+import {reconcileFamilyAchievements, AchievementReconciliation} from '../../services/adminService';
 
 const panel = 'rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-6';
 const input = 'rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white';
@@ -52,6 +53,7 @@ export default function AdminDashboard() {
         { id: 'waitlist', label: `Waitlist (${pending.length})`, icon: Users }, { id: 'invites', label: 'Invite codes', icon: Mail },
         { id: 'metrics', label: 'Metrics & funnel', icon: BarChart3 }, { id: 'families', label: 'Families', icon: Users },
         { id: 'feedback', label: 'Feedback', icon: MessageSquare }, { id: 'activity', label: 'Activity log', icon: History },
+        { id: 'achievements', label: 'Achievement backfill', icon: History },
     ];
     return <main className="min-h-screen bg-slate-950 p-4 text-white sm:p-8"><div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-bold">Admin Dashboard</h1><p className="mt-2 text-slate-400">Help families get started and keep your community moving.</p></div><button onClick={() => void fetchData()} disabled={disabled} className={secondary}>{loading ? 'Refreshing…' : 'Refresh data'}</button></header>
@@ -60,6 +62,7 @@ export default function AdminDashboard() {
         {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
         {(message || busy) && <p role="status" className="mb-4 rounded-xl bg-emerald-500/10 p-4 text-sm text-emerald-300">{busy ? `${busy}…` : message}</p>}
         {section === 'waitlist' && <WaitlistPanel {...common} disabled={disabled || unavailable.includes('accounts')} users={pending} />}
+        {section === 'achievements' && <AchievementBackfillPanel {...common} families={families}/>}
         {section === 'invites' && <InvitesPanel {...common} disabled={disabled || unavailable.includes('invitations')} invites={invites} users={users} families={families} challenges={challenges} progressAvailable={!unavailable.some(name => ['accounts', 'families', 'challenges'].includes(name))} />}
         {section === 'metrics' && <MetricsPanel users={users} families={families} challenges={challenges} invites={invites} loading={loading} unavailable={unavailable} />}
         {section === 'families' && <FamiliesPanel families={families} users={users} challenges={challenges} loading={loading} unavailable={unavailable} />}
@@ -158,3 +161,13 @@ function Stat({ label, value, bare = false }: { label: string; value: string | n
     return <div className={bare ? '' : 'rounded-xl border border-slate-800 bg-slate-950 p-4'}><p className="text-sm text-slate-400">{label}</p><p className={`mt-2 font-semibold ${typeof value === 'number' ? 'text-3xl' : 'text-lg'}`}>{value}</p></div>;
 }
 function Empty({ children }: { children: React.ReactNode }) { return <p className="py-8 text-center text-sm text-slate-400">{children}</p>; }
+
+function AchievementBackfillPanel({families, disabled, runAction}: CommonProps & {families: AdminFamily[]}) {
+    const [circleId, setCircleId] = useState('');
+    const [preview, setPreview] = useState<AchievementReconciliation>();
+    return <section className={panel}><h2 className="text-xl font-semibold">Reconcile achievement history</h2><p className="mt-2 text-sm text-slate-400">Preview one family first. Applying the backfill keeps existing awards and pins, adds reliable historical credit, and sends no celebrations or chat announcements.</p>
+        <label htmlFor="achievement-backfill-family" className="block mt-4 mb-2 text-sm">Family Circle</label><select id="achievement-backfill-family" className={input} value={circleId} disabled={disabled} onChange={e => {setCircleId(e.target.value); setPreview(undefined);}}><option value="">Choose a family</option>{families.map(family => <option key={family.id} value={family.id}>{family.name || family.id}</option>)}</select>
+        <div className="flex gap-3 my-4"><button className={secondary} disabled={disabled || !circleId} onClick={() => runAction('Preview backfill', async () => {const result = await reconcileFamilyAchievements(circleId); setPreview(result); return `Preview: ${result.newAwards} new personal awards across ${result.members} members.`;})}>Preview backfill</button><button className={button} disabled={disabled || !preview || !circleId} onClick={() => runAction('Apply backfill', async () => {const result = await reconcileFamilyAchievements(circleId, true); setPreview(undefined); return `Backfill applied: ${result.newAwards} personal awards. No announcements sent.`;})}>Apply quiet backfill</button></div>
+        {preview && <p className="text-sm text-slate-400">{preview.skippedCompletionDates} legacy completions lack a reliable completion date. They count toward milestones and Explorer, but cannot establish activity weeks or return gaps.</p>}
+    </section>;
+}

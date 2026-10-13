@@ -23,6 +23,7 @@ export interface User {
     streak: number;
     lastActiveDate?: Date;
     badges: Badge[];
+    achievementCount?: number;
     familyCircleId?: string;
     emailVerified: boolean;
     currentWeight?: number;

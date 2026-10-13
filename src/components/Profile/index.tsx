@@ -1,8 +1,8 @@
 import React,{ useContext,useEffect,useMemo,useState } from 'react';
 import { AppContext } from '../../App';
 import { requestNotificationPermission,revokeNotificationPermission } from '../../services/pushRouter';
-import { getBadges,updateCoverPhoto } from '../../services/userService';
-import { Badge } from '../../types';
+import { updateCoverPhoto } from '../../services/userService';
+
 // Sub-components
 import ActivityHeatmap from './ActivityHeatmap';
 import BadgeCollection from './BadgeCollection';
@@ -21,8 +21,6 @@ const Profile: React.FC = () => {
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
     const [isFamilySettingsOpen, setIsFamilySettingsOpen] = useState(false);
     const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
-    const [allBadges, setAllBadges] = useState<Omit<Badge, 'unlocked'>[]>([]);
-    const [isLoadingBadges, setIsLoadingBadges] = useState(true);
     const [isNotificationToggleLoading, setIsNotificationToggleLoading] = useState(false);
     const [familySettingsInitialTab, setFamilySettingsInitialTab] = useState<'members' | 'add' | 'general'>('members');
     if (!context || !context.currentUser) {
@@ -33,19 +31,6 @@ const Profile: React.FC = () => {
         return currentUser.notificationTokens && currentUser.notificationTokens.length > 0;
     }, [currentUser.notificationTokens]);
     useEffect(() => {
-        const fetchBadges = async () => {
-            try {
-                const badgesData = await getBadges();
-                setAllBadges(badgesData);
-            }
-            catch (error) {
-                console.error("Failed to fetch badges:", error);
-            }
-            finally {
-                setIsLoadingBadges(false);
-            }
-        };
-        fetchBadges();
         // Check if we should auto-open family settings (e.g. from onboarding)
         const justCreated = sessionStorage.getItem('justCreatedFamily');
         if (justCreated) {
@@ -54,9 +39,6 @@ const Profile: React.FC = () => {
             sessionStorage.removeItem('justCreatedFamily');
         }
     }, []);
-    const unlockedBadgeIds = useMemo(() => {
-        return new Set<string>(currentUser.badges.filter(b => b.unlocked).map(b => b.id));
-    }, [currentUser.badges]);
     const handleNotificationToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const enable = e.target.checked;
         setIsNotificationToggleLoading(true);
@@ -104,7 +86,7 @@ const Profile: React.FC = () => {
             <div className={'app-profile-grid'}>
             <ActivityHeatmap activityMap={currentUser.activityMap || {}}/>
 
-            <BadgeCollection badges={allBadges} unlockedIds={unlockedBadgeIds} isLoading={isLoadingBadges}/>
+            <BadgeCollection user={currentUser} familyCircleId={familyCircle?.id}/>
             </div>
 
             {familyCircle && (<FamilyCircleCard familyCircle={familyCircle} currentUser={currentUser} isImpersonating={isImpersonating} originalUserId={originalUserId} onSwitchProfile={switchProfile} onManage={() => setIsFamilySettingsOpen(true)}/>)}

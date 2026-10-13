@@ -11,6 +11,7 @@ import History from './History';
 import { ChatBubbleLeftIcon,PlusIcon } from './Icons';
 import Profile from './Profile';
 import './app.css';
+import AchievementCelebration from './AchievementCelebration';
 const MainApp: React.FC = () => {
     const [activeView, setActiveView] = useState<View>('feed');
     const [isCreateChallengeModalOpen, setIsCreateChallengeModalOpen] = useState(false);
@@ -84,6 +85,7 @@ const MainApp: React.FC = () => {
             {isCreateChallengeModalOpen && (<CreateChallengeModal onClose={() => setIsCreateChallengeModalOpen(false)}/>)}
 
             {isFeedbackModalOpen && (<FeedbackModal onClose={() => setIsFeedbackModalOpen(false)}/>)}
+            {currentUser?.familyCircleId && <AchievementCelebration actorId={currentUser.id} familyCircleId={currentUser.familyCircleId} onView={() => {setActiveView('profile'); setTimeout(() => document.getElementById('achievements')?.scrollIntoView({behavior: 'auto'}), 100);}}/>}
         </div>);
 };
 export default MainApp;

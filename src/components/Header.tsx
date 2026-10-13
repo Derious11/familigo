@@ -1,8 +1,8 @@
 import React,{ useContext,useEffect,useState } from 'react';
 import { AppContext } from '../App';
-import { onFamilyCircleUpdate } from '../services/familyService';
-import { FamilyCircle,View } from '../types';
+import { View } from '../types';
 import { ChatBubbleIcon,FireIcon,MoonIcon,NewspaperIcon,SunIcon,TrophyIcon,UserCircleIcon } from './Icons';
+import AvatarImage from './ui/AvatarImage';
 interface HeaderProps {
     activeView: View;
     setActiveView: (view: View) => void;
@@ -37,16 +37,8 @@ const ThemeToggle: React.FC = () => {
 };
 const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
     const context = useContext(AppContext);
-    const { currentUser } = context || {};
-    const [familyCircle, setFamilyCircle] = useState<FamilyCircle | null>(null);
-    useEffect(() => {
-        if (currentUser?.familyCircleId) {
-            const unsubscribe = onFamilyCircleUpdate(currentUser.familyCircleId, (circle) => {
-                setFamilyCircle(circle);
-            });
-            return () => unsubscribe();
-        }
-    }, [currentUser?.familyCircleId]);
+    const { currentUser, familyCircle } = context || {};
+    const profileName = currentUser?.name?.trim() || 'Your profile';
     const unreadCount = (familyCircle?.messageCount || 0) - (currentUser?.lastReadMessageCount || 0);
     return (<header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 shadow-sm border-b border-gray-200/50 dark:border-gray-700/50 transition-colors duration-300 app-header">
             <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between app-header-top">
@@ -55,18 +47,26 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
                 </div>
                 <div className="flex items-center gap-3 app-header-status">
                     {currentUser && (<>
+                            <button type="button" onClick={() => setActiveView('profile')} aria-label={`View profile for ${profileName}`} aria-current={activeView === 'profile' ? 'page' : undefined} className="app-header-profile">
+                                <AvatarImage userId={currentUser.id} hasAvatar={currentUser.hasAvatar} cacheKey={currentUser.avatarUpdatedAt?.getTime?.()} alt="" className="app-header-avatar" />
+                                <span className="app-header-identity">
+                                    <span className="app-header-name" title={profileName}>{profileName}</span>
+                                    <span className="app-header-family" title={familyCircle?.name || 'View your profile'}>{familyCircle?.name || 'View your profile'}</span>
+                                </span>
+                            </button>
                             {/* Streak */}
-                            <div className="flex items-center gap-1 bg-orange-100/50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-full px-2 py-1 border border-orange-200 dark:border-orange-800" aria-label={`${currentUser.streak} day login streak`} title="Consecutive days signed in">
+                            <div className="app-header-streak flex items-center gap-1 bg-orange-100/50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-full px-2 py-1 border border-orange-200 dark:border-orange-800" aria-label={`${currentUser.streak} day login streak`} title="Consecutive days signed in">
                                 <FireIcon className="w-4 h-4 text-orange-500 dark:text-orange-400"/>
                                 <span className="font-bold text-xs">{currentUser.streak}</span>
                                 {<span className="app-streak-label">day login streak</span>}
                             </div>
 
                             {/* Level & XP */}
-                            <div className="flex flex-col items-end ml-1">
+                            <div className="app-header-progress flex flex-col items-end ml-1" aria-label={`Level ${currentUser.level || 1}, ${currentUser.xp || 0} XP`}>
                                 <div className="text-[10px] font-bold text-amber-500 dark:text-amber-400 leading-none mb-1">
                                     LVL {currentUser.level || 1}
                                 </div>
+                                <span className="app-header-xp">{(currentUser.xp || 0).toLocaleString()} XP</span>
                                 <div className="w-12 sm:w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                     <div className="h-full bg-gradient-to-r from-amber-300 to-amber-500 rounded-full" style={{ width: `${Math.min(((currentUser.xp || 0) % 500) / 500 * 100, 100)}%` }}/>
                                 </div>

@@ -88,6 +88,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
         id: string;
     } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [actionError, setActionError] = useState('');
 
     const bundledGuide = EXERCISES.find(exercise =>
         exercise.name.toLowerCase() === challenge.exercise.name.toLowerCase()
@@ -146,21 +147,10 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
         else setIsCreateReplyModalOpen(true);
     };
 
-    const handleReaction = (replyId: string, emoji: string) => {
-        setReplies((cur) =>
-            cur.map((r) =>
-                r.id === replyId
-                    ? {
-                        ...r,
-                        reactions: {
-                            ...r.reactions,
-                            [emoji]: (r.reactions[emoji] || 0) + 1,
-                        },
-                    }
-                    : r
-            )
-        );
-        updateReaction(replyId, emoji);
+    const handleReaction = async (replyId: string, emoji: string) => {
+        if (!currentUser) return;
+        try { await updateReaction(replyId, emoji, currentUser.id, challenge.familyCircleId); setActionError(''); }
+        catch { setActionError('Could not save your reaction. Please try again.'); }
     };
 
     const handleMainCommentSubmit = async (e: React.FormEvent) => {
@@ -197,7 +187,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
             progress = Math.min((current / challenge.goalTotal) * 100, 100);
             progressText = `${current} / ${challenge.goalTotal} ${challenge.unit}`;
         } else {
-            const count = challenge.completedBy?.length || 0;
+            const count = challenge.completedBy?.filter(id => familyCircle.members.some(member => member.id === id)).length || 0;
             const total = familyCircle.members.length;
             progress = (count / total) * 100;
             progressText = `${count}/${total}`;
@@ -210,6 +200,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
     return (
         <div className={`app-challenge-card bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 ${!isActive ? 'opacity-75 grayscale-[0.5]' : ''}`}>
+            {actionError && <p role="alert" className="p-3 text-sm text-red-600">{actionError}</p>}
             {/* Header */}
             <div className="app-challenge-header flex items-center justify-between px-4 pt-4 pb-2">
                 <div className="flex items-center gap-2">
@@ -419,6 +410,7 @@ const ReplyCard: React.FC<{
                     )}
 
                     {reply.text && <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">{reply.text}</p>}
+                    <div className="flex gap-2 mt-2" role="group" aria-label="React to challenge update">{['❤️', '👏', '💪'].map(emoji => <button key={emoji} onClick={() => onReact(reply.id, emoji)} className="px-2 min-h-11 rounded-lg border border-gray-200 dark:border-gray-600" aria-label={`React ${emoji}`}>{emoji} {reply.reactions[emoji] || ''}</button>)}</div>
                 </div>
             </div>
         </div>

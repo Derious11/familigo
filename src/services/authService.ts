@@ -21,7 +21,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from '../firebaseConfig';
 import { User, UserRole } from '../types';
-import { checkAndUpdateStreak, getBadges } from './userService';
+import { checkAndUpdateStreak } from './userService';
 
 export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
     return onFirebaseAuthStateChanged(auth, async (firebaseUser) => {
@@ -105,12 +105,7 @@ export const signUpWithEmail = async (
 
         await sendEmailVerification(user);
 
-        let allBadges = [];
-        try {
-            allBadges = await getBadges();
-        } catch (err) {
-            console.warn("Failed to load badges during signup. Proceeding without badges.", err);
-        }
+
 
         const newUser: Omit<User, 'id' | 'emailVerified'> = {
             name,
@@ -121,13 +116,13 @@ export const signUpWithEmail = async (
             avatarUpdatedAt: new Date(),
             streak: 1,
             lastActiveDate: new Date(),
-            badges: allBadges.map(b => ({ ...b, unlocked: false })),
+            badges: [],
             weightUnit: 'lbs',
             weightHistory: [],
             notificationTokens: [],
             // Default new parent signups to pending_approval if they have early access data
             // or if we enforce it for all parents. For now, let's tie it to earlyAccessData presence or role.
-            // Default new users to pending_approval. 
+            // Default new users to pending_approval.
             // - Adults: Will be activated if they join an existing Beta-Approved family, or if they are the creator and get Admin approval.
             // - Teens: A valid admin email invitation activates them server-side; other teens require approval.
             status: 'pending_approval',
@@ -183,12 +178,7 @@ export const signInWithGoogle = async (
         const additionalUserInfo = getAdditionalUserInfo(result);
         if (additionalUserInfo?.isNewUser) {
             // If it's a new user, create a document for them in Firestore
-            let allBadges = [];
-            try {
-                allBadges = await getBadges();
-            } catch (err) {
-                console.warn("Failed to load badges during Google signup. Proceeding without badges.", err);
-            }
+
             const newUser: Omit<User, 'id' | 'emailVerified'> = {
                 name: user.displayName || 'New User',
                 createdAt: new Date(),
@@ -198,7 +188,7 @@ export const signInWithGoogle = async (
                 avatarUpdatedAt: new Date(),
                 streak: 1,
                 lastActiveDate: new Date(),
-                badges: allBadges.map(b => ({ ...b, unlocked: false })),
+                badges: [],
                 weightUnit: 'lbs',
                 weightHistory: [],
                 notificationTokens: [],
@@ -221,7 +211,7 @@ export const signInWithGoogle = async (
         } else {
             // Existing user - logic is handled by onAuthStateChanged
             // If we assume account linking is automatic, we don't need to do manual linking here.
-            // However, we might want to update early access data if it's missing? 
+            // However, we might want to update early access data if it's missing?
             // For now, let's keep it simple: existing users just log in.
         }
 

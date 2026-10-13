@@ -7,6 +7,7 @@
     "prepare": "git config core.hooksPath .githooks",
     "security:check": "node scripts/check-secrets.mjs --staged",
     "test:secrets": "node --test scripts/check-secrets.test.mjs",
+    "test:achievements": "npm --prefix functions run build && node --test functions/test/achievements.cjs",
     "test:admin": "node --test scripts/admin-insights.test.mjs && npm --prefix functions run test:invites",
     "dev": "vite",
     "build": "vite build",

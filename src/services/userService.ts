@@ -68,6 +68,7 @@ export const onUserUpdate = (
                         : data.avatarUpdatedAt,
                     streak: typeof data.streak === "number" ? data.streak : 0,
                     badges: Array.isArray(data.badges) ? data.badges : [],
+                    achievementCount: data.achievementCount,
                     emailVerified: !!data.emailVerified,
                     familyCircleId: data.familyCircleId,
                     role: data.role,

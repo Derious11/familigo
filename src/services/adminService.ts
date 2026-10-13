@@ -32,6 +32,10 @@ export async function getAccessInvites(): Promise<AccessInvite[]> {
 export async function sendAccessInvite(email: string, resend = false): Promise<void> {
     await httpsCallable(getFunctions(), 'sendAccessInvite')({ email, resend });
 }
+export interface AchievementReconciliation {applied: boolean; members: number; newAwards: number; skippedCompletionDates: number}
+export async function reconcileFamilyAchievements(familyCircleId: string, apply = false): Promise<AchievementReconciliation> {
+    return (await httpsCallable<{familyCircleId: string; apply: boolean}, AchievementReconciliation>(getFunctions(), 'reconcileAchievements')({familyCircleId, apply})).data;
+}
 
 function toDate(value: unknown): Date | undefined {
     return value instanceof Timestamp ? value.toDate() : value instanceof Date ? value : undefined;
