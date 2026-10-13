@@ -12,7 +12,7 @@ const faqs = [
     { q: 'What makes FamiliGo different?', a: 'FamiliGo is designed around families. It combines solo challenges, shared team goals, private family leaderboards, XP, and encouragement in one parent-led Family Circle.' },
     { q: 'Do we need special equipment?', a: 'Activities such as walking, squats, and jumping jacks can use everyday movement. Check each activity’s instructions and choose an appropriate space and goal before starting.' },
     { q: 'How do we start using FamiliGo?', a: 'Request free beta access by creating a parent account. Once approved, create your Family Circle, invite your family, and post your first challenge. A valid admin invitation can approve access during signup.' },
-    { q: 'What about achievements and badges?', a: 'A new achievement experience is in preview, with badges for completing challenges, building habits, cheering others on, and shared family wins. The homepage shows genuine local app screens with synthetic demo data; availability depends on the achievement release.' },
+    { q: 'What about achievements and badges?', a: 'Earn badges for completing challenges, building habits, cheering others on, and shared family wins. View your achievements on your profile and pin up to three favorite earned badges. The homepage shows actual app screens with synthetic demo data.' },
 ];
 
 export default function FaqPage() {
