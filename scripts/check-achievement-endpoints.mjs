@@ -33,5 +33,5 @@ for (const name of names) {
     });
     assert.equal(response.status, 401, `${name}: unauthenticated request must be denied`);
     assert.equal((await response.json()).error?.status, 'UNAUTHENTICATED');
-    console.log(`PASS: ${name} accepts localhost CORS and requires authentication.`);
+    console.log(`PASS: ${name} accepts ${origin} CORS and requires authentication.`);
 }
