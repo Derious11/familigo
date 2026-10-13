@@ -2,6 +2,7 @@ import { useMemo,useState } from "react";
 import { signInWithGoogle,signUpWithEmail } from "../services/authService";
 import { getAuth } from 'firebase/auth';
 import { redeemAccessInvite } from '../services/adminService';
+import { usePostHog } from 'posthog-js/react';
 type FieldErrors = Partial<Record<
     "parentName" | "parentEmail" | "parentPassword" | "kidCount",
     string
@@ -12,6 +13,7 @@ function isValidEmail(email: string) {
 }
 
 export function useEarlyAccessForm() {
+    const posthog = usePostHog();
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [accessCode, setAccessCode] = useState(() => new URLSearchParams(window.location.search).get('accessCode') || '');
@@ -52,8 +54,8 @@ export function useEarlyAccessForm() {
         if (!email || !isValidEmail(email)) next.parentEmail = "Enter a valid email address.";
         if (!password || password.length < 8)
             next.parentPassword = "Password must be at least 8 characters.";
-        if (!normalizedKidCount || normalizedKidCount < 1)
-            next.kidCount = "Enter at least 1 kid.";
+        if (kidCount !== '' && (!Number.isInteger(normalizedKidCount) || normalizedKidCount < 1))
+            next.kidCount = "Enter a whole number of at least 1, or leave this optional field blank.";
 
         setErrors(next);
         return Object.keys(next).length === 0;
@@ -66,8 +68,8 @@ export function useEarlyAccessForm() {
         setLoading(true);
         try {
             const { error } = await signInWithGoogle("adult", {
-                kidCount: normalizedKidCount,
-                kidAges: kidAges.trim(),
+                ...(kidCount !== '' ? { kidCount: normalizedKidCount } : {}),
+                ...(kidAges.trim() ? { kidAges: kidAges.trim() } : {}),
             });
 
             if (error) {
@@ -77,6 +79,7 @@ export function useEarlyAccessForm() {
 
             // Auth listener + status gating handles routing.
             if (!getAuth().currentUser) return;
+            posthog?.capture('beta_registration_submitted', { method: 'google', has_invite: !!accessCode.trim() });
             await finishSignup();
         } catch (err) {
             console.error(err);
@@ -100,8 +103,8 @@ export function useEarlyAccessForm() {
                 "adult",
                 undefined,
                 {
-                    kidCount: normalizedKidCount,
-                    kidAges: kidAges.trim(),
+                    ...(kidCount !== '' ? { kidCount: normalizedKidCount } : {}),
+                    ...(kidAges.trim() ? { kidAges: kidAges.trim() } : {}),
                 }
             );
 
@@ -110,6 +113,7 @@ export function useEarlyAccessForm() {
                 return;
             }
 
+            posthog?.capture('beta_registration_submitted', { method: 'email', has_invite: !!accessCode.trim() });
             await finishSignup();
         } catch (err) {
             console.error("Early access submission failed:", err);

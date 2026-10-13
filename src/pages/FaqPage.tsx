@@ -1,393 +1,60 @@
-import React, { useMemo, useState } from "react";
-import { usePageSeo } from "../lib/seo";
+import { useMemo, useState } from 'react';
+import { usePageSeo } from '../lib/seo';
 
-type FaqItem = {
-    q: string;
-    a: React.ReactNode;
-    tags?: string[];
-};
-
-function FaqAccordionItem({
-    item,
-    isOpen,
-    onToggle,
-}: {
-    item: FaqItem;
-    isOpen: boolean;
-    onToggle: () => void;
-}) {
-    return (
-        <div className="rounded-2xl border border-white/10 bg-white/5">
-            <button
-                type="button"
-                onClick={onToggle}
-                className="w-full text-left px-5 py-4 flex items-center justify-between gap-4"
-                aria-expanded={isOpen}
-            >
-                <span className="font-semibold text-white">{item.q}</span>
-                <span className="text-white/70">{isOpen ? "–" : "+"}</span>
-            </button>
-
-            {isOpen && (
-                <div className="px-5 pb-5 text-sm leading-6 text-white/80">
-                    {item.a}
-                    {item.tags?.length ? (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            {item.tags.map((t) => (
-                                <span
-                                    key={t}
-                                    className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/80 border border-white/10"
-                                >
-                                    {t}
-                                </span>
-                            ))}
-                        </div>
-                    ) : null}
-                </div>
-            )}
-        </div>
-    );
-}
+// One source for visible answers and structured data.
+const faqs = [
+    { q: 'What is FamiliGo?', a: 'FamiliGo is a family fitness challenge app for parents, kids, and teens. Create solo challenges and shared team goals, earn XP, follow your private family leaderboard, and cheer each other on.' },
+    { q: 'Is FamiliGo competitive?', a: 'Yes! FamiliGo combines friendly family competition with teamwork. Challenge each other, climb your private family leaderboard, and celebrate everyone’s progress. Choose goals that fit your family’s abilities.' },
+    { q: 'Do we need to be athletic?', a: 'Not at all. Choose activities and goals appropriate to each person’s abilities. The goal is to participate, improve, and have fun.' },
+    { q: 'Is FamiliGo free?', a: 'The current closed beta is free. A parent or guardian creates an account and requests access. Requests are reviewed in waves, and family challenges become available after approval.' },
+    { q: 'Can teens participate independently?', a: 'Yes. Teens can complete family challenges on their own schedule while remaining connected to their Family Circle. You do not need to work out at the same time.' },
+    { q: 'Does FamiliGo work on iPhone and Android?', a: 'Yes. FamiliGo currently runs as a mobile-friendly web app on iPhone and Android. You can get started without downloading a native app.' },
+    { q: 'What makes FamiliGo different?', a: 'FamiliGo is designed around families. It combines solo challenges, shared team goals, private family leaderboards, XP, and encouragement in one parent-led Family Circle.' },
+    { q: 'Do we need special equipment?', a: 'Activities such as walking, squats, and jumping jacks can use everyday movement. Check each activity’s instructions and choose an appropriate space and goal before starting.' },
+    { q: 'How do we start using FamiliGo?', a: 'Request free beta access by creating a parent account. Once approved, create your Family Circle, invite your family, and post your first challenge. A valid admin invitation can approve access during signup.' },
+    { q: 'What about achievements and badges?', a: 'A new achievement experience is in preview, with badges for completing challenges, building habits, cheering others on, and shared family wins. The homepage shows genuine local app screens with synthetic demo data; availability depends on the achievement release.' },
+];
 
 export default function FaqPage() {
-    const faqSchema = useMemo(
-        () => [
-            {
-                q: "Are there any fitness apps designed for kids and families?",
-                a:
-                    "Yes. FamiliGo is built specifically for families with kids and teens. It focuses on shared challenges, age-appropriate participation, and consistency over pressure.",
-            },
-            {
-                q: "Does Apple Fitness have family sharing?",
-                a:
-                    "Apple Fitness+ supports Family Sharing, but it is not built around shared family challenges or parent-led routines. FamiliGo focuses on family connection and accountability across ages.",
-            },
-            {
-                q: "How can me and my parents exercise together?",
-                a:
-                    "Use shared challenges instead of trying to work out at the same time. Each person participates on their own schedule while contributing to the same family goal.",
-            },
-            {
-                q: "What is the best free home fitness app?",
-                a:
-                    "It depends on your goals. For family motivation and follow-through, FamiliGo focuses on habit-building through simple challenges and includes a free tier.",
-            },
-            {
-                q: "Is there a free family fitness challenge app?",
-                a:
-                    "Yes. FamiliGo supports a free experience for creating a family circle and completing challenges together.",
-            },
-            {
-                q: "Is FamiliGo available on iPhone and Android?",
-                a:
-                    "Yes. FamiliGo is designed to work across iPhone and Android so your family does not need to be on the same device type.",
-            },
-            {
-                q: "Is FamiliGo competitive?",
-                a:
-                    "No. FamiliGo is about contribution, not comparison. There are no public leaderboards and no pressure to perform.",
-            },
-            {
-                q: "Do teens have to work out with their parents?",
-                a:
-                    "No. Teens can participate independently and still contribute to the family goal. FamiliGo supports independence and connection.",
-            },
-            {
-                q: "Is FamiliGo a workplace fitness challenge app?",
-                a:
-                    "No. Workplace challenge apps are designed for adult rankings. FamiliGo is designed for households and focuses on encouragement and consistency.",
-            },
-            {
-                q: "Is FamiliGo similar to Strive Fitness?",
-                a:
-                    "FamiliGo is family-first with shared goals, age-appropriate motivation, and a home-friendly approach.",
-            },
-            {
-                q: "How do we start using FamiliGo?",
-                a:
-                    "Create a parent account, set up your family circle, start your first challenge, and move together your way.",
-            },
-        ],
-        []
-    );
+    const [query, setQuery] = useState('');
+    const [openQuestion, setOpenQuestion] = useState<string | null>(faqs[0].q);
+    const schema = useMemo(() => ({
+        '@context': 'https://schema.org', '@type': 'FAQPage',
+        mainEntity: faqs.map(({ q, a }) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+    }), []);
+    usePageSeo({ title: 'FamiliGo FAQ | Family Fitness App Questions', description: 'Answers about friendly family competition, private leaderboards, free beta access, and fitness challenges for parents, kids, and teens.', canonicalPath: '/faq', jsonLd: schema, noIndex: __FIREBASE_CONFIG__.projectId !== 'familigo-11643' || window.location.hostname.includes('--') });
+    const search = query.trim().toLowerCase();
+    const filtered = faqs.filter(({ q, a }) => `${q} ${a}`.toLowerCase().includes(search));
 
-    usePageSeo({
-        title: "FamiliGo FAQ | Family Fitness App Questions",
-        description:
-            "Answers about FamiliGo, a private family fitness app for parents and teens. Learn about challenges, streaks, and how to get started.",
-        canonicalPath: "/faq",
-        jsonLd: {
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            "mainEntity": faqSchema.map((item) => ({
-                "@type": "Question",
-                "name": item.q,
-                "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": item.a,
-                },
-            })),
-        },
-    });
-
-    const faqs: FaqItem[] = useMemo(
-        () => [
-            {
-                q: "Are there any fitness apps designed for kids and families?",
-                a: (
-                    <>
-                        <p>
-                            Yes. FamiliGo is built specifically for <strong>families with kids and teens</strong>,
-                            not adapted from adult fitness apps.
-                        </p>
-                        <ul className="mt-3 list-disc pl-5 space-y-2">
-                            <li>Shared family challenges (not solo plans)</li>
-                            <li>Age-appropriate participation</li>
-                            <li>Encouragement over competition</li>
-                            <li>Consistency and habits that stick</li>
-                        </ul>
-                        <p className="mt-3">
-                            Kids don’t need to “keep up.” Everyone contributes in their own way.
-                        </p>
-                    </>
-                ),
-                tags: ["fitness apps for kids", "family fitness app"],
-            },
-            {
-                q: "Does Apple Fitness have family sharing?",
-                a: (
-                    <>
-                        <p>
-                            Apple Fitness+ supports subscription Family Sharing, but it’s not built around{" "}
-                            <strong>shared family challenges</strong>, parent-led routines, or household goals.
-                        </p>
-                        <p className="mt-3">
-                            FamiliGo focuses on family connection and accountability—across ages, schedules, and
-                            device types.
-                        </p>
-                    </>
-                ),
-                tags: ["Apple Fitness family sharing"],
-            },
-            {
-                q: "How can me and my parents exercise together?",
-                a: (
-                    <>
-                        <p>
-                            The simplest approach is a <strong>shared challenge</strong> rather than trying to do
-                            the same workout at the same time.
-                        </p>
-                        <ul className="mt-3 list-disc pl-5 space-y-2">
-                            <li>Each person moves on their own schedule</li>
-                            <li>Every effort counts toward the same family goal</li>
-                            <li>You build momentum together without pressure</li>
-                        </ul>
-                    </>
-                ),
-                tags: ["exercise with parents", "family fitness together"],
-            },
-            {
-                q: "What is the best free home fitness app?",
-                a: (
-                    <>
-                        <p>
-                            It depends on what you want. If you want workout videos, a traditional fitness app may
-                            be enough. If you want <strong>family motivation and follow-through</strong>, FamiliGo
-                            is designed for habit-building through simple challenges.
-                        </p>
-                        <p className="mt-3">
-                            FamiliGo includes a free tier so your family can get started without committing to a
-                            subscription.
-                        </p>
-                    </>
-                ),
-                tags: ["best free home fitness app", "fitness app free"],
-            },
-            {
-                q: "Is there a free family fitness challenge app?",
-                a: (
-                    <>
-                        <p>
-                            Yes. FamiliGo supports a free experience for creating a family circle and completing
-                            challenges together.
-                        </p>
-                    </>
-                ),
-                tags: ["family fitness challenge app free"],
-            },
-            {
-                q: "Is FamiliGo available on iPhone and Android?",
-                a: (
-                    <>
-                        <p>
-                            Yes. FamiliGo is designed to work across <strong>iPhone and Android</strong> so your
-                            family doesn’t need to be on the same device type.
-                        </p>
-                    </>
-                ),
-                tags: [
-                    "family fitness challenge app for iphone",
-                    "family fitness challenge app for android",
-                ],
-            },
-            {
-                q: "Is FamiliGo competitive?",
-                a: (
-                    <>
-                        <p>
-                            No. FamiliGo is about <strong>contribution</strong>, not comparison.
-                        </p>
-                        <ul className="mt-3 list-disc pl-5 space-y-2">
-                            <li>No public leaderboards</li>
-                            <li>No pressure to “perform”</li>
-                            <li>Supportive accountability for families</li>
-                        </ul>
-                    </>
-                ),
-                tags: ["fitness challenge app with friends", "best family fitness challenge app"],
-            },
-            {
-                q: "Do teens have to work out with their parents?",
-                a: (
-                    <>
-                        <p>
-                            No. Teens can participate independently and still contribute to the family’s shared
-                            goal. FamiliGo supports independence <em>and</em> connection.
-                        </p>
-                    </>
-                ),
-            },
-            {
-                q: "Is FamiliGo a workplace fitness challenge app?",
-                a: (
-                    <>
-                        <p>
-                            No. Workplace challenge apps are designed for adult competition and rankings. FamiliGo
-                            is designed for <strong>households</strong>—parents, kids, and teens—built around
-                            encouragement and consistency.
-                        </p>
-                    </>
-                ),
-                tags: ["fitness challenge app for workplace"],
-            },
-            {
-                q: "Is FamiliGo similar to Strive Fitness?",
-                a: (
-                    <>
-                        <p>
-                            Some apps focus on individual progress or social competition. FamiliGo is
-                            family-first: shared goals, age-appropriate motivation, and a home-friendly approach.
-                        </p>
-                    </>
-                ),
-                tags: ["Strive Fitness app"],
-            },
-            {
-                q: "How do we start using FamiliGo?",
-                a: (
-                    <>
-                        <ol className="mt-2 list-decimal pl-5 space-y-2">
-                            <li>Create a parent account</li>
-                            <li>Set up your family circle</li>
-                            <li>Start your first challenge</li>
-                            <li>Move together—your way</li>
-                        </ol>
-                        <p className="mt-3">
-                            No complicated setup. No pressure. Just consistent momentum.
-                        </p>
-                    </>
-                ),
-            },
-        ],
-        []
-    );
-
-    const [query, setQuery] = useState("");
-    const [openIndex, setOpenIndex] = useState<number | null>(0);
-
-    const filtered = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return faqs;
-
-        return faqs.filter((f) => {
-            const inQ = f.q.toLowerCase().includes(q);
-            const inTags = (f.tags ?? []).some((t) => t.toLowerCase().includes(q));
-            return inQ || inTags;
-        });
-    }, [faqs, query]);
-
-    return (
-        <main className="min-h-screen bg-slate-950 text-white">
-            <section className="mx-auto w-full max-w-3xl px-4 py-12">
-                {/* Header */}
-                <div className="text-center space-y-3">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
-                        FamiliGo • FAQ
-                    </div>
-                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                        Real movement. Shared progress.
-                    </h1>
-                    <p className="text-white/70 max-w-2xl mx-auto">
-                        Answers for parents and teens who want healthier routines without pressure, comparison,
-                        or complicated plans.
-                    </p>
+    return <main className="min-h-screen bg-slate-950 text-white">
+        <section className="mx-auto w-full max-w-3xl px-4 py-12">
+            <div className="text-center space-y-3">
+                <a href="/" className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">FamiliGo · Back to home</a>
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Healthy competition. Stronger families.</h1>
+                <p className="text-white/70">Answers about family fitness challenges, teamwork, and getting started.</p>
+            </div>
+            <div className="mt-8">
+                <label htmlFor="faq-search" className="block text-sm text-white/70 mb-2">Search questions</label>
+                <input id="faq-search" value={query} onChange={event => { setQuery(event.target.value); setOpenQuestion(null); }} placeholder="Try: free, leaderboard, iPhone, teens…" className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline focus:outline-2 focus:outline-blue-400" />
+            </div>
+            <div className="mt-8 space-y-3">
+                {filtered.length === 0 && <p className="p-6 text-white/70" role="status">No matches. Try “free”, “parents”, or “challenges”.</p>}
+                {filtered.map(({ q, a }) => {
+                    const index = faqs.findIndex(item => item.q === q);
+                    return <div key={q} className="rounded-2xl border border-white/10 bg-white/5">
+                        <button type="button" id={`faq-question-${index}`} onClick={() => setOpenQuestion(openQuestion === q ? null : q)} aria-expanded={openQuestion === q} aria-controls={`faq-answer-${index}`} className="w-full text-left px-5 py-4 flex items-center justify-between gap-4 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400 rounded-2xl">{q}<span aria-hidden="true">{openQuestion === q ? '−' : '+'}</span></button>
+                        <div id={`faq-answer-${index}`} hidden={openQuestion !== q} aria-labelledby={`faq-question-${index}`} className="px-5 pb-5 text-sm leading-6 text-white/80">{a}</div>
+                    </div>;
+                })}
+            </div>
+            <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
+                <h2 className="text-lg font-semibold">Ready to challenge your family?</h2>
+                <p className="mt-2 text-sm text-white/70">Create a parent account to request free beta access. Once approved, bring your family together for your first challenge.</p>
+                <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                    <a href="/early-access?role=parent" className="inline-flex items-center justify-center rounded-2xl bg-white text-slate-950 px-5 py-3 text-sm font-semibold">Request Free Beta Access</a>
+                    <a href="/#for-parents" className="inline-flex items-center justify-center rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold">For parents</a>
                 </div>
-
-                {/* Search */}
-                <div className="mt-8">
-                    <label className="block text-sm text-white/70 mb-2">Search questions</label>
-                    <input
-                        value={query}
-                        onChange={(e) => {
-                            setQuery(e.target.value);
-                            setOpenIndex(null);
-                        }}
-                        placeholder="Try: kids, free, iPhone, parents, Apple Fitness..."
-                        className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 outline-none focus:border-white/20"
-                    />
-                </div>
-
-                {/* FAQ list */}
-                <div className="mt-8 space-y-3">
-                    {filtered.length === 0 ? (
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-white/70">
-                            No matches. Try searching “kids”, “free”, or “iPhone”.
-                        </div>
-                    ) : (
-                        filtered.map((item, idx) => (
-                            <FaqAccordionItem
-                                key={`${item.q}-${idx}`}
-                                item={item}
-                                isOpen={openIndex === idx}
-                                onToggle={() => setOpenIndex((prev) => (prev === idx ? null : idx))}
-                            />
-                        ))
-                    )}
-                </div>
-
-                {/* Footer CTA */}
-                <div className="mt-10 rounded-2xl border border-white/10 bg-gradient-to-tr from-white/5 to-white/0 p-6">
-                    <h2 className="text-lg font-semibold">Still have questions?</h2>
-                    <p className="mt-2 text-sm text-white/70">
-                        The best way to know if FamiliGo fits your family is to start one simple challenge and
-                        build momentum together.
-                    </p>
-                    <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                        <a
-                            href="/"
-                            className="inline-flex items-center justify-center rounded-2xl bg-white text-slate-950 px-5 py-3 text-sm font-semibold"
-                        >
-                            Start a family challenge
-                        </a>
-                        <a
-                            href="/parents"
-                            className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white"
-                        >
-                            For Parents
-                        </a>
-                    </div>
-                </div>
-            </section>
-        </main>
-    );
+            </div>
+        </section>
+    </main>;
 }
