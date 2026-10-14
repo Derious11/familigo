@@ -6,7 +6,7 @@ Development installation and push delivery were confirmed by the user on both iO
 
 Firebase production Hosting and `onChallengeCreated`, `onReplyCreated`, and `onMessageCreated` deployed successfully. Final Hosting version: `4553f3726c49bf3f`. The public frontend released on Vercel after pushing commit `12559c3` to GitHub `main`.
 
-Public-domain checks verified `/app`, production public push configuration, the login opt-in prompt, standalone manifest with `/app` launch, all install icons, and the versioned worker precaching the current bundle (`index-Cfp7EpEr.js`). Cloudflare overrides the worker's origin cache header to a four-hour TTL; registration versions the worker URL by app bundle path, and the versioned URL was verified to serve the new production worker. No Cloudflare settings were changed. Eleven PWA/push tests passed. Production physical-device push testing remains a post-release check.
+Public-domain checks verified `/app`, production public push configuration, the login opt-in prompt, standalone manifest with `/app` launch, all install icons, and the versioned worker precaching the current bundle (`index-Cfp7EpEr.js`). Cloudflare overrides the worker's origin cache header to a four-hour TTL; registration versions the worker URL by app bundle path, and the versioned URL was verified to serve the new production worker. No Cloudflare settings were changed. Eleven PWA/push tests passed. The user confirmed that production installation and notification delivery passed on both iOS and Android. The final physical-device release check is complete.
 
 ## Rollback
 
