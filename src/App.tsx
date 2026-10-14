@@ -331,6 +331,7 @@ const App: React.FC = () => {
     ------------------------------------------------------------------------ */
     const signOut = () => signOutUser();
     const addReply = useCallback(async (challengeId: string, payload: AddReplyPayload, parentId?: string, isCompletion = false, contributionValue?: number) => {
+        if (!navigator.onLine) throw new Error('Reconnect before logging an activity.');
         if (!currentUser || !familyCircle)
             return;
         let mediaUrl: string | undefined;
@@ -363,6 +364,7 @@ const App: React.FC = () => {
         });
     }, [familyCircle, posthog]);
     const addChallenge = useCallback(async (exercise: Exercise, target: string, mediaUrl?: string, type: 'individual' | 'team' = 'individual', goalTotal?: number, unit?: string, durationDays?: number) => {
+        if (!navigator.onLine) throw new Error('Reconnect before creating a challenge.');
         if (!currentUser || !familyCircle)
             return;
         await addChallengeToFamily(currentUser, familyCircle.id, exercise, target, mediaUrl, type, goalTotal, unit, durationDays);

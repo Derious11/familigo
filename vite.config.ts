@@ -1,6 +1,9 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { build } from 'esbuild';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode === 'emulator' ? 'development' : mode, '.', '');
@@ -34,6 +37,17 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
     },
     plugins: [react(), {
+      name: 'familigo-pwa',
+      apply: 'build',
+      async writeBundle() {
+        const assets = ['/index.html', '/site.webmanifest', ...readdirSync('dist/assets').filter(file => /\.(js|css)$/.test(file)).map(file => `/assets/${file}`),
+          ...['180', '192', '512'].map(size => `/assets/brand/icon-${size}.png`), '/assets/brand/icon-maskable.png'];
+        const version = createHash('sha256').update(JSON.stringify(firebaseConfig)).update(readFileSync('src/pwa/worker.js')).update(readFileSync('dist/site.webmanifest'));
+        for (const asset of assets) version.update(readFileSync(`dist${asset}`));
+        await build({ entryPoints: ['src/pwa/worker.js'], outfile: 'dist/firebase-messaging-sw.js', bundle: true, minify: true, format: 'iife', target: 'es2020',
+          define: { __PWA_VERSION__: JSON.stringify(version.digest('hex').slice(0, 16)), __PWA_ASSETS__: JSON.stringify(assets), __FIREBASE_CONFIG__: JSON.stringify(firebaseConfig) } });
+      },
+    }, {
       name: 'firebase-worker-config',
       configureServer(server) {
         server.middlewares.use('/firebase-runtime-config.js', (_req, res) => {

@@ -75,9 +75,10 @@ export const onChallengeCreated = functions
           },
           tokens,
           webpush: {
+            fcmOptions: {link: `${getAppBaseUrl()}/app`},
             notification: {
               icon:
-                `${getAppBaseUrl()}/assets/FamiliGo_logo.png`,
+                `${getAppBaseUrl()}/assets/brand/icon-192.png`,
             },
           },
         }),
@@ -160,7 +161,7 @@ export const onReplyCreated = functions
 
       const notificationBody = `${user.name}: ${text || "posted a photo"}`;
       const notificationIcon =
-        `${getAppBaseUrl()}/assets/FamiliGo_logo.png`;
+        `${getAppBaseUrl()}/assets/brand/icon-192.png`;
       await sendNotifications(
         tokenRecords,
         (tokens) => ({
@@ -170,6 +171,7 @@ export const onReplyCreated = functions
           },
           tokens,
           webpush: {
+            fcmOptions: {link: `${getAppBaseUrl()}/app`},
             notification: {
               icon: notificationIcon,
             },
@@ -263,8 +265,9 @@ export const onMessageCreated = functions
           },
           tokens,
           webpush: {
+            fcmOptions: {link: `${getAppBaseUrl()}/app?view=chat`},
             notification: {
-              icon: `${getAppBaseUrl()}/assets/FamiliGo_logo.png`,
+              icon: `${getAppBaseUrl()}/assets/brand/icon-192.png`,
             },
           },
         }),

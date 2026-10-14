@@ -2,6 +2,7 @@ import React from 'react';
 import { BellIcon, ShieldCheckIcon } from '../Icons';
 import { User, FamilyCircle } from '../../types';
 import AvatarImage from '../ui/AvatarImage';
+import { usePwa } from '../../pwa/PwaProvider';
 
 interface ProfileSettingsProps {
     currentUser: User;
@@ -20,8 +21,12 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     onOpenPrivacy,
     onSignOut
 }) => {
+    const pwa = usePwa();
     return (
         <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-2">
+            {!pwa.installed && <button onClick={pwa.install} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl text-left">
+                <span className="font-medium text-gray-700 dark:text-gray-200">Install FamiliGo</span><span aria-hidden="true" className="text-gray-400">›</span>
+            </button>}
 
             {/* Notification Toggle */}
             <div className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors">

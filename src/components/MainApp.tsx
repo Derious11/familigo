@@ -12,13 +12,23 @@ import { ChatBubbleLeftIcon,PlusIcon } from './Icons';
 import Profile from './Profile';
 import './app.css';
 import AchievementCelebration from './AchievementCelebration';
+import { InstallCard } from '../pwa/PwaProvider';
+import PushNotificationProvider from '../pwa/PushNotificationProvider';
 const MainApp: React.FC = () => {
-    const [activeView, setActiveView] = useState<View>('feed');
+    const [activeView, setActiveView] = useState<View>(() => new URLSearchParams(location.search).get('view') === 'chat' ? 'chat' : 'feed');
     const [isCreateChallengeModalOpen, setIsCreateChallengeModalOpen] = useState(false);
     const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
     const [verificationEmailSent, setVerificationEmailSent] = useState(false);
     const context = useContext(AppContext);
     const { currentUser } = context;
+    useEffect(() => {
+        const open = (event: Event) => {
+            const view = (event as CustomEvent).detail;
+            if (['feed', 'chat', 'profile', 'history'].includes(view)) setActiveView(view);
+        };
+        window.addEventListener('familigo-notification-open', open);
+        return () => window.removeEventListener('familigo-notification-open', open);
+    }, []);
     useEffect(() => {
         document.getElementById('root')?.scrollTo({ top: 0, behavior: 'auto' });
     }, [activeView]);
@@ -49,7 +59,7 @@ const MainApp: React.FC = () => {
                 return <Feed onCreateChallenge={() => setIsCreateChallengeModalOpen(true)}/>;
         }
     };
-    return (<div className={`min-h-screen bg-brand-background dark:bg-gray-900 font-sans text-brand-text-primary dark:text-gray-100 ${'app-shell'}`}>
+    return (<PushNotificationProvider key={currentUser.id} userId={currentUser.id}><div className={`min-h-screen bg-brand-background dark:bg-gray-900 font-sans text-brand-text-primary dark:text-gray-100 ${'app-shell'}`}>
 
             {currentUser &&
             currentUser.email &&
@@ -66,6 +76,7 @@ const MainApp: React.FC = () => {
             <div className="max-w-2xl mx-auto pb-24 app-shell-width">
                 <Header activeView={activeView} setActiveView={setActiveView}/>
                 <main className="p-4 app-main-content">
+                    {activeView === 'feed' && <InstallCard />}
                     {renderView()}
                 </main>
             </div>
@@ -86,6 +97,6 @@ const MainApp: React.FC = () => {
 
             {isFeedbackModalOpen && (<FeedbackModal onClose={() => setIsFeedbackModalOpen(false)}/>)}
             {currentUser?.familyCircleId && <AchievementCelebration actorId={currentUser.id} familyCircleId={currentUser.familyCircleId} onView={() => {setActiveView('profile'); setTimeout(() => document.getElementById('achievements')?.scrollIntoView({behavior: 'auto'}), 100);}}/>}
-        </div>);
+        </div></PushNotificationProvider>);
 };
 export default MainApp;

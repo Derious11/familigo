@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import ErrorBoundary from './components/ErrorBoundary';
+import PwaProvider from './pwa/PwaProvider';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -21,7 +22,7 @@ root.render(
   <React.StrictMode>
     <PostHogProvider apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY} options={options}>
       <ErrorBoundary>
-        <App />
+        <PwaProvider><App /></PwaProvider>
       </ErrorBoundary>
     </PostHogProvider>
   </React.StrictMode>

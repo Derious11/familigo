@@ -2,6 +2,7 @@ import React,{ useContext,useEffect,useMemo,useState } from 'react';
 import { AppContext } from '../../App';
 import { requestNotificationPermission,revokeNotificationPermission } from '../../services/pushRouter';
 import { updateCoverPhoto } from '../../services/userService';
+import { useDeviceNotifications } from '../../pwa/PushNotificationProvider';
 
 // Sub-components
 import ActivityHeatmap from './ActivityHeatmap';
@@ -17,6 +18,7 @@ import FamilySettingsModal from './modals/FamilySettingsModal';
 import UpdateWeightModal from './modals/UpdateWeightModal';
 const Profile: React.FC = () => {
     const context = useContext(AppContext);
+    const deviceNotifications = useDeviceNotifications();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
     const [isFamilySettingsOpen, setIsFamilySettingsOpen] = useState(false);
@@ -28,8 +30,9 @@ const Profile: React.FC = () => {
     }
     const { currentUser, familyCircle, signOut, updateCurrentUser, isImpersonating, originalUserId, switchProfile } = context;
     const hasNotificationsEnabled = useMemo(() => {
+        if (deviceNotifications) return deviceNotifications.enabled;
         return currentUser.notificationTokens && currentUser.notificationTokens.length > 0;
-    }, [currentUser.notificationTokens]);
+    }, [currentUser.notificationTokens, deviceNotifications?.enabled]);
     useEffect(() => {
         // Check if we should auto-open family settings (e.g. from onboarding)
         const justCreated = sessionStorage.getItem('justCreatedFamily');
@@ -43,6 +46,11 @@ const Profile: React.FC = () => {
         const enable = e.target.checked;
         setIsNotificationToggleLoading(true);
         try {
+            if (deviceNotifications) {
+                if (enable) await deviceNotifications.enable();
+                else await deviceNotifications.disable();
+                return;
+            }
             if (enable) {
                 const result = await requestNotificationPermission(currentUser.id);
                 if (result.success) {

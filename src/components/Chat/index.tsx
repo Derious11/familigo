@@ -1,7 +1,6 @@
 import React,{ useContext,useEffect,useRef,useState } from 'react';
 import { AppContext } from '../../App';
 import { deleteMessage,markChatAsRead,onMessagesUpdate,sendMessage,updateFamilyCircleChatName } from '../../services/chatService';
-import { requestNotificationPermission } from '../../services/webPushService';
 import { Message } from '../../types';
 import AppTabIntro from '../AppTabIntro';
 import { CheckIcon,PaperAirplaneIcon,PencilIcon,TrashIcon,XMarkIcon } from '../Icons';
@@ -21,8 +20,6 @@ const Chat: React.FC = () => {
         if (!familyCircle || !currentUser)
             return;
         setChatName(familyCircle.chatName || 'Family Chat');
-        // Request notification permission when entering chat
-        requestNotificationPermission(currentUser.id);
         // Mark chat as read
         markChatAsRead(currentUser.id, familyCircle.id);
         const unsubscribe = onMessagesUpdate(familyCircle.id, (updatedMessages) => {
@@ -47,6 +44,7 @@ const Chat: React.FC = () => {
     };
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!navigator.onLine) { alert('Reconnect before sending a message. Your draft is still here.'); return; }
         if (!newMessage.trim() || !currentUser || !familyCircle)
             return;
         const text = newMessage.trim();

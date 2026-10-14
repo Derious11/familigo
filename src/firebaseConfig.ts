@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { getFirestore, setLogLevel, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
-import { getMessaging } from "firebase/messaging";
+import { getMessaging, isSupported } from "firebase/messaging";
 import {getFunctions, connectFunctionsEmulator} from 'firebase/functions';
 
 // Your web app's Firebase configuration
@@ -17,7 +17,10 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth();
 export const db = getFirestore();
 export const storage = getStorage();
-export const messaging = typeof window === 'undefined' ? null : getMessaging(app);
+export const getWebMessaging = async () => {
+    if (typeof window === 'undefined' || !await isSupported()) return null;
+    return getMessaging(app);
+};
 
 // This mode uses a demo project and localhost only; it cannot modify live Firebase data.
 if (import.meta.env.MODE === 'emulator') {

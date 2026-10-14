@@ -1,25 +1,42 @@
 
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { messaging } from '../firebaseConfig';
+import { getToken, onMessage } from 'firebase/messaging';
+import { getWebMessaging } from '../firebaseConfig';
 import { addNotificationToken, removeNotificationToken } from './userService';
+import { isIOS, isStandalone, registerAppWorker } from '../pwa/platform';
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 let currentToken: string | null = null;
+export const isWebPushConfigured = () => !!VAPID_KEY;
+const optOutKey = (userId: string) => `familigo-push-disabled:${userId}`;
+export function isDevicePushDisabled(userId: string) {
+    try { return localStorage.getItem(optOutKey(userId)) === 'true'; } catch { return false; }
+}
+function setDevicePushDisabled(userId: string, disabled: boolean) {
+    try { localStorage.setItem(optOutKey(userId), String(disabled)); } catch { /* Private browsing */ }
+}
+
+// Refresh this installation's token after login without asking for permission again.
+export async function syncGrantedNotifications(userId: string) {
+    if (!VAPID_KEY) throw new Error('Push notifications are not configured for this environment.');
+    const messaging = await getWebMessaging();
+    if (!messaging) throw new Error('Notifications are not supported in this browser.');
+    const registration = await registerAppWorker();
+    if (!registration) throw new Error('Notifications require the deployed app.');
+    await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+    if (!token) throw new Error('Could not register this device for notifications. Please try again.');
+    await addNotificationToken(userId, token);
+    currentToken = token;
+    return token;
+}
 
 // This function initializes the service worker and sets up a listener for foreground messages.
 export const initializeWebPush = (onNotification?: (notification: { title?: string; body?: string; data?: any }) => void): (() => void) | undefined => {
-    if ('serviceWorker' in navigator && typeof messaging !== 'undefined') {
-        navigator.serviceWorker
-            .register('/firebase-messaging-sw.js')
-            .then((registration) => {
-                console.log('Service Worker registration successful, scope is:', registration.scope);
-            })
-            .catch((err) => {
-                console.log('Service Worker registration failed:', err);
-            });
-
-        // Listen for messages when the app is in the foreground
-        return onMessage(messaging, (payload) => {
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
+    getWebMessaging().then(messaging => {
+        if (disposed || !messaging) return;
+        unsubscribe = onMessage(messaging, (payload) => {
             console.log('Message received. ', payload);
 
             const title = payload.notification?.title;
@@ -37,8 +54,8 @@ export const initializeWebPush = (onNotification?: (notification: { title?: stri
                 alert(`New Notification:\n${message}`);
             }
         });
-    }
-    return undefined;
+    }).catch(() => { /* Unsupported browsers can still use FamiliGo. */ });
+    return () => { disposed = true; unsubscribe?.(); };
 };
 
 // This function requests permission from the user to send notifications.
@@ -46,20 +63,17 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
     if (!VAPID_KEY) {
         return { success: false, error: 'Push notifications are not configured for this environment.' };
     }
-    if (typeof messaging === 'undefined') {
-        return { success: false, error: "Messaging not supported." };
-    }
+    if (isIOS() && !isStandalone()) return { success: false, error: 'Install FamiliGo using Safari → Share → Add to Home Screen, then open its home screen icon to enable notifications.' };
 
     try {
         if (typeof Notification === 'undefined') {
             return { success: false, error: "Notifications not supported in this environment." };
         }
-        const permission = await Notification.requestPermission();
+        const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
         if (permission === 'granted') {
-            const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+            const token = await syncGrantedNotifications(userId);
             if (token) {
-                currentToken = token;
-                await addNotificationToken(userId, token);
+                setDevicePushDisabled(userId, false);
                 return { success: true, token };
             } else {
                 return { success: false, error: 'Could not get notification token. Please try again.' };
@@ -69,9 +83,8 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
             return { success: false, error: 'Permission not granted. To receive notifications, please enable them in your browser settings.' };
         }
     } catch (error: any) {
-        console.error('An error occurred while getting FCM token: ', error);
-
-        let errorMessage = 'An unknown error occurred while enabling notifications.';
+        console.error('Notification registration failed:', error?.code || 'registration-error');
+        let errorMessage = error?.code ? 'Notification registration failed. Please try again.' : (error?.message || 'Could not enable notifications. Please try again.');
 
         // Check for specific Firebase Messaging error codes to provide better feedback
         switch (error.code) {
@@ -97,37 +110,16 @@ export const requestNotificationPermission = async (userId: string): Promise<{ s
 
 // This function revokes the notification permission by removing the token from Firestore.
 export const revokeNotificationPermission = async (userId: string): Promise<void> => {
-    // If permission is blocked, we can't get a specific token.
-    // The only way to honor the user's request is to clear all tokens from the backend.
-    if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
-        console.log('Permission is denied. Clearing all user tokens from backend.');
-        await removeNotificationToken(userId); // This uses the fallback to clear all tokens
-        currentToken = null;
-        return;
+    let token = currentToken;
+    if (!token && typeof Notification !== 'undefined' && Notification.permission === 'granted' && VAPID_KEY) {
+        const messaging = await getWebMessaging();
+        const registration = await registerAppWorker();
+        if (messaging && registration) token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
     }
-
-    // Use the locally stored token if we have it.
-    if (currentToken) {
-        await removeNotificationToken(userId, currentToken);
-        currentToken = null; // Clear the stored token
-        return;
-    }
-
-    // If no local token, try to get it from Firebase.
-    try {
-        const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-        if (token) {
-            await removeNotificationToken(userId, token);
-        } else {
-            // Fallback if no token is found but permission isn't denied.
-            await removeNotificationToken(userId);
-        }
-    } catch (error) {
-        console.error('Could not get token to revoke permission. Falling back to clearing all tokens.', error);
-        // This catch handles other errors (e.g., user dismisses prompt)
-        // and ensures we still fulfill the request to stop notifications.
-        await removeNotificationToken(userId);
-    }
+    // Turning off this installation must not disable the user's other devices.
+    if (token) await removeNotificationToken(userId, token);
+    setDevicePushDisabled(userId, true);
+    currentToken = null;
 };
 
 

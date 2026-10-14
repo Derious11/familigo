@@ -2,11 +2,12 @@
   "name": "FamiliGo",
   "short_name": "FamiliGo",
   "description": "The family activity game.",
-  "start_url": "/",
+  "id": "/app",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#2563eb",
-  "theme_color": "#2563eb",
+  "background_color": "#F9FAFB",
+  "theme_color": "#0f172a",
   "icons": [
     {
       "src": "/assets/brand/icon-192.png",
@@ -19,6 +20,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/assets/brand/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
