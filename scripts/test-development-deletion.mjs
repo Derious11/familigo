@@ -7,13 +7,19 @@ const cli=require('../.local-tools/firebase-cli/node_modules/firebase-tools/lib/
 const api=require('../.local-tools/firebase-cli/node_modules/firebase-tools/lib/api.js');
 const account=cli.getProjectDefaultAccount(process.cwd());
 const {GoogleAuth}=require('../functions/node_modules/google-auth-library');
-const {Firestore,FieldValue}=require('../functions/node_modules/@google-cloud/firestore');
+const {Firestore,FieldValue,FieldPath}=require('../functions/node_modules/@google-cloud/firestore');
 const auth=new GoogleAuth({credentials:{type:'authorized_user',client_id:api.clientId(),client_secret:api.clientSecret(),refresh_token:account.tokens.refresh_token},scopes:['https://www.googleapis.com/auth/cloud-platform']});
 const db=new Firestore({projectId:'familigo-dev-11643',auth});
 const id=`release-review-${Date.now()}`;
 const challenge=db.doc(`challenges/${id}`),family=db.doc(`familyCircles/${id}`),job=db.doc(`contentDeletionJobs/challenge_${id}`);
 const replies=Array.from({length:101},(_,i)=>db.doc(`replies/${id}-${i}`));
 try{
+  for(const name of ['messages','challenges','replies']){
+    let query=db.collection(name).where('familyCircleId','==',id);
+    if(name==='replies')query=query.where('challengeId','==',id);
+    await query.orderBy('timestamp','desc').orderBy(FieldPath.documentId(),'desc').limit(30).get();
+  }
+  console.log('Verified development indexes for all three paginated queries.');
   const batch=db.batch();batch.create(family,{memberIds:[],members:{}});
   batch.create(challenge,{familyCircleId:id,challenger:{id,name:'Review fixture'},exercise:{name:'Review fixture'},timestamp:new Date(),expiresAt:new Date(),deletingJobId:job.id});
   for(const ref of replies)batch.create(ref,{familyCircleId:id,challengeId:id,user:{id,name:'Review fixture'},text:'Synthetic deletion fixture',timestamp:new Date()});
