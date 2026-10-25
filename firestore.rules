@@ -192,6 +192,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         isAdmin() || (
           isFamilyMember(circleId)
+          && request.resource.data.get('adventureTheme', 'mountain') in ['mountain', 'forest', 'coast', 'canyon']
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["inviteCount", "invitationIds"])
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["memberIds", "members"])
             || validMembershipChange())
@@ -205,6 +206,34 @@ service cloud.firestore {
     /* ========================
        CHALLENGES
        ======================== */
+    // One immutable adventure per UTC Monday. Targets cannot change after launch.
+    match /familyCircles/{circleId}/weeklyAdventures/{weekId} {
+      function validAdventure(data) {
+        let circle = get(/databases/$(database)/documents/familyCircles/$(circleId)).data;
+        return data.keys().hasOnly(["target", "trailTarget", "startsAt", "endsAt", "createdBy", "createdAt"])
+          && data.target is int && data.target >= 7 && data.target <= 100000
+          && data.trailTarget is int && data.trailTarget > 0
+          && circle.memberIds.size() > 0
+          // Rules divide two integers with truncation; use a float before rounding up.
+          && data.trailTarget == math.ceil(data.target * 1.0 / circle.memberIds.size())
+          && data.startsAt is timestamp && data.endsAt is timestamp
+          && data.startsAt.dayOfWeek() == 1
+          && data.startsAt.hours() == 0 && data.startsAt.minutes() == 0
+          && data.startsAt.seconds() == 0 && data.startsAt.nanos() == 0
+          && weekId == string(data.startsAt.year()) + '-' + (data.startsAt.month() < 10 ? '0' : '') + string(data.startsAt.month()) + '-' + (data.startsAt.day() < 10 ? '0' : '') + string(data.startsAt.day())
+          && data.endsAt == data.startsAt + duration.value(7, 'd')
+          && data.startsAt <= request.time && request.time < data.endsAt
+          && data.createdBy == request.auth.uid && data.createdAt == request.time;
+      }
+      allow read: if isSignedIn() && isFamilyMember(circleId);
+      allow create: if isSignedIn() && isFamilyMember(circleId)
+        && request.auth.uid in get(/databases/$(database)/documents/familyCircles/$(circleId)).data.adminIds
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'adult'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('status', 'active') == 'active'
+        && validAdventure(request.resource.data);
+      allow update, delete: if false;
+    }
+
     match /challenges/{challengeId} {
 
       allow read: if isSignedIn() && (isAdmin() || isFamilyMember(resource.data.familyCircleId));

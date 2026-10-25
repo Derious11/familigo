@@ -13,4 +13,5 @@ export interface FamilyCircle {
     motto?: string;
     adminIds?: string[];
     betaApproved?: boolean;
+    adventureTheme?: 'mountain' | 'forest' | 'coast' | 'canyon';
 }

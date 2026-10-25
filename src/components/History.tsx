@@ -6,7 +6,7 @@ import AppTabIntro from './AppTabIntro';
 import { ChevronDownIcon } from './Icons';
 import Leaderboard from './Leaderboard';
 import AvatarImage from './ui/AvatarImage';
-const History: React.FC = () => {
+const History: React.FC<{ onCreateChallenge?: () => void }> = ({ onCreateChallenge }) => {
     const context = useContext(AppContext);
     const { familyCircle } = context || {};
     const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -25,14 +25,9 @@ const History: React.FC = () => {
         const now = new Date();
         return challenges.filter(c => c.expiresAt <= now);
     }, [challenges]);
-    if (isLoading) {
-        return (<div className="text-center py-12 text-brand-text-secondary dark:text-gray-400">
-                <p>Loading...</p>
-            </div>);
-    }
     return (<div className="space-y-8 app-leaderboard-page">
-            {<AppTabIntro eyebrow="A little friendly competition" title="Every effort counts." description="Cheer on your family and celebrate the progress you’re making together."/>}
-            <Leaderboard />
+            {<AppTabIntro eyebrow="Your family. One adventure." title="Every effort counts." description="Climb together, cheer each other on, and see how far your family can go."/>}
+            <Leaderboard onCreateChallenge={onCreateChallenge} />
 
             <div className="bg-brand-surface dark:bg-gray-800 rounded-xl shadow-md">
                 <button className="w-full flex justify-between items-center p-4 sm:p-6 text-left" onClick={() => setIsLogbookOpen(!isLogbookOpen)} aria-expanded={isLogbookOpen}>
@@ -41,7 +36,7 @@ const History: React.FC = () => {
                 </button>
 
                 {isLogbookOpen && (<div className="px-4 sm:px-6 pb-4 sm:pb-6">
-                        {historyChallenges.length > 0 ? (<ul className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        {isLoading ? <p className="py-5 text-sm">Loading past challenges…</p> : historyChallenges.length > 0 ? (<ul className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
                                 {historyChallenges.map(challenge => (<HistoryItem key={challenge.id} challenge={challenge}/>))}
                             </ul>) : (<div className="text-center py-8 text-brand-text-secondary dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
                                 <p>No challenges in your history yet.</p>

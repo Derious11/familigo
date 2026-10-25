@@ -19,6 +19,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { db } from '../firebaseConfig';
 import { User, FamilyCircle } from '../types';
 import { getBadges } from './userService';
+import { ADVENTURE_THEMES } from '../lib/adventureThemes.mjs';
 
 const mapUserSnapshot = (snapshot: any): User => {
     const data = snapshot.data() as User;
@@ -38,7 +39,7 @@ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircl
     const circleDoc = await getDoc(circleDocRef);
     if (!circleDoc.exists()) return null;
 
-    const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
+    const circleData = circleDoc.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[], adventureTheme?: FamilyCircle['adventureTheme'] };
 
     let members: User[] = [];
     if (circleData.memberIds?.length) {
@@ -56,7 +57,8 @@ export const getUserFamilyCircle = async (familyId: string): Promise<FamilyCircl
         messageCount: circleData.messageCount,
         avatarUrl: circleData.avatarUrl,
         motto: circleData.motto,
-        adminIds: circleData.adminIds || []
+        adminIds: circleData.adminIds || [],
+        adventureTheme: circleData.adventureTheme,
     };
 };
 
@@ -187,7 +189,7 @@ export const onFamilyCircleUpdate = (
         circleRef,
         async (docSnapshot) => {
             if (docSnapshot.exists()) {
-                const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[] };
+                const circleData = docSnapshot.data() as { name: string; inviteCode: string; memberIds: string[], chatName?: string, messageCount?: number, avatarUrl?: string, motto?: string, adminIds?: string[], adventureTheme?: FamilyCircle['adventureTheme'] };
 
                 // We need to fetch member details to construct the full FamilyCircle object
                 // This is a bit expensive to do on every update, but necessary if we want the full object.
@@ -208,6 +210,7 @@ export const onFamilyCircleUpdate = (
                     avatarUrl: circleData.avatarUrl,
                     motto: circleData.motto,
                     adminIds: circleData.adminIds || [],
+                    adventureTheme: circleData.adventureTheme,
                 };
                 callback(circle);
             } else {
@@ -224,6 +227,10 @@ export const updateFamilyProfile = async (familyId: string, data: { avatarUrl?: 
     const familyRef = doc(db, 'familyCircles', familyId);
     await updateDoc(familyRef, data);
 };
+export async function updateFamilyAdventureTheme(familyId: string, themeId: string): Promise<void> {
+    if (!ADVENTURE_THEMES.some(theme => theme.id === themeId)) throw new Error('Choose one of the four adventure themes.');
+    await updateDoc(doc(db, 'familyCircles', familyId), { adventureTheme: themeId });
+}
 
 export const promoteToAdmin = async (familyId: string, userId: string): Promise<void> => {
     const familyRef = doc(db, 'familyCircles', familyId);

@@ -49,7 +49,7 @@ const MainApp: React.FC = () => {
     const renderView = () => {
         switch (activeView) {
             case 'history':
-                return <History />;
+                return <History onCreateChallenge={() => setIsCreateChallengeModalOpen(true)} />;
             case 'profile':
                 return <Profile />;
             case 'chat':
