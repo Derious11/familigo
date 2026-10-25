@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
+const walk = dir => fs.existsSync(dir) ? fs.readdirSync(dir, {withFileTypes:true}).flatMap(entry => entry.isDirectory() ? walk(`${dir}/${entry.name}`) : [`${dir}/${entry.name}`]) : [];
+const files = [...walk('src'), ...walk('functions/src'), ...walk('public'), ...walk('scripts')];
+const inventory = files.map(file => ({file, bytes:fs.statSync(file).size, sha256:createHash('sha256').update(fs.readFileSync(file)).digest('hex')}));
+const bundles = walk('dist/assets').filter(file => /\.(js|css)$/.test(file)).map(file => ({file:path.basename(file), bytes:fs.statSync(file).size, gzip:gzipSync(fs.readFileSync(file)).length}));
+const label = process.argv[2] || 'baseline';
+if (!/^[a-z-]+$/.test(label)) throw Error('Invalid report label');
+fs.mkdirSync('artifacts/release-review', {recursive:true});
+fs.writeFileSync(`artifacts/release-review/${label}.json`, JSON.stringify({inventory, bundles, dependencies:JSON.parse(fs.readFileSync('package.json')), backendDependencies:JSON.parse(fs.readFileSync('functions/package.json'))},null,2));
+console.log(`${inventory.length} files inventoried; ${bundles.length} bundles recorded (${label}).`);

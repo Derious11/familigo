@@ -1,26 +1,14 @@
-import {
-    doc,
-    getDoc,
-    updateDoc,
-    collection,
-    query,
-    where,
-    addDoc,
-    serverTimestamp,
-    onSnapshot,
-    orderBy,
-    deleteDoc,
-    increment,
-    Timestamp
-} from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, writeBatch, serverTimestamp, deleteDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
-import { User, Message } from '../types';
+import { User } from '../types';
 
 export const sendMessage = async (familyCircleId: string, user: User, text: string, type: 'text' | 'system' = 'text') => {
     const senderName = user.name?.trim() || 'Family member';
+    if (!text.trim() || text.length > 2000) throw new Error('Messages must contain 1 to 2000 characters.');
     if (senderName.length > 120) throw new Error('Your display name must be 120 characters or fewer to send a message.');
     const messagesRef = collection(db, 'messages');
-    await addDoc(messagesRef, {
+    const batch = writeBatch(db);
+    batch.set(doc(messagesRef), {
         familyCircleId,
         senderId: user.id,
         senderName,
@@ -32,30 +20,10 @@ export const sendMessage = async (familyCircleId: string, user: User, text: stri
 
     // Atomically increment the message count on the family circle
     const circleRef = doc(db, 'familyCircles', familyCircleId);
-    await updateDoc(circleRef, {
+    batch.update(circleRef, {
         messageCount: increment(1)
     });
-};
-
-export const onMessagesUpdate = (familyCircleId: string, callback: (messages: Message[]) => void): (() => void) => {
-    const q = query(
-        collection(db, 'messages'),
-        where('familyCircleId', '==', familyCircleId),
-        orderBy('timestamp', 'asc')
-    );
-
-    return onSnapshot(q, (querySnapshot) => {
-        const messages = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            const timestamp = data.timestamp as Timestamp | null;
-            return {
-                id: doc.id,
-                ...data,
-                timestamp: timestamp ? timestamp.toDate() : new Date(),
-            } as Message;
-        });
-        callback(messages);
-    });
+    await batch.commit();
 };
 
 export const updateFamilyCircleChatName = async (familyCircleId: string, user: User, newName: string) => {

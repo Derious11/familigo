@@ -1,0 +1,85 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { build } from 'esbuild';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator, collection, query, where, orderBy, documentId, limit, startAfter, onSnapshot, doc, getDoc, updateDoc, deleteDoc, setDoc, writeBatch, terminate, serverTimestamp } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator, ref, uploadBytes, getMetadata } from 'firebase/storage';
+import { livePages } from '../src/lib/livePages.mjs';
+if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8185' || process.env.FIREBASE_AUTH_EMULATOR_HOST !== '127.0.0.1:9195') throw Error('Only dedicated local review emulators are allowed.');
+const require = createRequire(import.meta.url);
+const admin = require('../functions/node_modules/firebase-admin');
+const projectId = 'demo-familigo-review';
+admin.initializeApp({projectId});
+const store=admin.firestore();
+const app=initializeApp({projectId,apiKey:'demo-key',storageBucket:`${projectId}.appspot.com`});
+const auth=getAuth(app);connectAuthEmulator(auth,'http://127.0.0.1:9195',{disableWarnings:true});
+const db=getFirestore(app);connectFirestoreEmulator(db,'127.0.0.1',8185);
+const storage=getStorage(app);connectStorageEmulator(storage,'127.0.0.1',9295);
+const suffix=Date.now();const family=`family-${suffix}`;
+const ids=['owner','member','outsider'].map(role=>`${role}-${suffix}`);
+const report=[];const pass=message=>{report.push(message);console.log(`PASS: ${message}`);};
+const denied=action=>assert.rejects(action,error=>['permission-denied','storage/unauthorized'].includes(error.code));
+let pager;
+try {
+  for(const [index,id] of ids.entries()) {
+    await admin.auth().createUser({uid:id,email:`${id}@example.test`,password:'Review-fixture-only-42!'});
+    await store.doc(`users/${id}`).set({name:id,role:'adult',status:'active',familyCircleId:index===2?'other':family});
+  }
+  await store.doc(`familyCircles/${family}`).set({memberIds:ids.slice(0,2),members:Object.fromEntries(ids.slice(0,2).map(id=>[id,true])),adminIds:[ids[0]],betaApproved:false,messageCount:0});
+  const challenge=`challenge-${suffix}`;
+  await store.doc(`challenges/${challenge}`).set({familyCircleId:family,challenger:{id:ids[0]},timestamp:admin.firestore.Timestamp.now()});
+  const login=index=>signInWithEmailAndPassword(auth,`${ids[index]}@example.test`,'Review-fixture-only-42!');
+  await login(2);
+  await denied(()=>getDoc(doc(db,'challenges',challenge)));
+  await login(1);
+  await denied(()=>deleteDoc(doc(db,'challenges',challenge)));
+  pass('outsiders cannot read challenges; other members cannot delete a creator’s challenge');
+  await login(0);
+  await denied(()=>updateDoc(doc(db,'familyCircles',family),{betaApproved:true}));
+  pass('family admins cannot grant global beta approval');
+  const feedback=doc(db,'feedback',`review-${suffix}`);
+  await denied(()=>setDoc(feedback,{userId:ids[1],issue:'Forged attribution',status:'new',timestamp:serverTimestamp()}));
+  await setDoc(feedback,{userId:ids[0],issue:'My feedback',status:'new',timestamp:serverTimestamp()});
+  await denied(()=>setDoc(doc(db,'feedback',`oversized-${suffix}`),{userId:ids[0],issue:'x'.repeat(10001),status:'new',timestamp:serverTimestamp()}));
+  pass('feedback cannot impersonate another adult or exceed the issue length limit');
+  const media=ref(storage,`reply-images/${ids[0]}/${challenge}/fixture.png`);
+  await uploadBytes(media,new Uint8Array([137,80,78,71]),{contentType:'image/png'});
+  await denied(()=>uploadBytes(ref(storage,`reply-images/${ids[0]}/${challenge}/bad.html`),new Uint8Array([1]),{contentType:'text/html'}));
+  await login(1);await getMetadata(media);
+  await login(2);await denied(()=>getMetadata(media));
+  pass('reply media is family-scoped; non-image uploads are denied');
+  await login(0);
+  const batch=store.batch();
+  for(let i=0;i<125;i++) batch.set(store.doc(`messages/review-${suffix}-${String(i).padStart(3,'0')}`),{familyCircleId:family,senderId:ids[0],senderName:'Owner',type:'text',text:String(i),timestamp:admin.firestore.Timestamp.fromMillis(1000+Math.floor(i/2))});
+  await batch.commit();
+  let state; let largest=0;
+  pager=livePages({pageSize:30,key:s=>`${s.id}:${JSON.stringify(s.get('timestamp'))}`,compare:(a,b)=>b.get('timestamp').toMillis()-a.get('timestamp').toMillis() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0),publish:value=>{state=value;},listen:(cursor,next,error)=>onSnapshot(query(collection(db,'messages'),where('familyCircleId','==',family),orderBy('timestamp','desc'),orderBy(documentId(),'desc'),...(cursor?[startAfter(cursor)]:[]),limit(30)),snapshot=>{largest=Math.max(largest,snapshot.size);next(snapshot.docs);},error)});
+  const waitFor=async predicate=>{const until=Date.now()+15000;while(!predicate()&&Date.now()<until){if(state?.error)throw state.error;await new Promise(r=>setTimeout(r,25));}assert.ok(predicate(),'snapshot condition timed out');};
+  await waitFor(()=>state&&!state.loading);assert.equal(state.items.length,30);
+  for(let i=0;i<4;i++){pager.loadMore();await waitFor(()=>!state.loading);}
+  assert.equal(state.items.length,125);assert.equal(new Set(state.items.map(s=>s.id)).size,125);assert.equal(state.hasMore,false);assert.equal(largest,30);
+  await store.doc(`messages/review-${suffix}-000`).update({text:'older edit'});
+  await waitFor(()=>state.items.find(s=>s.id.endsWith('-000'))?.data().text==='older edit');
+  await store.doc(`messages/review-${suffix}-080`).delete();
+  await waitFor(()=>state.items.length===124);
+  pass('125 messages with tied timestamps paginate without gaps; every snapshot <=30; old edits and deletions stay live');
+  pager.stop();pager=null;
+  const removal=writeBatch(db);removal.update(doc(db,'familyCircles',family),{memberIds:[ids[0]],members:{[ids[0]]:true}});removal.update(doc(db,'users',ids[1]),{familyCircleId:null});await removal.commit();
+  await login(1);await denied(()=>getDoc(doc(db,'challenges',challenge)));
+  pass('family removal updates both documents atomically and revokes access');
+  // Exercise the actual chat writer with only its Firebase configuration replaced.
+  globalThis.reviewFirebase={db,auth};
+  await fs.mkdir('.test-artifacts',{recursive:true});
+  await build({entryPoints:['src/services/chatService.ts'],outfile:'.test-artifacts/review-chat.mjs',bundle:true,platform:'node',format:'esm',packages:'external',plugins:[{name:'review-config',setup(build){build.onResolve({filter:/firebaseConfig$/},()=>({path:'fixture',namespace:'review'}));build.onLoad({filter:/.*/,namespace:'review'},()=>({contents:'export const {db,auth}=globalThis.reviewFirebase;'}));}}]});
+  const {sendMessage}=await import(pathToFileURL(`${process.cwd()}/.test-artifacts/review-chat.mjs`).href);
+  await login(0);await sendMessage(family,{id:ids[0],name:'Owner'},'Atomic test');
+  assert.equal((await store.doc(`familyCircles/${family}`).get()).data().messageCount,1);
+  await assert.rejects(()=>sendMessage('other',{id:ids[0],name:'Owner'},'Denied'));
+  pass('real chat service commits message and unread count together; unauthorized send fails');
+  await fs.writeFile('artifacts/release-review/emulator-results.json',JSON.stringify({projectId,checks:report},null,2));
+} finally {
+  pager?.stop();await terminate(db);await deleteApp(app);await admin.app().delete();
+}

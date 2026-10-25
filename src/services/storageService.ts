@@ -3,7 +3,13 @@ import { storage, db } from '../firebaseConfig';
 import { doc, collection } from "firebase/firestore";
 import { clearAvatarCache, getAvatarDownloadUrl, getAvatarStorageRef } from "../lib/avatar";
 
+const validateImage = (file: Blob) => {
+    if (!/^image\/(jpeg|png|webp|gif|heic|heif)$/.test(file.type)) throw new Error('Choose a JPEG, PNG, WebP, GIF, or HEIC image.');
+    if (file.size > 10 * 1024 * 1024) throw new Error('Choose an image smaller than 10 MB.');
+};
+
 export const uploadProfileImage = async (userId: string, file: File | Blob): Promise<string> => {
+    validateImage(file);
     if (!(file as File).type?.startsWith?.("image/") && !(file as Blob).type?.startsWith?.("image/")) {
         throw new Error("Only image uploads are allowed for avatars.");
     }
@@ -35,6 +41,7 @@ export const uploadProfileImage = async (userId: string, file: File | Blob): Pro
 };
 
 export const uploadReplyImage = async (userId: string, challengeId: string, file: Blob): Promise<string> => {
+    validateImage(file);
     const uniqueId = doc(collection(db, 'temp')).id; // Generate a unique ID for the file
     const storageRef = ref(storage, `reply-images/${userId}/${challengeId}/${uniqueId}`);
 
@@ -54,13 +61,14 @@ export const uploadReplyImage = async (userId: string, challengeId: string, file
             () => {
                 getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
                     resolve(downloadURL);
-                });
+                }).catch(reject);
             }
         );
     });
 };
 
 export const uploadFeedbackImage = async (userId: string, file: Blob): Promise<string> => {
+    validateImage(file);
     const uniqueId = doc(collection(db, 'temp')).id;
     const storageRef = ref(storage, `feedback-images/${userId}/${uniqueId}`);
 
@@ -74,7 +82,7 @@ export const uploadFeedbackImage = async (userId: string, file: Blob): Promise<s
                 reject(error);
             },
             () => {
-                getDownloadURL(uploadTask.snapshot.ref).then(resolve);
+                getDownloadURL(uploadTask.snapshot.ref).then(resolve).catch(reject);
             }
         );
     });

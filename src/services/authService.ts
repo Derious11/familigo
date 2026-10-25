@@ -24,7 +24,12 @@ import { User, UserRole } from '../types';
 import { checkAndUpdateStreak } from './userService';
 
 export const onAuthStateChanged = (callback: (user: User | null) => void): (() => void) => {
-    return onFirebaseAuthStateChanged(auth, async (firebaseUser) => {
+    let generation = 0;
+    let active = true;
+    const unsubscribe = onFirebaseAuthStateChanged(auth, async (firebaseUser) => {
+        const current = ++generation;
+        const deliver = (user: User | null) => { if (active && current === generation) callback(user); };
+        try {
         if (firebaseUser) {
             const userDocRef = doc(db, 'users', firebaseUser.uid);
 
@@ -67,27 +72,34 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
                 const isAdmin = !!idTokenResult.claims.admin;
 
                 const user: User = {
+                    ...userData,
                     id: firebaseUser.uid,
                     emailVerified: firebaseUser.emailVerified,
                     isAdmin,
-                    ...userData,
                 } as User;
 
                 // Check and update streak
-                checkAndUpdateStreak(user);
+                if (!active || current !== generation) return;
+                void checkAndUpdateStreak(user).catch(() => console.warn('Unable to update sign-in activity.'));
 
-                callback(user);
+                deliver(user);
             } else {
                 // If the user document doesn't exist even after retries, it's an inconsistent state.
                 // It's safer to sign the user out.
                 console.warn(`User document not found for uid: ${firebaseUser.uid} after retries. Forcing sign out.`);
-                signOut(auth);
-                callback(null);
+                if (!active || current !== generation) return;
+                await signOut(auth);
+                deliver(null);
             }
         } else {
-            callback(null);
+            deliver(null);
+        }
+        } catch {
+            console.warn('Unable to load the signed-in profile. Please retry sign-in.');
+            deliver(null);
         }
     });
+    return () => { active = false; generation++; unsubscribe(); };
 };
 
 export const signUpWithEmail = async (

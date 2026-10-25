@@ -1,7 +1,7 @@
-import React,{ useContext,useEffect,useMemo,useState } from 'react';
+import React,{ useContext,useMemo,useState } from 'react';
 import { AppContext } from '../App';
-import { onChallengesUpdate } from '../services/challengeService';
 import { Challenge } from '../types';
+import { useLiveCollection } from '../hooks/useLiveCollection';
 import AppTabIntro from './AppTabIntro';
 import { ChevronDownIcon } from './Icons';
 import Leaderboard from './Leaderboard';
@@ -9,18 +9,8 @@ import AvatarImage from './ui/AvatarImage';
 const History: React.FC<{ onCreateChallenge?: () => void }> = ({ onCreateChallenge }) => {
     const context = useContext(AppContext);
     const { familyCircle } = context || {};
-    const [challenges, setChallenges] = useState<Challenge[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [isLogbookOpen, setIsLogbookOpen] = useState(false); // Default closed to focus on leaderboard
-    useEffect(() => {
-        if (!context?.familyCircle)
-            return;
-        const unsubscribe = onChallengesUpdate(context.familyCircle.id, (newChallenges) => {
-            setChallenges(newChallenges);
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, [context?.familyCircle]);
+    const {items:challenges, loading:isLoading, error, hasMore, loadMore, retry} = useLiveCollection<Challenge>('challenges', [['familyCircleId', familyCircle?.id]], !!familyCircle?.id && isLogbookOpen);
     const historyChallenges = useMemo(() => {
         const now = new Date();
         return challenges.filter(c => c.expiresAt <= now);
@@ -36,11 +26,13 @@ const History: React.FC<{ onCreateChallenge?: () => void }> = ({ onCreateChallen
                 </button>
 
                 {isLogbookOpen && (<div className="px-4 sm:px-6 pb-4 sm:pb-6">
-                        {isLoading ? <p className="py-5 text-sm">Loading past challenges…</p> : historyChallenges.length > 0 ? (<ul className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        {error && <p role="alert">Unable to load history. <button onClick={retry}>Try again</button></p>}
+                        {isLoading && !challenges.length ? <p className="py-5 text-sm">Loading past challenges…</p> : historyChallenges.length > 0 ? (<ul className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
                                 {historyChallenges.map(challenge => (<HistoryItem key={challenge.id} challenge={challenge}/>))}
                             </ul>) : (<div className="text-center py-8 text-brand-text-secondary dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-                                <p>No challenges in your history yet.</p>
+                                <p>{hasMore ? 'Load older challenges to see more history.' : 'No challenges in your history yet.'}</p>
                             </div>)}
+                        {(hasMore || isLoading) && <button disabled={isLoading} onClick={loadMore} className="min-h-11 p-3 underline">{isLoading ? 'Loading…' : 'Load older challenges'}</button>}
                     </div>)}
             </div>
         </div>);

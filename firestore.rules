@@ -12,13 +12,13 @@ service cloud.firestore {
     // Check if user is a member of the given family circle
     function isFamilyMember(familyCircleId) {
       let familyCircleData = get(/databases/$(database)/documents/familyCircles/$(familyCircleId)).data;
-      return familyCircleData.members[request.auth.uid] == true
-          || (familyCircleData.members[request.auth.uid] == null && request.auth.uid in familyCircleData.memberIds);
+      return familyCircleData.get('members', {}).get(request.auth.uid, null) == true
+          || (familyCircleData.get('members', {}).get(request.auth.uid, null) == null && request.auth.uid in familyCircleData.memberIds);
     }
 
     // Check for admin custom claim
     function isAdmin() {
-      return request.auth.token.admin == true;
+      return request.auth.token.get('admin', false) == true;
     }
 
     function isOwnChild(childId, circleId) {
@@ -59,6 +59,17 @@ service cloud.firestore {
         && circle.members.keys().hasOnly([request.auth.uid])
         && circle.members[request.auth.uid] == true
         && circle.betaApproved == (resource.data.get("familyCreationApproved", false) == true);
+    }
+
+    function validFamilyRemoval(userId) {
+      let circleId = resource.data.familyCircleId;
+      let before = get(/databases/$(database)/documents/familyCircles/$(circleId)).data;
+      let after = getAfter(/databases/$(database)/documents/familyCircles/$(circleId)).data;
+      return request.auth.uid in before.adminIds
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['familyCircleId'])
+        && request.resource.data.get('familyCircleId', null) == null
+        && !(userId in after.memberIds)
+        && !after.get('members', {}).get(userId, false);
     }
 
     /* ========================
@@ -111,6 +122,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["badges", "achievementState", "achievementCount", "pinnedBadgeIds"]) && (
         isAdmin()
         || validFamilyBootstrap(userId)
+        || validFamilyRemoval(userId)
 
         // Self updates safe fields only
         || (
@@ -196,7 +208,8 @@ service cloud.firestore {
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["inviteCount", "invitationIds"])
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["memberIds", "members"])
             || validMembershipChange())
-          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["adminIds", "betaApproved"])
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["betaApproved"])
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["adminIds"])
             || request.auth.uid in resource.data.adminIds)
           && request.resource.data.adminIds.toSet().difference(resource.data.adminIds.toSet()).hasOnly(resource.data.memberIds)
         )
@@ -243,7 +256,7 @@ service cloud.firestore {
       // Updates usually don't change the familyCircleId, so we check the existing one
       allow update: if false; // Enrollment, totals and completions are server-owned.
       
-      allow delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      allow delete: if false; // Durable, authorized server deletion only.
     }
 
     /* ========================
@@ -257,7 +270,7 @@ service cloud.firestore {
       
       allow update: if false; // Reaction attribution is server-owned.
       
-      allow delete: if isSignedIn() && isFamilyMember(resource.data.familyCircleId);
+      allow delete: if false; // Durable, authorized server deletion only.
     }
 
     /* ========================
@@ -293,12 +306,25 @@ service cloud.firestore {
     match /achievementEvents/{eventId} {
       allow read, write: if false;
     }
+    match /contentDeletionJobs/{jobId} {
+      allow read: if isSignedIn() && resource.data.requestedBy == request.auth.uid
+        && isFamilyMember(resource.data.familyId);
+      allow write: if false;
+    }
 
     /* ========================
        FEEDBACK
        ======================== */
     match /feedback/{feedbackId} {
-      allow create: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.userId is string
+        && (request.resource.data.userId == request.auth.uid
+          || (get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.role == 'child'
+            && get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.parentId == request.auth.uid))
+        && request.resource.data.keys().hasOnly(['userId', 'userName', 'userEmail', 'role', 'context', 'issue', 'whatWorked', 'rating', 'screenshotUrl', 'timestamp', 'userAgent', 'version', 'status'])
+        && request.resource.data.issue is string && request.resource.data.issue.size() > 0 && request.resource.data.issue.size() <= 10000
+        && request.resource.data.get('whatWorked', '') is string && request.resource.data.get('whatWorked', '').size() <= 10000
+        && request.resource.data.status == 'new' && request.resource.data.timestamp == request.time;
       allow read: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
       allow delete: if isSignedIn() && isAdmin();
     }

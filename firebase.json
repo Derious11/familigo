@@ -23,7 +23,8 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ]
+    ],
+    "indexes": "firestore.production.indexes.json"
   },
   "hosting": {
     "public": "dist",

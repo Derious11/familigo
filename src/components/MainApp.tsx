@@ -1,15 +1,15 @@
-import React,{ useContext,useEffect,useState } from 'react';
+import React,{ lazy,Suspense,useContext,useEffect,useState } from 'react';
 import { AppContext } from '../App';
 import { resendVerificationEmail } from '../services/authService';
 import { View } from '../types';
-import CreateChallengeModal from './Challenges/CreateChallengeModal';
-import Chat from './Chat';
+const CreateChallengeModal = lazy(() => import('./Challenges/CreateChallengeModal'));
+const Chat = lazy(() => import('./Chat'));
 import Feed from './Feed';
-import FeedbackModal from './Feedback/FeedbackModal';
+const FeedbackModal = lazy(() => import('./Feedback/FeedbackModal'));
 import Header from './Header';
-import History from './History';
+const History = lazy(() => import('./History'));
 import { ChatBubbleLeftIcon,PlusIcon } from './Icons';
-import Profile from './Profile';
+const Profile = lazy(() => import('./Profile'));
 import './app.css';
 import AchievementCelebration from './AchievementCelebration';
 import { InstallCard } from '../pwa/PwaProvider';
@@ -77,7 +77,7 @@ const MainApp: React.FC = () => {
                 <Header activeView={activeView} setActiveView={setActiveView}/>
                 <main className="p-4 app-main-content">
                     {activeView === 'feed' && <InstallCard />}
-                    {renderView()}
+                    <Suspense fallback={<p role="status">Loading…</p>}>{renderView()}</Suspense>
                 </main>
             </div>
 
@@ -93,9 +93,10 @@ const MainApp: React.FC = () => {
             </button>
             </>}
 
-            {isCreateChallengeModalOpen && (<CreateChallengeModal onClose={() => setIsCreateChallengeModalOpen(false)}/>)}
+            <Suspense fallback={<p role="status">Loading…</p>}>{isCreateChallengeModalOpen && (<CreateChallengeModal onClose={() => setIsCreateChallengeModalOpen(false)}/>)}
 
             {isFeedbackModalOpen && (<FeedbackModal onClose={() => setIsFeedbackModalOpen(false)}/>)}
+            </Suspense>
             {currentUser?.familyCircleId && <AchievementCelebration actorId={currentUser.id} familyCircleId={currentUser.familyCircleId} onView={() => {setActiveView('profile'); setTimeout(() => document.getElementById('achievements')?.scrollIntoView({behavior: 'auto'}), 100);}}/>}
         </div></PushNotificationProvider>);
 };

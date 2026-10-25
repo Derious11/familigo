@@ -1,0 +1,12 @@
+{
+  "score": 3,
+  "summary": "Confirmed family data and deletion authorization gaps fixed locally and tested in dedicated emulators. Production is unchanged. Remaining profile-stat integrity, payload validation, bearer-media lifecycle and large deletion workflows prevent a full security sign-off.",
+  "findings": [
+    {"check":"Identity-level security","severity":"major","issue":"Original reply Storage reads allowed every authenticated user; original challenge/reply deletion allowed every family member.","recommendation":"Local fixes restrict family reads and creator/parent deletion. Deploy only after merged rules/device verification."},
+    {"check":"Authority source","severity":"major","issue":"Family administrators could modify global betaApproved.","recommendation":"Local rule now requires global admin for changes; emulator confirms denial for family admins."},
+    {"check":"Business logic vs rules","severity":"moderate","issue":"Removing a family member failed because user familyCircleId changes were forbidden.","recommendation":"Local narrow atomic-removal rule checks existing admin and post-write membership; emulator verifies access revocation."},
+    {"check":"Field-level vs identity-level security","severity":"moderate","issue":"Feedback accepted forged author IDs.","recommendation":"Local author/parent checks, field allowlist and text limits are tested."},
+    {"check":"Update bypass","severity":"moderate","issue":"Legacy user XP/activity/streak fields are client-writable; some updates are not transactional.","recommendation":"Migrate legacy stat mutations to validated server operations while preserving sign-in behavior."},
+    {"check":"Storage abuse and type safety","severity":"minor","issue":"Image writes previously lacked type/size limits; other profile/family fields still have incomplete schema bounds.","recommendation":"Image type and 10 MB limits added locally; finish profile/family validation with existing-account fixtures."}
+  ]
+}

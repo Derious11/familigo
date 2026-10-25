@@ -1,28 +1,28 @@
 import confetti from 'canvas-confetti';
 import { usePostHog } from 'posthog-js/react';
-import React,{ useCallback,useEffect,useMemo,useState } from 'react';
-import DeleteAccount from './components/Auth/DeleteAccount';
-import PendingApproval from './components/Auth/PendingApproval';
-import PrivacyPolicy from './components/Auth/PrivacyPolicy';
+import React,{ lazy,Suspense,useCallback,useEffect,useMemo,useState } from 'react';
 import ErrorState from './components/ErrorState';
-import MainApp from './components/MainApp';
-import OnboardingFlow from './components/OnboardingFlow';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { getLegacyDestination } from './lib/legacyRoutes.mjs';
-import AdminPage from './pages/AdminPage';
-import ClaimInvite from './pages/ClaimInvite';
-import DesignReview from './pages/DesignReview';
-import EarlyAccess from './pages/EarlyAccess';
-import FaqPage from './pages/FaqPage';
-import InviteParent from './pages/InviteParent';
-import Login from './pages/Login';
-import MarketingLanding from './pages/MarketingLanding';
 import { onAuthStateChanged,signOutUser } from './services/authService';
 import { addChallengeToFamily,addReplyToChallenge,deleteChallengeAndReplies,deleteReply as deleteReplyFromFirestore } from './services/challengeService';
 import { onFamilyCircleUpdate } from './services/familyService';
 import { uploadReplyImage } from './services/storageService';
 import { onUserUpdate } from './services/userService';
 import { AddReplyPayload,AuthState,Exercise,FamilyCircle,User } from './types';
+const DeleteAccount = lazy(() => import('./components/Auth/DeleteAccount'));
+const PendingApproval = lazy(() => import('./components/Auth/PendingApproval'));
+const PrivacyPolicy = lazy(() => import('./components/Auth/PrivacyPolicy'));
+const MainApp = lazy(() => import('./components/MainApp'));
+const OnboardingFlow = lazy(() => import('./components/OnboardingFlow'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const ClaimInvite = lazy(() => import('./pages/ClaimInvite'));
+const DesignReview = lazy(() => import('./pages/DesignReview'));
+const EarlyAccess = lazy(() => import('./pages/EarlyAccess'));
+const FaqPage = lazy(() => import('./pages/FaqPage'));
+const InviteParent = lazy(() => import('./pages/InviteParent'));
+const Login = lazy(() => import('./pages/Login'));
+const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
 const legacyDestination = getLegacyDestination(window.location.pathname);
 if (legacyDestination) window.history.replaceState({}, '', `${legacyDestination}${window.location.search}${window.location.hash}`);
 
@@ -90,6 +90,12 @@ const App: React.FC = () => {
     const [familyCircle, setFamilyCircle] = useState<FamilyCircle | null>(null);
     const [viewingAsUserId, setViewingAsUserId] = useState<string | null>(null);
     const [familyError, setFamilyError] = useState<string | null>(null);
+    const [, updateRoute] = useState(0);
+    useEffect(() => {
+        const onRouteChange = () => updateRoute(value => value + 1);
+        window.addEventListener('popstate', onRouteChange);
+        return () => window.removeEventListener('popstate', onRouteChange);
+    }, []);
     // Track app open once on mount (sanity check)
     useEffect(() => {
         posthog?.capture('app_opened', {
@@ -195,6 +201,9 @@ const App: React.FC = () => {
             unsubFamily = null;
             unsubUser = onUserUpdate(targetUserId, (updatedUser) => {
                 if (!updatedUser) {
+                    unsubFamily?.();
+                    unsubFamily = null;
+                    subscribedFamilyId = null;
                     const isImpersonating = targetUserId !== authUser.id;
                     if (isImpersonating) {
                         setViewingAsUserId(null);
@@ -202,6 +211,7 @@ const App: React.FC = () => {
                     }
                     setCurrentUser(null);
                     setFamilyCircle(null);
+                    setFamilyError('Unable to load your profile. Please reload to try again.');
                     setAuthState('authenticated');
                     posthog?.capture('user_profile_missing', {
                         is_impersonating: false
@@ -249,6 +259,8 @@ const App: React.FC = () => {
                     if (unsubFamily)
                         unsubFamily();
                     subscribedFamilyId = familyId;
+                    setFamilyCircle(null);
+                    setAuthState('loading');
                     unsubFamily = onFamilyCircleUpdate(familyId, (circle) => {
                         setFamilyError(null);
                         setFamilyCircle(circle);
@@ -325,6 +337,7 @@ const App: React.FC = () => {
                 ...withFamilyGroup(familyId)
             });
         }
+        if (window.location.pathname.toLowerCase() !== path) updateRoute(value => value + 1);
     }, [authState, currentUser, familyCircle, posthog]);
     /* ------------------------------------------------------------------------
        CONTEXT ACTIONS
@@ -488,7 +501,7 @@ const App: React.FC = () => {
             content = (<OnboardingFlow user={currentUser!} setFamilyCircle={setFamilyCircle}/>);
         }
         else {
-            content = <MainApp />;
+            content = <MainApp key={`${currentUser?.id}:${familyCircle.id}`} />;
         }
     }
     // FALLBACK
@@ -496,7 +509,9 @@ const App: React.FC = () => {
         content = <Login />;
     }
     return (<AppContext.Provider value={contextValue}>
-            {content}
+            <Suspense fallback={<div role="status" className="flex items-center justify-center h-screen">Loading…</div>}>
+                {content}
+            </Suspense>
         </AppContext.Provider>);
 };
 /* ============================================================================

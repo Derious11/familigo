@@ -1,8 +1,9 @@
 import React,{ useContext,useEffect,useMemo,useState } from 'react';
 import { AppContext } from '../../App';
 import { EXERCISES } from '../../constants';
-import { onRepliesUpdate,updateReaction } from '../../services/challengeService';
+import { updateReaction } from '../../services/challengeService';
 import { Challenge,Reply } from '../../types';
+import { useLiveCollection } from '../../hooks/useLiveCollection';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import { ChatBubbleLeftIcon,ClockIcon,TrashIcon } from '../Icons';
 import AvatarImage from '../ui/AvatarImage';
@@ -75,7 +76,6 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     const { currentUser, deleteReply, deleteChallenge, familyCircle, addReply } =
         context || {};
 
-    const [replies, setReplies] = useState<Reply[]>([]);
     const [isLogWeightModalOpen, setIsLogWeightModalOpen] = useState(false);
     const [isLogActivityModalOpen, setIsLogActivityModalOpen] = useState(false);
     const [isCreateReplyModalOpen, setIsCreateReplyModalOpen] = useState(false);
@@ -83,6 +83,8 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     const [mainComment, setMainComment] = useState('');
     const [isPostingMainComment, setIsPostingMainComment] = useState(false);
     const [showComments, setShowComments] = useState(false);
+    const {items:recentReplies, loading:repliesLoading, error:repliesError, hasMore, loadMore, retry} = useLiveCollection<Reply>('replies', [['challengeId',challenge.id],['familyCircleId',challenge.familyCircleId]], showComments);
+    const replies = useMemo(() => [...recentReplies].reverse(), [recentReplies]);
     const [itemToDelete, setItemToDelete] = useState<{
         type: 'reply' | 'challenge';
         id: string;
@@ -100,17 +102,6 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
     const isChallenger = currentUser?.id === challenge.challenger.id;
 
     /* ---------- Load Replies ---------- */
-    useEffect(() => {
-        const unsubscribe = onRepliesUpdate(
-            challenge.id,
-            challenge.familyCircleId,
-            setReplies
-        );
-
-        return () => {
-            unsubscribe();
-        };
-    }, [challenge.id, challenge.familyCircleId]);
 
     /* ---------- Threading ---------- */
     const { topLevelReplies, repliesByParent } = useMemo(() => {
@@ -118,7 +109,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
         const map: Record<string, Reply[]> = {};
 
         replies.forEach((r) => {
-            if (r.parentId) {
+            if (r.parentId && replies.some(parent => parent.id === r.parentId)) {
                 (map[r.parentId] ||= []).push(r);
             } else {
                 top.push(r);
@@ -155,11 +146,17 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
 
     const handleMainCommentSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!mainComment.trim() || !addReply) return;
+        if (!mainComment.trim() || !addReply || isPostingMainComment) return;
         setIsPostingMainComment(true);
-        await addReply(challenge.id, { text: mainComment }, undefined, false);
-        setMainComment('');
-        setIsPostingMainComment(false);
+        try {
+            await addReply(challenge.id, { text: mainComment }, undefined, false);
+            setMainComment('');
+            setActionError('');
+        } catch {
+            setActionError('Could not post your comment. Your draft is still here. Please try again.');
+        } finally {
+            setIsPostingMainComment(false);
+        }
     };
 
     const confirmDeletion = async () => {
@@ -170,6 +167,8 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                 await deleteReply(itemToDelete.id);
             else if (itemToDelete.type === 'challenge' && deleteChallenge)
                 await deleteChallenge(itemToDelete.id);
+        } catch {
+            setActionError('Could not delete this item. Please try again.');
         } finally {
             setIsDeleting(false);
             setItemToDelete(null);
@@ -240,6 +239,8 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                         ) : (
                         <img
                             src={guideUrl}
+                            loading="lazy"
+                            decoding="async"
                             alt={challenge.exercise.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -283,6 +284,8 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
             {/* Comments */}
             {showComments && (
                 <div className="p-4 space-y-4">
+                    {repliesError && <p role="alert">Unable to load comments. <button onClick={retry}>Try again</button></p>}
+                    {(hasMore || repliesLoading) && <button disabled={repliesLoading} onClick={loadMore} className="min-h-11 underline">{repliesLoading ? 'Loading comments…' : 'Load older comments'}</button>}
                     <form onSubmit={handleMainCommentSubmit} className="flex gap-2 items-start">
                         <AvatarImage
                             userId={currentUser?.id}
@@ -293,6 +296,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                         <div className="flex-1 relative">
                             <textarea
                                 value={mainComment}
+                                aria-label="Write a comment"
                                 onChange={(e) => setMainComment(e.target.value)}
                                 placeholder="Write a comment..."
                                 className="w-full text-sm rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border-0 focus:ring-2 focus:ring-brand-blue resize-none shadow-sm dark:text-gray-100 placeholder:text-gray-400"
@@ -312,6 +316,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                             {mainComment.trim() && (
                                 <button
                                     type="submit"
+                                    aria-label="Post comment"
                                     disabled={isPostingMainComment}
                                     className="absolute right-2 top-2 p-1 text-brand-blue hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-all"
                                 >
@@ -329,6 +334,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isActive }) =>
                             key={reply.id}
                             reply={reply}
                             childReplies={repliesByParent[reply.id] || []}
+                            repliesByParent={repliesByParent}
                             onReact={handleReaction}
                             onDeleteClick={(id) => setItemToDelete({ type: 'reply', id })}
                             onToggleReply={(id) => setReplyingToId((c) => (c === id ? null : id))}
@@ -379,10 +385,11 @@ const ReplyCard: React.FC<{
     onReact: (replyId: string, emoji: string) => void;
     onDeleteClick: (replyId: string) => void;
     childReplies: Reply[];
+    repliesByParent?: Record<string, Reply[]>;
     onToggleReply: (replyId: string) => void;
     replyingToId: string | null;
     challengeId: string;
-}> = ({ reply, onReact, onDeleteClick, childReplies }) => {
+}> = ({ reply, onReact, onDeleteClick, childReplies, repliesByParent = {} }) => {
     return (
         <div className="flex gap-3">
             <AvatarImage
@@ -399,6 +406,8 @@ const ReplyCard: React.FC<{
                             <div className="relative rounded-lg overflow-hidden h-40 w-auto inline-block border border-gray-200 dark:border-gray-600">
                                 <img
                                     src={reply.mediaUrl}
+                                    loading="lazy"
+                                    decoding="async"
                                     alt="Challenge Proof"
                                     className="h-full w-auto object-cover max-w-full"
                                 />
@@ -410,8 +419,9 @@ const ReplyCard: React.FC<{
                     )}
 
                     {reply.text && <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">{reply.text}</p>}
-                    <div className="flex gap-2 mt-2" role="group" aria-label="React to challenge update">{['❤️', '👏', '💪'].map(emoji => <button key={emoji} onClick={() => onReact(reply.id, emoji)} className="px-2 min-h-11 rounded-lg border border-gray-200 dark:border-gray-600" aria-label={`React ${emoji}`}>{emoji} {reply.reactions[emoji] || ''}</button>)}</div>
+                    <div className="flex gap-2 mt-2" role="group" aria-label="React to challenge update">{['❤️', '👏', '💪'].map(emoji => <button key={emoji} onClick={() => onReact(reply.id, emoji)} className="px-2 min-h-11 rounded-lg border border-gray-200 dark:border-gray-600" aria-label={`React ${emoji}`}>{emoji} {reply.reactions?.[emoji] || ''}</button>)}</div>
                 </div>
+                {childReplies.map(child => <ReplyCard key={child.id} reply={child} childReplies={repliesByParent[child.id] || []} repliesByParent={repliesByParent} onReact={onReact} onDeleteClick={onDeleteClick} onToggleReply={() => {}} replyingToId={null} challengeId={child.challengeId}/>)}
             </div>
         </div>
     );

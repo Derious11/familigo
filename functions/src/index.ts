@@ -20,6 +20,7 @@ export {
   achievementChallengeCreated,
 } from "./achievements/backend";
 export {reconcileAchievements} from "./achievements/reconcile";
+export {deleteFamilyContent, continueContentDeletion} from './callables/deleteContent';
 
 // Export triggers
 export {

@@ -303,7 +303,7 @@ export const recordChallengeReply = callable.onCall(async (data, context) => {
     );
     const challengeRef = db.doc(`challenges/${challengeId}`);
     const challenge = (await tx.get(challengeRef)).data();
-    if (!challenge || challenge.familyCircleId !== familyId) {
+    if (!challenge || challenge.familyCircleId !== familyId || challenge.deletingJobId) {
       fail("Challenge unavailable.");
     }
     const receipt = db.doc(`achievementEvents/reply_${id}`);
@@ -467,7 +467,7 @@ export const recordChallengeReaction = callable.onCall(
       const challenge = (await tx.get(
         db.doc(`challenges/${identifier(reply.challengeId)}`),
       )).data();
-      if (!challenge || challenge.familyCircleId !== familyId) {
+      if (!challenge || challenge.familyCircleId !== familyId || challenge.deletingJobId) {
         fail("Challenge unavailable.");
       }
       const receipt = db.doc(
