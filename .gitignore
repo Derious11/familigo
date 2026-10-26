@@ -37,3 +37,7 @@ functions/.env.*
 .test-artifacts/
 .codex-remote-attachments/
 *service-account*.json
+
+# Local design iterations and review evidence; curated reports belong in docs/.
+/artifacts/design/
+/artifacts/release-review/

@@ -1,5 +1,6 @@
 import React,{ useEffect,useMemo,useRef } from 'react';
 import { XMarkIcon } from '../Icons';
+import { lockScroll } from '../../lib/scrollLock.mjs';
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -47,25 +48,18 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
     }, [isOpen, containFocus]);
     const titleId = useMemo(() => `modal-title-${Math.random().toString(36).slice(2)}`, []);
     useEffect(() => {
-        const root = document.getElementById('root');
-        const bodyOverflow = document.body.style.overflow;
-        const rootOverflow = root?.style.overflow;
+        if (!isOpen) return;
+        return lockScroll([document.body, document.getElementById('root')]);
+    }, [isOpen]);
+    useEffect(() => {
+        if (!isOpen) return;
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape')
                 onClose();
         };
-        if (isOpen) {
-            document.addEventListener('keydown', handleEscape);
-            // Prevent body scroll
-            document.body.style.overflow = 'hidden';
-            if (root)
-                root.style.overflow = 'hidden';
-        }
+        document.addEventListener('keydown', handleEscape);
         return () => {
             document.removeEventListener('keydown', handleEscape);
-            document.body.style.overflow = bodyOverflow;
-            if (root)
-                root.style.overflow = rootOverflow || '';
         };
     }, [isOpen, onClose]);
     if (!isOpen)
