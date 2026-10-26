@@ -14,10 +14,11 @@
     "build:dev": "vite build --mode development",
     "build:preview": "vite build --mode development",
     "preview": "vite preview",
-    "deploy:dev": "npm run build:dev && npx -y firebase-tools@latest deploy --only hosting,firestore,auth,storage,functions --config firebase.development.json --project familigo-dev-11643",
+    "deploy:dev": "npm run check:dev-storage && npm run build:dev && npx -y firebase-tools@latest deploy --only hosting,firestore,auth,storage,functions --config firebase.development.json --project familigo-dev-11643",
     "deploy:dev:functions": "npx -y firebase-tools@latest deploy --only functions --config firebase.development.json --project familigo-dev-11643",
-    "deploy:dev:storage": "npx -y firebase-tools@latest deploy --only storage --config firebase.development.json --project familigo-dev-11643",
-    "test:pwa": "node --test scripts/pwa-worker.test.mjs scripts/web-push.test.mjs"
+    "deploy:dev:storage": "npm run check:dev-storage && npx -y firebase-tools@latest deploy --only storage --config firebase.development.json --project familigo-dev-11643",
+    "test:pwa": "node --test scripts/pwa-worker.test.mjs scripts/web-push.test.mjs",
+    "check:dev-storage": "node scripts/check-storage-rule-access.mjs familigo-dev-11643"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.4",
