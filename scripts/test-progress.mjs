@@ -53,7 +53,7 @@ try {
 } finally {
  await terminate(client);await deleteApp(app);
  await db.recursiveDelete(db.doc('familyCircles/'+family));
- for(const p of ['users/'+id,'users/'+child,'challenges/'+challenge,'replies/'+id+'-reply','achievementEvents/reply_'+id+'-reply','achievementProfiles/'+id])await db.doc(p).delete();
+ for(const p of ['users/'+id,'users/'+child,'challenges/'+challenge,'replies/'+id+'-reply','achievementEvents/reply_'+id+'-reply','achievementProfiles/'+id])await db.recursiveDelete(db.doc(p));
  await admin.auth().deleteUser(id);await db.terminate();
 }
 

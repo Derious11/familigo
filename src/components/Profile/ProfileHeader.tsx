@@ -83,7 +83,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
                             <FireIcon className="w-7 h-7"/>
                         </div>
                         <div className="text-xl font-black text-gray-800 dark:text-gray-100">{currentUser.streak}</div>
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{'Login Streak'}</div>
+                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">{'Login Streak'}</div>
                     </div>
 
                     <div className="text-center group cursor-default">
@@ -91,17 +91,17 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
                             <ShieldCheckIcon className="w-7 h-7"/>
                         </div>
                         <div className="text-xl font-black text-gray-800 dark:text-gray-100">{(currentUser.achievementCount || 0) + currentUser.badges.filter(b => b.unlocked).length}</div>
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Badges</div>
+                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Badges</div>
                     </div>
 
-                    <button onClick={onUpdateWeight} className="text-center group">
+                    <button aria-label="Update weight" onClick={onUpdateWeight} className="text-center group">
                         <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-brand-blue mb-2 group-hover:scale-110 transition-transform">
                             <ScaleIcon className="w-7 h-7"/>
                         </div>
                         <div className="text-xl font-black text-gray-800 dark:text-gray-100 flex items-center justify-center gap-1">
-                            {currentUser.currentWeight || '--'} <span className="text-xs font-normal text-gray-400">{currentUser.weightUnit || 'lbs'}</span>
+                            {currentUser.currentWeight || '--'} <span className="text-xs font-normal text-gray-600 dark:text-gray-400">{currentUser.weightUnit || 'lbs'}</span>
                         </div>
-                        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Update</div>
+                        <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Update</div>
                     </button>
                 </div>
             </div>

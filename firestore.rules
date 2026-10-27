@@ -120,13 +120,26 @@ service cloud.firestore {
 
       function validInitialProgress(data) {
         return data.get('xp', 0) == 0 && data.get('level', 1) == 1
-          && data.get('activityMap', {}) == {}
+          && data.get('activityMap', {}) == {} && data.get('weightHistory', []) == []
+          && data.get('progressHistoryVersion', 0) in [0, 1]
+          && !data.keys().hasAny(['lastWeightEntryId'])
           && data.get('streak', 0) == (data.get('role', '') == 'child' ? 0 : 1)
           && (!('lastActiveDate' in data) || data.lastActiveDate == request.time);
       }
 
+      function validWeightUpdate(uid) {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        let entryId = request.resource.data.get('lastWeightEntryId', '');
+        return !changed.hasAny(['currentWeight', 'weightUnit', 'lastWeightEntryId']) || (
+          entryId is string && entryId.size() > 0 && entryId.size() <= 128
+          && getAfter(/databases/$(database)/documents/users/$(uid)/weightEntries/$(entryId)).data.timestamp == request.time
+          && getAfter(/databases/$(database)/documents/users/$(uid)/weightEntries/$(entryId)).data.value == request.resource.data.currentWeight
+          && getAfter(/databases/$(database)/documents/users/$(uid)/weightEntries/$(entryId)).data.unit == request.resource.data.weightUnit
+        );
+      }
+
       /* -------- UPDATE -------- */
-      allow update: if isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["badges", "achievementState", "achievementCount", "pinnedBadgeIds", "xp", "level", "streak", "activityMap", "lastActiveDate"]) && (
+      allow update: if isSignedIn() && validWeightUpdate(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["badges", "achievementState", "achievementCount", "pinnedBadgeIds", "xp", "level", "streak", "activityMap", "lastActiveDate", "progressHistoryVersion", "weightHistory"]) && (
         isAdmin()
         || validFamilyBootstrap(userId)
         || validFamilyRemoval(userId)
@@ -174,6 +187,28 @@ service cloud.firestore {
               ])
         )
       );
+
+      match /activityDays/{day} {
+        allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin()
+          || (get(/databases/$(database)/documents/users/$(userId)).data.get('familyCircleId', null) != null
+            && isFamilyMember(get(/databases/$(database)/documents/users/$(userId)).data.familyCircleId)));
+        allow write: if false;
+      }
+      match /weightEntries/{entryId} {
+        function canManageWeight() {
+          return isSignedIn() && (request.auth.uid == userId
+            || get(/databases/$(database)/documents/users/$(userId)).data.get('parentId', '') == request.auth.uid);
+        }
+        allow read: if canManageWeight();
+        allow create: if canManageWeight()
+          && request.resource.data.keys().hasOnly(['value', 'unit', 'timestamp'])
+          && request.resource.data.value is number && request.resource.data.value > 0 && request.resource.data.value <= 1500
+          && request.resource.data.unit in ['lbs', 'kg'] && request.resource.data.timestamp == request.time
+          && getAfter(/databases/$(database)/documents/users/$(userId)).data.lastWeightEntryId == entryId
+          && getAfter(/databases/$(database)/documents/users/$(userId)).data.currentWeight == request.resource.data.value
+          && getAfter(/databases/$(database)/documents/users/$(userId)).data.weightUnit == request.resource.data.unit;
+        allow update, delete: if false;
+      }
 
       allow delete: if false;
     }

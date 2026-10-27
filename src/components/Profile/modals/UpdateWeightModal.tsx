@@ -1,5 +1,5 @@
 import Modal from '../../ui/Modal';
-import React, { useState, useContext } from 'react';
+import React, { useState, useRef, useContext } from 'react';
 import { AppContext } from '../../../App';
 import { XMarkIcon } from '../../Icons';
 import { updateUserWeight } from '../../../services/userService';
@@ -17,9 +17,11 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
     const [unit, setUnit] = useState<'lbs' | 'kg'>(currentUser?.weightUnit || 'lbs');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const weightRequest = useRef({key:'', id:''});
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
         const weightValue = parseFloat(weight);
         if (isNaN(weightValue) || weightValue <= 0) {
             setError('Please enter a valid weight.');
@@ -30,15 +32,14 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
         setIsLoading(true);
         setError('');
         try {
-            await updateUserWeight(currentUser.id, weightValue, unit);
+            const key = JSON.stringify([weightValue, unit]);
+            if (weightRequest.current.key !== key) weightRequest.current = {key, id:crypto.randomUUID()};
+            await updateUserWeight(currentUser.id, weightValue, unit, weightRequest.current.id);
 
-            const newHistoryEntry = { value: weightValue, timestamp: new Date() };
-            const updatedHistory = [...(currentUser.weightHistory || []), newHistoryEntry];
 
             updateCurrentUser({
                 currentWeight: weightValue,
                 weightUnit: unit,
-                weightHistory: updatedHistory,
             });
 
             onClose();
@@ -68,14 +69,14 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
                                 <div className="flex mt-2 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                                     <button
                                         type="button"
-                                        onClick={() => setUnit('lbs')}
+                                        aria-pressed={unit === 'lbs'} onClick={() => setUnit('lbs')}
                                         className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${unit === 'lbs' ? 'bg-white dark:bg-gray-600 text-brand-blue shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                                     >
                                         lbs
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setUnit('kg')}
+                                        aria-pressed={unit === 'kg'} onClick={() => setUnit('kg')}
                                         className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${unit === 'kg' ? 'bg-white dark:bg-gray-600 text-brand-blue shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
                                     >
                                         kg
@@ -84,7 +85,7 @@ const UpdateWeightModal: React.FC<UpdateWeightModalProps> = ({ onClose }) => {
                             </div>
                         </div>
 
-                        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                        {error && <p role="alert" className="text-red-600 dark:text-red-300 text-sm text-center">{error}</p>}
 
                         <div className="pt-2">
                             <button

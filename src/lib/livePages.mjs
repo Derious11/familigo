@@ -1,8 +1,8 @@
 // Each listener is capped at pageSize. When a live boundary moves, rebase the
 // following pages before publishing, so inserts/deletes cannot leave gaps.
-export function livePages({ listen, key, compare, pageSize, publish }) {
+export function livePages({ listen, key, compare, pageSize, publish, initialPages = 1 }) {
     let stopped = false;
-    let wanted = 1;
+    let wanted = Math.max(1, initialPages);
     let pages = [];
     let items = [];
     let error = null;
@@ -22,7 +22,7 @@ export function livePages({ listen, key, compare, pageSize, publish }) {
             }
             items = next;
         }
-        publish({ items, loading: !ready && !error, error, hasMore: ready && pages.at(-1).rows.length === pageSize });
+        publish({ items, pageCount: wanted, loading: !ready && !error, error, hasMore: ready && pages.at(-1).rows.length === pageSize });
     };
     const truncate = index => {
         for (const page of pages.splice(index)) { page.active = false; page.unsubscribe?.(); }

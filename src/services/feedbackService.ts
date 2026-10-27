@@ -1,4 +1,5 @@
-import { addDoc, collection, serverTimestamp, query, orderBy, getDocs, deleteDoc, doc } from "firebase/firestore";
+import {adminSnapshot, adminPage} from './adminService';
+import { addDoc, collection, serverTimestamp, query, orderBy, getDocs, getDoc, QueryDocumentSnapshot, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 import { Feedback } from "../types";
 
@@ -22,19 +23,19 @@ export const submitFeedback = async (
     }
 };
 
-export const getAllFeedback = async (): Promise<Feedback[]> => {
+export const getAllFeedback = async (cursor?: QueryDocumentSnapshot) => {
     try {
-        const q = query(collection(db, "feedback"), orderBy("timestamp", "desc"));
-        const [snapshot, metadata] = await Promise.all([getDocs(q), getDocs(collection(db, 'adminFeedback'))]);
-        const reviewById = new Map(metadata.docs.map(doc => [doc.id, doc.data()]));
-        return snapshot.docs.map(doc => ({
+        const snapshot = await adminSnapshot('feedback', cursor);
+        const metadata = await Promise.all(snapshot.docs.map(item => getDoc(doc(db, 'adminFeedback', item.id))));
+        const reviewById = new Map(metadata.map(item => [item.id, item.data()]));
+        return adminPage(snapshot, snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data(),
             timestamp: doc.data().timestamp?.toDate(),
             status: reviewById.get(doc.id)?.status || 'new',
             internalNotes: reviewById.get(doc.id)?.internalNotes || '',
             updatedAt: reviewById.get(doc.id)?.updatedAt?.toDate(),
-        } as Feedback));
+        } as Feedback)));
     } catch (error) {
         console.error("Error fetching feedback:", error);
         throw error;

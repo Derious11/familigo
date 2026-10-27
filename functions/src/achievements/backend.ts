@@ -1,3 +1,4 @@
+import {activityProgress, archiveActivity} from '../progress';
 import * as functions from "firebase-functions/v1";
 import {FieldValue, Timestamp, Transaction} from "firebase-admin/firestore";
 import {db} from "../init";
@@ -432,12 +433,13 @@ export const recordChallengeReply = callable.onCall(async (data, context) => {
     }
     // Existing reply XP formula, committed atomically once per request.
     const xp = (actor.xp || 0) + 10 + contribution;
+    const activityMap = activityProgress(actor, now);
     tx.update(db.doc(`users/${actorId}`), {
       xp,
       level: 1 + Math.floor(xp / 500),
-      [`activityMap.${new Date(at).toISOString().slice(0, 10)}`]:
-        FieldValue.increment(1),
+      activityMap,
     });
+    archiveActivity(tx, actorId, activityMap, now);
     tx.create(receipt, {at: now});
     for (const entry of prepared) persist(tx, entry);
     return {id};
