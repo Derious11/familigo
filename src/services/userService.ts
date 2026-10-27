@@ -1,8 +1,8 @@
+import {getFunctions, httpsCallable} from "firebase/functions";
 import {
     doc,
     updateDoc,
     serverTimestamp,
-    increment,
     collection,
     query,
     where,
@@ -13,7 +13,6 @@ import {
     orderBy,
     onSnapshot,
     Timestamp,
-    getDoc,
     Unsubscribe,
     deleteField
 } from "firebase/firestore";
@@ -112,43 +111,8 @@ export const onUserUpdate = (
    STREAKS & XP
    ============================================================ */
 
-export const checkAndUpdateStreak = async (user: User) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (!user.lastActiveDate) {
-        await updateDoc(doc(db, "users", user.id), {
-            lastActiveDate: serverTimestamp(),
-            streak: user.streak > 0 ? user.streak : 1,
-        });
-        return;
-    }
-
-    const lastActive = new Date(
-        user.lastActiveDate.getFullYear(),
-        user.lastActiveDate.getMonth(),
-        user.lastActiveDate.getDate()
-    );
-
-    const diffDays =
-        Math.abs(today.getTime() - lastActive.getTime()) /
-        (1000 * 60 * 60 * 24);
-
-    if (diffDays === 0) return;
-
-    if (diffDays === 1) {
-        await updateDoc(doc(db, "users", user.id), {
-            streak: increment(1),
-            lastActiveDate: serverTimestamp(),
-        });
-        await addXp(user.id, 10);
-    } else {
-        await updateDoc(doc(db, "users", user.id), {
-            streak: 1,
-            lastActiveDate: serverTimestamp(),
-        });
-        await addXp(user.id, 5);
-    }
+export const checkAndUpdateStreak = async (_user: User) => {
+    await httpsCallable(getFunctions(), "recordSignIn")({});
 };
 
 /* ============================================================
@@ -254,30 +218,6 @@ export const getUserTokens = async (
     });
 
     return tokens;
-};
-
-/* ============================================================
-   XP & LEVELING
-   ============================================================ */
-
-export const addXp = async (userId: string, amount: number) => {
-    const ref = doc(db, "users", userId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
-
-    const user = snap.data() as User;
-    const newXp = (user.xp || 0) + amount;
-    const newLevel = 1 + Math.floor(newXp / 500);
-
-    const todayKey = new Date().toISOString().split("T")[0];
-    const activityMap = user.activityMap || {};
-    const currentCount = activityMap[todayKey] || 0;
-
-    await updateDoc(ref, {
-        xp: newXp,
-        level: newLevel,
-        [`activityMap.${todayKey}`]: currentCount + 1,
-    });
 };
 
 /* ============================================================

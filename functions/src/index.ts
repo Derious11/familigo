@@ -38,3 +38,5 @@ export {
   joinFamily,
   redeemTeenInvite,
 };
+
+export {recordSignIn} from "./callables/recordSignIn";

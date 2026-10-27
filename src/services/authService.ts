@@ -146,7 +146,7 @@ export const signUpWithEmail = async (
         }
 
         try {
-            await setDoc(doc(db, 'users', user.uid), { ...newUser, createdAt: serverTimestamp() });
+            await setDoc(doc(db, 'users', user.uid), { ...newUser, createdAt: serverTimestamp(), lastActiveDate: serverTimestamp() });
         } catch (err) {
             console.error("Failed to create user profile document.", err);
             try {
@@ -211,7 +211,7 @@ export const signInWithGoogle = async (
                 ...(earlyAccessData ? { earlyAccessData } : {})
             };
             try {
-                await setDoc(doc(db, 'users', user.uid), { ...newUser, createdAt: serverTimestamp() });
+                await setDoc(doc(db, 'users', user.uid), { ...newUser, createdAt: serverTimestamp(), lastActiveDate: serverTimestamp() });
             } catch (err) {
                 console.error("Failed to create user profile document.", err);
                 try {

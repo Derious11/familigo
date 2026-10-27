@@ -97,7 +97,7 @@ service cloud.firestore {
       );
 
       /* -------- CREATE -------- */
-      allow create: if isSignedIn() && !request.resource.data.keys().hasAny(["achievementState", "achievementCount", "pinnedBadgeIds"])
+      allow create: if isSignedIn() && validInitialProgress(request.resource.data) && !request.resource.data.keys().hasAny(["achievementState", "achievementCount", "pinnedBadgeIds"])
         && request.resource.data.get("badges", []) == [] && (
         // Normal signup
         (
@@ -118,8 +118,15 @@ service cloud.firestore {
         )
       );
 
+      function validInitialProgress(data) {
+        return data.get('xp', 0) == 0 && data.get('level', 1) == 1
+          && data.get('activityMap', {}) == {}
+          && data.get('streak', 0) == (data.get('role', '') == 'child' ? 0 : 1)
+          && (!('lastActiveDate' in data) || data.lastActiveDate == request.time);
+      }
+
       /* -------- UPDATE -------- */
-      allow update: if isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["badges", "achievementState", "achievementCount", "pinnedBadgeIds"]) && (
+      allow update: if isSignedIn() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["badges", "achievementState", "achievementCount", "pinnedBadgeIds", "xp", "level", "streak", "activityMap", "lastActiveDate"]) && (
         isAdmin()
         || validFamilyBootstrap(userId)
         || validFamilyRemoval(userId)
