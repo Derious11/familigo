@@ -187,7 +187,8 @@ export default function BadgeCollection({
               </div>
             </>
           )}
-          <h3>Earned Badges · {personal.length - locked.length}</h3>
+          <details key={user.id} open={(() => { try { return localStorage.getItem(`earned-badges:${user.id}`) === 'open'; } catch { return false; } })()} onToggle={(event) => { try { localStorage.setItem(`earned-badges:${user.id}`, event.currentTarget.open ? 'open' : 'closed'); } catch { /* Storage may be unavailable. */ } }}>
+          <summary>Earned Badges · {personal.length - locked.length}</summary>
           {personal.length === locked.length ? (
             <p>Small steps count. Your first badge is waiting!</p>
           ) : (
@@ -195,6 +196,7 @@ export default function BadgeCollection({
               {personal.filter((b) => state?.awards[b.id]).map((b) => card(b))}
             </div>
           )}
+          </details>
           <details>
             <summary>Locked Badges · {locked.length}</summary>
             <div className="achievement-grid">{locked.map((b) => card(b))}</div>

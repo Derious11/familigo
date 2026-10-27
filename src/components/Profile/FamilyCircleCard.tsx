@@ -9,6 +9,7 @@ interface FamilyCircleCardProps {
     isImpersonating: boolean;
     originalUserId?: string | null;
     onManage: () => void;
+    onInvite: () => void;
     onSwitchProfile: (userId: string) => void;
 }
 
@@ -18,13 +19,14 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({
     isImpersonating,
     originalUserId,
     onManage,
+    onInvite,
     onSwitchProfile
 }) => {
 
     return (
         <div className="bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-6 bg-blue-50/50 dark:bg-blue-900/10">
-                <div className="flex justify-between items-start">
+                <div className="flex flex-wrap gap-4 justify-between items-start">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-2xl bg-white dark:bg-gray-700 shadow-sm flex items-center justify-center text-3xl overflow-hidden border-2 border-white dark:border-gray-600">
                             {familyCircle.avatarUrl ? <img src={familyCircle.avatarUrl} alt="" className="w-full h-full object-cover" /> : "🏠"}
@@ -37,12 +39,15 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({
                             )}
                         </div>
                     </div>
+                    <div className="flex flex-wrap gap-2">
+                    {currentUser.role !== 'child' && currentUser.role !== 'teen' && <button onClick={onInvite} className="px-4 py-2 bg-brand-blue text-white text-sm font-semibold rounded-lg">Invite family</button>}
                     <button
                         onClick={onManage}
                         className="px-4 py-2 bg-white dark:bg-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-200 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 hover:bg-gray-50 transition-colors"
                     >
-                        Manage
+                        Manage family
                     </button>
+                    </div>
                 </div>
             </div>
 
@@ -60,7 +65,7 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({
 
                             const isChild = member.role === 'child';
                             const isMe = member.id === currentUser.id;
-                            const canSwitchTo = isChild && !isMe && (currentUser.role === 'adult' || isImpersonating);
+                            const canSwitchTo = isChild && !isMe && member.parentId === originalUserId;
 
                             return (
                                 <button

@@ -222,6 +222,7 @@ const App: React.FC = () => {
                 const mergedUser = isAuthUser
                     ? {
                         ...updatedUser,
+                        email: authUser.email || updatedUser.email,
                         emailVerified: (authUser as any).emailVerified,
                         isAdmin: (authUser as any).isAdmin
                     }
@@ -413,7 +414,9 @@ const App: React.FC = () => {
         setCurrentUser((prev) => (prev ? { ...prev, ...data } : null));
     }, []);
     const switchProfile = useCallback((userId: string) => {
+        if (!authUser) return;
         const isSwitchingBack = authUser && userId === authUser.id;
+        if (!isSwitchingBack && !familyCircle?.members.some(member => member.id === userId && member.role === 'child' && member.parentId === authUser.id)) return;
         if (isSwitchingBack) {
             setViewingAsUserId(null);
         }
@@ -425,7 +428,7 @@ const App: React.FC = () => {
             to_user_id: userId,
             is_impersonating: !isSwitchingBack
         });
-    }, [authUser, posthog]);
+    }, [authUser, familyCircle, posthog]);
     /* ------------------------------------------------------------------------
        CONTEXT VALUE
     ------------------------------------------------------------------------ */

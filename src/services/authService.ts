@@ -74,6 +74,7 @@ export const onAuthStateChanged = (callback: (user: User | null) => void): (() =
                 const user: User = {
                     ...userData,
                     id: firebaseUser.uid,
+                    email: firebaseUser.email || userData.email || undefined,
                     emailVerified: firebaseUser.emailVerified,
                     isAdmin,
                 } as User;

@@ -61,6 +61,7 @@ export const onUserUpdate = (
                 const user: User = {
                     id: snap.id,
                     name: data.name ?? "",
+                    email: data.email || undefined,
                     avatarUrl: data.avatarUrl || undefined,
                     hasAvatar: data.hasAvatar,
                     avatarUpdatedAt: data.avatarUpdatedAt instanceof Timestamp

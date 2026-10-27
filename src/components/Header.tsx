@@ -3,6 +3,9 @@ import { AppContext } from '../App';
 import { View } from '../types';
 import { ChatBubbleIcon,FireIcon,MoonIcon,NewspaperIcon,SunIcon,TrophyIcon,UserCircleIcon } from './Icons';
 import AvatarImage from './ui/AvatarImage';
+import ProfileSelector from './Profile/ProfileSelector';
+import FamilySettingsModal from './Profile/modals/FamilySettingsModal';
+import { createPortal } from 'react-dom';
 interface HeaderProps {
     activeView: View;
     setActiveView: (view: View) => void;
@@ -37,6 +40,8 @@ const ThemeToggle: React.FC = () => {
 };
 const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
     const context = useContext(AppContext);
+    const [selectorOpen, setSelectorOpen] = useState(false);
+    const [familyOpen, setFamilyOpen] = useState(false);
     const { currentUser, familyCircle } = context || {};
     const profileName = currentUser?.name?.trim() || 'Your profile';
     const unreadCount = (familyCircle?.messageCount || 0) - (currentUser?.lastReadMessageCount || 0);
@@ -47,11 +52,11 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
                 </div>
                 <div className="flex items-center gap-3 app-header-status">
                     {currentUser && (<>
-                            <button type="button" onClick={() => setActiveView('profile')} aria-label={`View profile for ${profileName}`} aria-current={activeView === 'profile' ? 'page' : undefined} className="app-header-profile">
+                            <button type="button" onClick={() => setSelectorOpen(true)} aria-label={`Choose profile, currently ${profileName}`} aria-haspopup="dialog" aria-expanded={selectorOpen} className="app-header-profile">
                                 <AvatarImage userId={currentUser.id} hasAvatar={currentUser.hasAvatar} cacheKey={currentUser.avatarUpdatedAt?.getTime?.()} alt="" className="app-header-avatar" />
                                 <span className="app-header-identity">
-                                    <span className="app-header-name" title={profileName}>{profileName}</span>
-                                    <span className="app-header-family" title={familyCircle?.name || 'View your profile'}>{familyCircle?.name || 'View your profile'}</span>
+                                    <span className="app-header-name" title={profileName}>{profileName} <span aria-hidden="true">⌄</span></span>
+                                    <span className="app-header-family">{context?.isImpersonating ? 'Child view · Switch profile' : familyCircle?.name || 'Switch profile'}</span>
                                 </span>
                             </button>
                             {/* Streak */}
@@ -83,6 +88,8 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView }) => {
                     <NavButton icon={<UserCircleIcon className="w-6 h-6"/>} label="Profile" isActive={activeView === 'profile'} onClick={() => setActiveView('profile')}/>
                 </div>
             </nav>
+            {selectorOpen && <ProfileSelector onClose={() => setSelectorOpen(false)} onViewProfile={() => { setSelectorOpen(false); setActiveView('profile'); }} onManage={() => { setSelectorOpen(false); setFamilyOpen(true); }} />}
+            {familyOpen && createPortal(<FamilySettingsModal onClose={() => setFamilyOpen(false)} />, document.body)}
         </header>);
 };
 interface NavButtonProps {

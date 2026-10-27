@@ -61,6 +61,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
                         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{currentXp} XP</span>
                     </div>
 
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 break-all">
+                        {currentUser.email ? <>Email: {currentUser.email}</> : currentUser.role === 'child' ? 'Parent-managed child profile · No email required' : 'No email on this profile'}
+                    </p>
+
                     {/* Gamified XP Bar */}
                     <div className="relative w-full h-5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
                         <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-400 to-brand-blue rounded-full transition-all duration-700 ease-out" style={{ width: `${xpProgress}%` }}>

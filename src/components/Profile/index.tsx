@@ -91,13 +91,14 @@ const Profile: React.FC = () => {
             {<AppTabIntro eyebrow="Small steps. Your story." title="Look at you go." description="Your progress, family, and little wins—all in one place."/>}
             <ProfileHeader currentUser={currentUser} onUpdateCover={handleUpdateCover} onEditProfile={() => setIsEditModalOpen(true)} onUpdateWeight={() => setIsWeightModalOpen(true)}/>
 
+            {familyCircle && (<FamilyCircleCard familyCircle={familyCircle} currentUser={currentUser} isImpersonating={isImpersonating} originalUserId={originalUserId} onSwitchProfile={switchProfile} onManage={() => { setFamilySettingsInitialTab('members'); setIsFamilySettingsOpen(true); }} onInvite={() => { setFamilySettingsInitialTab('add'); setIsFamilySettingsOpen(true); }}/>)}
             <div className={'app-profile-grid'}>
             <ActivityHeatmap activityMap={currentUser.activityMap || {}}/>
 
             <BadgeCollection user={currentUser} familyCircleId={familyCircle?.id}/>
             </div>
 
-            {familyCircle && (<FamilyCircleCard familyCircle={familyCircle} currentUser={currentUser} isImpersonating={isImpersonating} originalUserId={originalUserId} onSwitchProfile={switchProfile} onManage={() => setIsFamilySettingsOpen(true)}/>)}
+
 
             <ProfileSettings currentUser={currentUser} hasNotificationsEnabled={hasNotificationsEnabled} isNotificationToggleLoading={isNotificationToggleLoading} onToggleNotifications={handleNotificationToggle} onOpenPrivacy={() => setIsPrivacyOpen(true)} onSignOut={signOut}/>
 
