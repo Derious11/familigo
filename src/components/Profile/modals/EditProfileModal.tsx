@@ -8,6 +8,7 @@ import { CameraIcon, PhotoIcon, XMarkIcon } from '../../Icons';
 import confetti from 'canvas-confetti';
 import { clearAvatarCache } from '../../../lib/avatar';
 import AvatarImage from '../../ui/AvatarImage';
+import { stockAvatars, createStockAvatar } from '../../../lib/stockAvatars';
 
 interface EditProfileModalProps {
     onClose: () => void;
@@ -33,6 +34,21 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
     const [name, setName] = useState(context?.currentUser?.name || '');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedAvatar, setSelectedAvatar] = useState('');
+    const [isChoosingAvatar, setIsChoosingAvatar] = useState(false);
+    useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
+
+    const chooseAvatar = async (avatar: typeof stockAvatars[number]) => {
+        setIsChoosingAvatar(true);
+        setError('');
+        try {
+            const blob = await createStockAvatar(avatar);
+            setImageBlob(blob);
+            setImageUrl(URL.createObjectURL(blob));
+            setSelectedAvatar(avatar.name);
+        } catch { setError('Could not create this avatar. Please try again.'); }
+        finally { setIsChoosingAvatar(false); }
+    };
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -123,6 +139,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
     };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSelectedAvatar('');
         const file = event.target.files?.[0];
         if (file) {
             setImageBlob(file);
@@ -167,6 +184,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
     };
 
     const reset = () => {
+        setSelectedAvatar('');
         setImageBlob(null);
         if (imageUrl) {
             URL.revokeObjectURL(imageUrl);
@@ -252,6 +270,16 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
                             </div>
 
 
+                            <fieldset disabled={isLoading || isChoosingAvatar}>
+                                <legend className="text-sm font-bold mb-2">Choose an avatar</legend>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {stockAvatars.map(avatar => <button key={avatar.name} type="button" aria-label={avatar.name} aria-pressed={selectedAvatar === avatar.name} onClick={() => chooseAvatar(avatar)} className={`rounded-xl p-2 border-2 ${selectedAvatar === avatar.name ? 'border-blue-600 ring-2 ring-blue-200' : 'border-transparent'} disabled:opacity-50`}>
+                                        <img src={avatar.src} alt="" width={512} height={512} decoding="async" className="w-full aspect-square rounded-full object-cover" />
+                                        <span className="block text-xs mt-1">{avatar.name}</span>
+                                    </button>)}
+                                </div>
+                                <p aria-live="polite" className="text-xs text-gray-500 mt-2">{selectedAvatar ? `${selectedAvatar} selected. Save changes to use it.` : 'Pick a favorite, or use your own photo below.'}</p>
+                            </fieldset>
                             <div className="grid grid-cols-2 gap-3">
                                 <button onClick={handleTakePhotoClick} className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 p-4 rounded-xl transition-colors">
                                     <CameraIcon className="w-6 h-6 text-brand-blue" />
@@ -259,7 +287,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
                                 </button>
                                 <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 p-4 rounded-xl transition-colors">
                                     <PhotoIcon className="w-6 h-6 text-brand-purple" />
-                                    <span className="text-xs font-bold">Library</span>
+                                    <span className="text-xs font-bold">Upload photo</span>
                                 </button>
                             </div>
                             <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
@@ -267,7 +295,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
 
                         <button
                             onClick={handleSave}
-                            disabled={isLoading}
+                            disabled={isLoading || isChoosingAvatar}
                             className="w-full mt-8 bg-brand-blue hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/30 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
                         >
                             {isLoading ? 'Saving Changes...' : 'Save Changes'}
