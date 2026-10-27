@@ -1,8 +1,8 @@
 # Release review — October 17, 2026 (America/Phoenix)
 
-**Release status: HOLD. Work has been implemented and tested; the full completion criteria are not yet met. Development indexes and four deletion-related functions were deployed on October 18. Production application/rules rollout remains on hold; a narrow obsolete-credential configuration cleanup is recorded below. No commit, push, production user-data mutation, or external messages were performed.**
+**Current status (October 26, 2026): the coordinated production rollout completed October 25: functions, Firestore/Storage rules, pagination indexes, Firebase Hosting, and the Vercel public site. Avatar/profile improvements are in production at c2be231. The user reports the original device/journey testing complete. Server-owned progress and scalability improvements are development-only; see [development scalability review](development-scalability-review.md) and [progress rollout](server-owned-progress.md). Performance targets and comprehensive accessibility certification remain open.**
 
-## October 18 continuation
+## October 18 continuation (historical; superseded by the current status)
 
 - Read-only field-projected audits of both databases found zero missing/invalid timestamps. Production: 15 messages, 46 challenges, 58 replies. Development: 26 messages, 14 challenges, 28 replies. All challenge expiry fields were valid. No data migration is required for these audited records; results are in `ordering-audit-*.json`.
 - Replaced client-side challenge/reply deletion with an authorized callable and durable server jobs. Every transaction handles at most 100 replies; nested threads use persistent tasks. A challenge lock blocks reply/reaction writes during deletion. Retries return the same job; duplicate worker deliveries cannot advance a step twice. Client waits for completion and can retry checking the same job after timeout.
@@ -25,8 +25,8 @@ Read-only production inventories record 21 deployed functions and 3 composite in
 
 | Priority | Finding | Change / evidence | Status |
 |---|---|---|---|
-| High | Storage allowed any authenticated user to read another family's reply image by path | Challenge-family membership enforced; actual Storage emulator allows a sibling and denies an outsider | Fixed locally |
-| High | Any family member could delete another member's challenge or reply | Direct client deletion denied; authorized server jobs enforce author/parent ownership and bounded cascades | Fixed locally; production rules unchanged |
+| High | Storage allowed any authenticated user to read another family's reply image by path | Challenge-family membership enforced; actual Storage emulator allows a sibling and denies an outsider | Deployed October 25 |
+| High | Any family member could delete another member's challenge or reply | Direct client deletion denied; authorized server jobs enforce author/parent ownership and bounded cascades | Deployed October 25; worker and access-control checks passed |
 | High | Family admins could set global beta approval | `betaApproved` changes now require the global admin claim | Fixed; emulator denial verified |
 | High | Family removal's user update was denied by rules, leaving the core action unusable | Narrow atomic removal rule checks old admin and post-write membership | Fixed; emulator removes both records and denies subsequent access |
 | Medium | Feedback allowed another adult's identity and arbitrary internal fields | Author/parent check, allowed fields, initial status/time and text limits | Fixed; valid/forged/oversized emulator cases |
@@ -34,7 +34,7 @@ Read-only production inventories record 21 deployed functions and 3 composite in
 | Medium | Comment failure left the submit control stuck; upload URL failure could leave promises pending | `try/catch/finally`, preserved draft, upload rejection propagation | Fixed; browser failure/retry-state check |
 | Medium | Auth async callbacks could publish after sign-out/unmount; missing user snapshot could retain family subscription | Generation guard, subscription cleanup, recovery UI; token claims override profile fields | Fixed locally; broader concurrent-account testing remains |
 | Medium | Family document changes refetched every member; unrelated updates restarted feed/chat | Member listeners keyed by membership IDs in groups of 30; cleanup guards; paged query identity uses scalar filters | Fixed; live browser fixture |
-| Medium | Chat, challenges, replies and history fetched entire collections | Shared cursor controller, every query `limit(30)`, deterministic timestamp/document-ID ordering, explicit load-more | Fixed locally; index/data gates below |
+| Medium | Chat, challenges, replies and history fetched entire collections | Shared cursor controller, every query `limit(30)`, deterministic timestamp/document-ID ordering, explicit load-more | Deployed October 25; exact production queries verified |
 | Medium | Hidden comments/history caused unnecessary reads | Subscribe only when comments/logbook opens | Fixed; history browser check |
 | Medium | Eager page imports and app tabs loaded unrelated UI | Lazy public pages, app tabs and modals with accessible loading fallback and existing error boundary | Build and public/browser checks pass; timing gate remains |
 | Low | Unreferenced Gemini browser implementation and compatibility barrel | Removed unused services, obsolete unbounded listeners and unused imports; removed `@google/genai` and 56 dependency-tree packages | Reference searches, type/build/credential checks |
@@ -49,7 +49,7 @@ Tests cover 95-record in-memory histories and 125 actual Firestore messages, equ
 
 Feed/history still filter active/expired entries within timestamp-ordered loaded pages. Empty-state text now explains when more batches remain; they do not claim the full family history is empty. Expiry transitions and highly interleaved active/expired histories need a dedicated indexed-query improvement. Replies with unloaded parents remain visible; loaded child replies are rendered rather than silently omitted.
 
-**Deployment gates for these queries:** production currently lacks the new descending-message and family-scoped reply indexes. `firestore.production.indexes.json` preserves all three observed indexes and adds the required two; `firebase.json` points at it. Development indexes were extended equivalently and deployed. Deploy production indexes and wait for readiness before the client. Emulator success does not verify production composite indexes. The October 18 bounded ordering-field audit found no missing or invalid timestamps in current production/development records. Ordered queries exclude missing fields, so retain this check for future migrations.
+**Historical deployment gate (resolved October 25):** production previously lacked the new descending-message and family-scoped reply indexes. `firestore.production.indexes.json` preserves all three observed indexes and adds the required two; `firebase.json` points at it. Required indexes were deployed to both environments before the matching clients; exact production queries succeeded. Emulator success does not verify production composite indexes. The October 18 bounded ordering-field audit found no missing or invalid timestamps in current production/development records. Ordered queries exclude missing fields, so retain this check for future migrations.
 
 ## Recorded page and journey coverage
 
@@ -99,12 +99,12 @@ Additional October 18 diagnostic samples (same throttle, single samples): login 
 
 0. **Resolved credential cleanup:** the exposed environment value is invalid at the provider and differs from current email secrets. `familigo_welcomev2` is preserved. The configuration-only removal from production `generateThumbnail` completed; the function is ACTIVE and the obsolete variable is absent. Sanitizing a local export alone would not revoke a valid credential.
 1. **Resolved audit — old-account ordering:** October 18 bounded, read-only scans found valid timestamps throughout current production/development collections. Keep malformed synthetic fixtures and recheck before release if data changes.
-2. **High — release correctness:** deploy and verify new composite indexes in development/production before the client. Development indexes deployed; production indexes and coordinated rules/client rollout remain pending.
-3. **Implemented — long deletion:** durable server jobs replace the oversized client batch. Nested/concurrent/retry/701-reply emulator tests pass. Cloud worker integration passed with 101 development replies. Coordinated rules/client rollout remains a release gate.
+2. **Resolved — release correctness:** indexes and coordinated production rules/functions/client rollout completed October 25; exact queries verified.
+3. **Implemented — long deletion:** durable server jobs replace the oversized client batch. Nested/concurrent/retry/701-reply emulator tests pass. Cloud worker integration passed with 101 development replies. Coordinated production rollout completed October 25.
 4. **Performance gate:** repeat comparable cold/repeat measurements, resolve login/enrollment waterfalls, include service-worker installation/update costs, and obtain field vitals. Current results cannot establish no material regression.
-5. **Medium — legacy mutable profile stats:** some client-written XP/activity/streak fields remain mutable and use read/modify/write. Achievements themselves are server-owned; adventure fairness/concurrent legacy stat updates need a separate behavior-preserving server migration.
-6. **Medium — large account/admin data:** admin collection reads and embedded profile activity/weight arrays remain unbounded. Both family member lookup paths now chunk at 30; test unusually large families.
-7. **Coverage gate:** complete the unverified cells above, especially actual devices, OAuth/email, media capture, older-account fixtures, notification links and update recovery. No external messages were sent as part of testing.
+5. **Implemented in development — legacy progress:** server-owned daily rewards and protected fields pass concurrent sign-in/reply and live development checks. Production promotion remains separate.
+6. **Implemented in development — large accounts:** explicit admin pagination, archived activity/weight collections, and bounded recent summaries pass large fixtures. Four development profiles were backed up and migrated; production is unchanged.
+7. **Coverage:** original device/journey checks reported complete by the user. New automated mobile/desktop keyboard, expiry, draft-retry and offline restoration checks pass. Comprehensive manual contrast/screen-reader review and real-session performance/billing measurements remain open.
 
 ## Release checklist and rollback
 
@@ -113,13 +113,14 @@ Additional October 18 diagnostic samples (same throttle, single samples): login 
 - [x] Add focused pagination and rules tests; run browser scroll/draft/history checks.
 - [ ] Resolve all open high findings and finish the coverage matrix.
 - [x] Confirm no missing ordering fields in current production/development collections; no migration needed.
-- [ ] Deploy additive indexes first and wait for readiness; verify exact queries against development.
+- [x] Original production pagination indexes deployed and exact queries verified.
 - [ ] Test current rules and merged adventure rules on development, including parent/teen/child/outsider cases.
-- [ ] Finish real-device and repeated performance acceptance checks.
-- [ ] Review only the intended batch diff against `pending-adventure.patch`; include adventure work only in its intended release.
-- [ ] Run frontend/backend builds, focused tests and rules checks again on the exact release revision.
+- [x] Original real-device/journey checks reported complete by the user.
+- [ ] Repeated performance and field-vitals acceptance remains open.
+- [x] Adventure baseline and review changes preserved in separate commits.
+- [x] October 25 release passed builds, focused tests and rules checks; subsequent development batches have separate evidence.
 - [ ] Run `node scripts/check-secrets.mjs --worktree`, `node scripts/check-secrets.mjs --staged` before commit, and `npm run security:check` before push. Never stage local fixtures/credentials.
-- [ ] Record current Hosting release, deployed rules, function versions and index inventory. Existing October 12/13 rollback documentation remains intact.
+- [x] Production release and rollback records retained, including avatar/profile Hosting rollback channels.
 - [ ] Publish a production-configured preview, smoke-test public routes and approved adult/teen/child journeys, then promote only after gates pass.
 - [ ] Smoke-test production login, onboarding, family isolation, paginated chat/history/replies, posting/retry, admin restrictions, notification navigation and worker update.
 
