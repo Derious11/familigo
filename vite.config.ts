@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { build } from 'esbuild';
+import { renderPublicPreviews } from './scripts/render-public-previews';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode === 'emulator' ? 'development' : mode, '.', '');
@@ -36,7 +37,10 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       host: '0.0.0.0',
     },
-    plugins: [react(), {
+    plugins: [react(), { name: 'public-first-paint', apply: 'build', async transformIndexHtml(html) {
+      const previews = await renderPublicPreviews(firebaseConfig.projectId);
+      return html.replace('<!-- home-first-paint -->', () => previews);
+    } }, {
       name: 'familigo-pwa',
       apply: 'build',
       async writeBundle() {
@@ -75,7 +79,6 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             vendor: ['react', 'react-dom'],
-            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage', 'firebase/messaging'],
           }
         }
       }

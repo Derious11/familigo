@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { usePostHog } from 'posthog-js/react';
+import { usePostHog } from '../../../lib/analytics';
 import { AppContext } from '../../../App';
 import { updateFamilyProfile, promoteToAdmin, removeFromFamily, createChildProfile, approveTeenMember } from '../../../services/familyService';
 import { XMarkIcon, CameraIcon, TrashIcon, ShieldCheckIcon, UserGroupIcon, UserPlusIcon, HomeIcon } from '../../Icons'; // Make sure to add the new icons

@@ -1,0 +1,43 @@
+<template id="public-first-paint-css"><style>
+/* shared-css */
+body:has(#public-preview) #root{display:none}
+#public-preview{height:100%;overflow:auto}#public-preview,#public-preview *{box-sizing:border-box}
+:where(#public-preview h1,#public-preview p,#public-preview figure){margin:0}
+</style></template>
+<template id="home-first-paint"><!-- home-content --></template>
+<template id="login-first-paint"><style>/* login-css */</style><!-- login-content --></template>
+<script>
+{
+  const path=location.pathname.toLowerCase();
+  const page=path==='/'?'home':path==='/login'?'login':null;
+  if(page && navigator.onLine){
+    const root=document.getElementById('root'), preview=document.createElement('div');
+    preview.id='public-preview';
+    preview.append(document.getElementById('public-first-paint-css').content,
+      document.getElementById(page+'-first-paint').content);
+    root.after(preview);
+    let menuRequested=false;
+    preview.addEventListener('click',event=>{
+      if(event.target.closest('.fg-menu-button')) menuRequested=!menuRequested;
+      if(event.target.closest('a[href="/early-access?role=parent"]')){
+        try{localStorage.setItem('familiGoRole','parent')}catch{}
+      }
+    });
+    const observer=new MutationObserver(()=>{
+      if(root.querySelector('.fg-landing, main, [role="alert"]')){
+        const scroll=preview.scrollTop;
+        const focused=preview.contains(document.activeElement)?document.activeElement:null;
+        const href=focused?.getAttribute('href');
+        preview.remove();
+        if(scroll)root.scrollTop=scroll;
+        if(menuRequested)root.querySelector('.fg-menu-button')?.click();
+        if(href)Array.from(root.querySelectorAll('a')).find(a=>a.getAttribute('href')===href)?.focus({preventScroll:true});
+        if(location.hash)document.getElementById(location.hash.slice(1))?.scrollIntoView();
+        observer.disconnect();
+      }
+    });
+    observer.observe(root,{childList:true,subtree:true});
+  }
+}
+</script>
+

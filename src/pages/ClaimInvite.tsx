@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { usePostHog } from 'posthog-js/react';
+import { usePostHog } from '../lib/analytics';
 import { ShieldCheck, User, Mail, Lock, Calendar, CheckCircle2 } from "lucide-react";
 import { signUpWithEmail } from "../services/authService";
 import { redeemTeenInvite } from "../services/familyService";
