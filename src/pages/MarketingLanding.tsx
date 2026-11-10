@@ -1,4 +1,4 @@
-import { usePostHog } from 'posthog-js/react';
+import { usePostHog } from '../lib/analytics';
 import { useRef, useState } from 'react';
 import { ArrowRight, Check, ChevronDown, Footprints, Heart, Menu, MoveUpRight, Sparkles, Trophy, Users, X, Zap } from 'lucide-react';
 import { usePageSeo } from '../lib/seo';
@@ -30,7 +30,7 @@ function Brand() {
 export default function MarketingLanding() {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuButton = useRef<HTMLButtonElement>(null);
-    usePageSeo({ title: 'FamiliGo | Family Fitness Challenges for Parents, Kids & Teens', description: 'Create family fitness challenges, enjoy friendly competition, and climb your private family leaderboard. Request free, parent-led beta access.', canonicalPath: '/', noIndex: __FIREBASE_CONFIG__.projectId !== 'familigo-11643' || window.location.hostname.includes('--') });
+    usePageSeo({ title: 'FamiliGo | Family Fitness Challenges for Parents, Kids & Teens', description: 'Create family fitness challenges, enjoy friendly competition, and climb your private family leaderboard. Request free, parent-led beta access.', canonicalPath: '/', noIndex: __FIREBASE_CONFIG__.projectId !== 'familigo-11643' || (typeof window !== 'undefined' && window.location.hostname.includes('--')) });
 
     return <div className="fg-landing">
         <a className="fg-skip" href="#main-content">Skip to content</a>

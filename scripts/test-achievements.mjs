@@ -25,6 +25,12 @@ try {
   await db.doc(`users/${child}`).set({name:'Child',role:'child',parentId:uid,familyCircleId:circle,badges:[]});
   await db.doc(`familyCircles/${circle}`).set({memberIds:[uid,other,child],members:{[uid]:true,[other]:true,[child]:true},adminIds:[uid],messageCount:0});
   await db.doc('familyCircles/unrelated').set({memberIds:['outsider'],members:{outsider:true},adminIds:['outsider']});
+  for(const action of [backend.recordChallenge,backend.recordChallengeReply]){
+    await assert.rejects(action.run({prepareOnly:true},{}),error=>error.code==='unauthenticated');
+    assert.deepEqual(await action.run({prepareOnly:true},context),{ready:true});
+  }
+  assert.equal((await db.doc('users/'+uid).get()).get('xp'),0);
+  assert.equal(await profile(uid),undefined);pass('preparation requires auth and does not award progress');
   const creation = {...base,requestId:entity('shared'),exercise:{name:'Walk'},target:'20 minutes',type:'individual',durationDays:14,participantIds:[uid,other]};
   await Promise.all([backend.recordChallenge.run(creation,context),backend.recordChallenge.run(creation,context)]);
   assert.equal((await db.doc(`challenges/${creation.requestId}`).get()).exists,true);

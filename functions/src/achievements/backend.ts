@@ -4,6 +4,15 @@ import {db} from "../init";
 import {AchievementState, activityId, BADGES, emptyState} from "./catalog";
 import {AchievementEvent, evaluate, fullHouse, validPins} from "./engine";
 
+// One small read establishes the Firestore connection on a new function instance.
+let connectionReady: Promise<void> | undefined;
+function prepareConnection(uid: string | undefined) {
+  if (!uid) throw new functions.https.HttpsError("unauthenticated", "Sign in first.");
+  connectionReady ??= db.getAll(db.doc(`users/${uid}`), {fieldMask: ["status"]})
+    .then(() => undefined).catch(error => { connectionReady = undefined; throw error; });
+  return connectionReady.then(() => ({ready: true}));
+}
+
 const callable = functions.region("us-central1").https;
 /**
  * Rejects malformed activity input.
@@ -170,6 +179,7 @@ function persist(tx: Transaction, prepared: Prepared, historical = false) {
 }
 
 export const recordChallenge = callable.onCall(async (data, context) => {
+  if (data?.prepareOnly === true) return prepareConnection(context.auth?.uid);
   const actorId = identifier(data.actorId);
   const familyId = identifier(data.familyCircleId);
   const id = identifier(data.requestId);
@@ -290,6 +300,7 @@ export const achievementChallengeCreated = functions
   });
 
 export const recordChallengeReply = callable.onCall(async (data, context) => {
+  if (data?.prepareOnly === true) return prepareConnection(context.auth?.uid);
   const actorId = identifier(data.actorId);
   const familyId = identifier(data.familyCircleId);
   const challengeId = identifier(data.challengeId);
@@ -302,12 +313,13 @@ export const recordChallengeReply = callable.onCall(async (data, context) => {
       familyId,
     );
     const challengeRef = db.doc(`challenges/${challengeId}`);
-    const challenge = (await tx.get(challengeRef)).data();
+    const receipt = db.doc(`achievementEvents/reply_${id}`);
+    const [challengeDoc, recorded] = await tx.getAll(challengeRef, receipt);
+    const challenge = challengeDoc.data();
     if (!challenge || challenge.familyCircleId !== familyId || challenge.deletingJobId) {
       fail("Challenge unavailable.");
     }
-    const receipt = db.doc(`achievementEvents/reply_${id}`);
-    if ((await tx.get(receipt)).exists) return {id};
+    if (recorded.exists) return {id};
     const body = text(data.text);
     const mediaUrl = text(data.mediaUrl, 2000);
     if (!body && !mediaUrl) fail("Add a message or activity photo.");
@@ -373,20 +385,21 @@ export const recordChallengeReply = callable.onCall(async (data, context) => {
     }
     const prepared = [await prepare(tx, actorId, familyId, actor, events)];
     if (firstCompletion && eligibleBuddies.length >= 2) {
-      for (const buddyId of eligibleBuddies.filter((id) => id !== actorId)) {
-        const buddy = (await tx.get(db.doc(`users/${buddyId}`))).data();
+      const refs = eligibleBuddies.filter(id => id !== actorId).map(id => db.doc(`users/${id}`));
+      const buddies = refs.length ? await tx.getAll(...refs) : [];
+      const awards = await Promise.all(buddies.map(async snapshot => {
+        const buddyId = snapshot.id;
+        const buddy = snapshot.data();
         if (
           buddy?.familyCircleId === familyId &&
           (buddy.status === "active" ||
             (buddy.role === "child" && !buddy.status))
         ) {
-          prepared.push(
-            await prepare(tx, buddyId, familyId, buddy, [
-              {kind: "buddy", at},
-            ]),
-          );
+          return prepare(tx, buddyId, familyId, buddy, [{kind: "buddy", at}]);
         }
-      }
+        return null;
+      }));
+      for (const award of awards) if (award) prepared.push(award);
     }
     const times = {
       ...(challenge.completionTimes || {}),

@@ -1,5 +1,5 @@
 import confetti from 'canvas-confetti';
-import { usePostHog } from 'posthog-js/react';
+import { usePostHog } from './lib/analytics';
 import React,{ lazy,Suspense,useCallback,useEffect,useMemo,useState } from 'react';
 import ErrorState from './components/ErrorState';
 import { NotificationProvider } from './contexts/NotificationContext';

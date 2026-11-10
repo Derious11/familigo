@@ -1,3 +1,4 @@
+import {usePrepareChallengeAction} from '../../hooks/usePrepareChallengeAction';
 import React, { useState, useContext } from 'react';
 import { AppContext } from '../../App';
 import { Challenge } from '../../types';
@@ -9,6 +10,7 @@ interface LogActivityModalProps {
 }
 
 const LogActivityModal: React.FC<LogActivityModalProps> = ({ onClose, challenge }) => {
+    usePrepareChallengeAction("recordChallengeReply");
     const context = useContext(AppContext);
     const { currentUser, addReply } = context || {};
 

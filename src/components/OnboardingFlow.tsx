@@ -1,4 +1,4 @@
-import { usePostHog } from 'posthog-js/react';
+import { usePostHog } from '../lib/analytics';
 import React,{ useEffect,useState } from 'react';
 import { createFamilyCircle,joinFamilyCircle } from '../services/familyService';
 import { FamilyCircle,User } from '../types';

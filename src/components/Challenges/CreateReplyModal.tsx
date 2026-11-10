@@ -1,3 +1,4 @@
+import {usePrepareChallengeAction} from '../../hooks/usePrepareChallengeAction';
 import React,{ useCallback,useContext,useEffect,useRef,useState } from 'react';
 import { AppContext } from '../../App';
 import { AddReplyPayload } from '../../types';
@@ -13,6 +14,7 @@ interface CreateReplyModalProps {
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 const CreateReplyModal: React.FC<CreateReplyModalProps> = ({ onClose, challengeId }) => {
+    usePrepareChallengeAction("recordChallengeReply");
     const context = useContext(AppContext);
 
     // UI State

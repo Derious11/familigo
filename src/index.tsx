@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+const PublicEntry = window.location.pathname.toLowerCase() === '/login'
+  ? React.lazy(() => import('./pages/Login'))
+  : React.lazy(() => import('./App'));
 import './index.css';
 import ErrorBoundary from './components/ErrorBoundary';
 import PwaProvider from './pwa/PwaProvider';
@@ -10,20 +12,19 @@ if (!rootElement) {
   throw new Error("Failed to find the root element");
 }
 
-import { PostHogProvider } from 'posthog-js/react';
-
-const options = {
-  api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
-  defaults: '2025-11-30',
-} as const;
+import {startAnalyticsAfterContent, usePostHog} from './lib/analytics';
+startAnalyticsAfterContent();
+if (window.location.pathname.toLowerCase() === '/login') {
+    const analytics = usePostHog();
+    analytics.capture('app_opened', {route:'login',path:'/login'});
+    analytics.capture('route_viewed', {route:'login',path:'/login'});
+}
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <PostHogProvider apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY} options={options}>
       <ErrorBoundary>
-        <PwaProvider><App /></PwaProvider>
+        <PwaProvider><React.Suspense fallback={<div role="status">Loading…</div>}><PublicEntry /></React.Suspense></PwaProvider>
       </ErrorBoundary>
-    </PostHogProvider>
   </React.StrictMode>
 );

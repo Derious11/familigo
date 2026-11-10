@@ -1,3 +1,4 @@
+import {usePrepareChallengeAction} from '../../hooks/usePrepareChallengeAction';
 import React,{ useContext,useEffect,useId,useState } from 'react';
 import { AppContext } from '../../App';
 import { getExercises } from '../../services/challengeService';
@@ -17,6 +18,7 @@ const EXERCISE_PRESETS = [
     { name: 'Burpees', icon: 'burpees', defaultTarget: '15 Reps', defaultUnit: 'Reps' }
 ];
 const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({ onClose }) => {
+    usePrepareChallengeAction("recordChallenge");
     const context = useContext(AppContext);
     const formId = useId();
     const [isSubmitting, setIsSubmitting] = useState(false);

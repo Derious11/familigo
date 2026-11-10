@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 const { chromium } = await import(pathToFileURL(path.join(process.env.USERPROFILE, '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs')).href);
 const label = process.argv[2] || 'baseline';
 const baseUrl = process.env.REVIEW_BASE_URL || 'http://127.0.0.1:4174';
-if (!['http://127.0.0.1:4174', 'https://familigo-dev-11643.web.app'].includes(baseUrl)) throw Error('Explicit local or development target required.');
+if (!['http://127.0.0.1:4174', 'https://familigo-dev-11643.web.app'].includes(baseUrl) && !/^https:\/\/familigo-dev-11643--performance-rc-[a-z0-9]+\.web\.app$/.test(baseUrl)) throw Error('Explicit local or development target required.');
 if (!/^[a-z0-9-]+$/.test(label)) throw Error('Invalid report label.');
 await fs.mkdir('artifacts/release-review', {recursive:true});
 const routes = process.argv[3] ? process.argv[3].split(',') : ['/', '/login', '/early-access', '/invite-parent', '/claim-invite', '/faq', '/privacy', '/delete-account'];
