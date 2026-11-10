@@ -25,6 +25,7 @@ await context.route('**/recordSignIn',r=>r.fulfill({status:200,headers:{'Access-
 let failPost=true;
 await context.route('**/recordChallenge',async r=>{
 if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,content-type'}});
+if(r.request().postDataJSON().data.prepareOnly)return r.fulfill({status:200,contentType:"application/json",headers:{"Access-Control-Allow-Origin":"*"},body:JSON.stringify({result:{ready:true}})});
 if(failPost){failPost=false;return r.fulfill({status:503,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:'{"error":{"status":"UNAVAILABLE","message":"Injected retry test"}}'})}
 const result=await recordChallenge.run(r.request().postDataJSON().data,{auth:{uid:id,token:{}}});return r.fulfill({status:200,headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:JSON.stringify({result})});
 });

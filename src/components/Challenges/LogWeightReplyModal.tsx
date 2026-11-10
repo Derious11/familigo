@@ -1,3 +1,4 @@
+import {usePrepareChallengeAction} from '../../hooks/usePrepareChallengeAction';
 import Modal from '../ui/Modal';
 
 import React,{ useContext,useRef,useState } from 'react';
@@ -11,6 +12,7 @@ interface LogWeightReplyModalProps {
 }
 
 const LogWeightReplyModal: React.FC<LogWeightReplyModalProps> = ({ onClose, challenge }) => {
+    usePrepareChallengeAction("recordChallengeReply");
     const context = useContext(AppContext);
     const { currentUser, updateCurrentUser, addReply } = context || {};
 
