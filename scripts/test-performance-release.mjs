@@ -21,6 +21,12 @@ await db.doc('users/'+id).set({name:'Review Parent',role:'adult',status:'active'
 await db.doc('familyCircles/'+family).set({name:'Review Family',memberIds:[id],members:{[id]:true},adminIds:[id],betaApproved:true,messageCount:0});
 for(const width of [390,1440]){
 const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce',serviceWorkers:'block'});
+await context.route('**/recordSignIn',async r=>{
+ if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,content-type'}});
+ const token=await admin.auth().verifyIdToken(r.request().headers().authorization.split(' ')[1]);
+ const result=await require('../functions/lib/callables/recordSignIn').recordSignIn.run({}, {auth:{uid:token.uid,token}});
+ return r.fulfill({status:200,headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:JSON.stringify({result})});
+});
 let failPost=true;
 await context.route('**/recordChallenge',async r=>{
 if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,content-type'}});

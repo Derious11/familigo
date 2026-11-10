@@ -280,7 +280,7 @@ export const createChildProfile = async (
 
     const batch = writeBatch(db);
 
-    batch.set(childRef, newChildData);
+    batch.set(childRef, {...newChildData, lastActiveDate: serverTimestamp()});
 
     const familyRef = doc(db, "familyCircles", familyId);
     batch.update(familyRef, {
