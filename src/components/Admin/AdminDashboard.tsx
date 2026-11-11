@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import {QueryDocumentSnapshot} from 'firebase/firestore';
+import { useEffect, useRef, useState } from 'react';
 import { Users, Mail, BarChart3, MessageSquare, History, ExternalLink } from 'lucide-react';
 import { getAdminUsers, getAccessInvites, getAdminFamilies, getAdminChallenges, getAdminAudit, sendAccessInvite, revokeAccessInvite, approveWaitlistUsers, updateAdminFeedback, AccessInvite, AdminFamily, AdminChallenge, AuditEvent } from '../../services/adminService';
 import { getAllFeedback } from '../../services/feedbackService';
@@ -8,7 +9,7 @@ import {reconcileFamilyAchievements, AchievementReconciliation} from '../../serv
 
 const panel = 'rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-6';
 const input = 'rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white';
-const button = 'rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400 disabled:opacity-50';
+const button = 'rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50';
 const secondary = 'rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50';
 const date = (value?: Date) => value ? value.toLocaleDateString() : 'Unknown';
 type Action = (label: string, operation: () => Promise<string | void>) => Promise<void>;
@@ -27,19 +28,46 @@ export default function AdminDashboard() {
     const [busy, setBusy] = useState('');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const generation = useRef(0);
+    const [pages, setPages] = useState<{cursor?: QueryDocumentSnapshot; hasMore: boolean}[]>([]);
+    const labels = ['accounts', 'invitations', 'families', 'challenges', 'feedback', 'activity log'];
+    const loaders = [getAdminUsers, getAccessInvites, getAdminFamilies, getAdminChallenges, getAllFeedback, getAdminAudit];
     const fetchData = async () => {
+        const request = ++generation.current;
         setLoading(true);
         const results = await Promise.allSettled([getAdminUsers(), getAccessInvites(), getAdminFamilies(), getAdminChallenges(), getAllFeedback(), getAdminAudit()]);
-        if (results[0].status === 'fulfilled') setUsers(results[0].value);
-        if (results[1].status === 'fulfilled') setInvites(results[1].value);
-        if (results[2].status === 'fulfilled') setFamilies(results[2].value);
-        if (results[3].status === 'fulfilled') setChallenges(results[3].value);
-        if (results[4].status === 'fulfilled') setFeedback(results[4].value);
-        if (results[5].status === 'fulfilled') setAudit(results[5].value);
+        if (request !== generation.current) return;
+        setPages(results.map(result => result.status === 'fulfilled' ? {cursor: result.value.cursor, hasMore: result.value.hasMore} : {hasMore: false}));
+        if (results[0].status === 'fulfilled') setUsers(results[0].value.items);
+        if (results[1].status === 'fulfilled') setInvites(results[1].value.items);
+        if (results[2].status === 'fulfilled') setFamilies(results[2].value.items);
+        if (results[3].status === 'fulfilled') setChallenges(results[3].value.items);
+        if (results[4].status === 'fulfilled') setFeedback(results[4].value.items);
+        if (results[5].status === 'fulfilled') setAudit(results[5].value.items);
         setUnavailable(results.flatMap((result, index) => result.status === 'rejected' ? [['accounts', 'invitations', 'families', 'challenges', 'feedback', 'activity log'][index]] : []));
         setLoading(false);
     };
-    useEffect(() => { void fetchData(); }, []);
+    useEffect(() => { void fetchData(); return () => { generation.current++; }; }, []);
+    const loadMore = async (index: number) => {
+        if (loading || busy || !pages[index]?.hasMore) return;
+        setLoading(true); setError('');
+        const request = generation.current;
+        try {
+            const result = await loaders[index](pages[index].cursor);
+            if (request !== generation.current) return;
+            const merge = <T extends {id: string}>(previous: T[], next: T[]) => [...new Map([...previous, ...next].map(item => [item.id, item])).values()];
+            switch (index) {
+                case 0: setUsers(old => merge(old, result.items as User[])); break;
+                case 1: setInvites(old => merge(old, result.items as AccessInvite[])); break;
+                case 2: setFamilies(old => merge(old, result.items as AdminFamily[])); break;
+                case 3: setChallenges(old => merge(old, result.items as AdminChallenge[])); break;
+                case 4: setFeedback(old => merge(old, result.items as Feedback[])); break;
+                case 5: setAudit(old => merge(old, result.items as AuditEvent[])); break;
+            }
+            setPages(old => old.map((page, i) => i === index ? {cursor: result.cursor, hasMore: result.hasMore} : page));
+        } catch { if (request === generation.current) setError('Could not load more records. Your current list is retained. Try again.'); }
+        finally { if (request === generation.current) setLoading(false); }
+    };
     const runAction: Action = async (label, operation) => {
         setBusy(label); setMessage(''); setError('');
         try { setMessage((await operation()) || `${label} completed.`); }
@@ -57,13 +85,14 @@ export default function AdminDashboard() {
     ];
     return <main className="min-h-screen bg-slate-950 p-4 text-white sm:p-8"><div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-bold">Admin Dashboard</h1><p className="mt-2 text-slate-400">Help families get started and keep your community moving.</p></div><button onClick={() => void fetchData()} disabled={disabled} className={secondary}>{loading ? 'Refreshing…' : 'Refresh data'}</button></header>
-        <nav aria-label="Admin sections" className="mb-6 flex flex-wrap gap-2">{sections.map(item => <button key={item.id} onClick={() => setSection(item.id)} aria-pressed={section === item.id} className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${section === item.id ? 'bg-indigo-500' : 'bg-slate-900 text-slate-300 hover:bg-slate-800'}`}><item.icon size={18} aria-hidden="true" />{item.label}</button>)}</nav>
+        <nav aria-label="Admin sections" className="mb-6 flex flex-wrap gap-2">{sections.map(item => <button key={item.id} onClick={() => setSection(item.id)} aria-pressed={section === item.id} className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${section === item.id ? 'bg-indigo-600' : 'bg-slate-900 text-slate-300 hover:bg-slate-800'}`}><item.icon size={18} aria-hidden="true" />{item.label}</button>)}</nav>
+        {pages.some(page => page.hasMore) && <section aria-label="More admin records" className="mb-4 rounded-xl border border-slate-700 p-4"><p className="mb-3 text-sm text-amber-200">Lists, searches, and summaries cover loaded records only. Load more records for complete results.</p><div className="flex flex-wrap gap-2">{pages.map((page, index) => page.hasMore && <button key={labels[index]} className={secondary} disabled={disabled} onClick={() => void loadMore(index)}>Load 50 more {labels[index]}</button>)}</div></section>}
         {unavailable.length > 0 && <p role="alert" className="mb-4 rounded-xl bg-amber-500/10 p-4 text-sm text-amber-200">Could not refresh {unavailable.join(', ')}. Some data is incomplete or outdated. Refresh to retry.</p>}
         {error && <p role="alert" className="mb-4 rounded-xl bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
         {(message || busy) && <p role="status" className="mb-4 rounded-xl bg-emerald-500/10 p-4 text-sm text-emerald-300">{busy ? `${busy}…` : message}</p>}
         {section === 'waitlist' && <WaitlistPanel {...common} disabled={disabled || unavailable.includes('accounts')} users={pending} />}
         {section === 'achievements' && <AchievementBackfillPanel {...common} families={families}/>}
-        {section === 'invites' && <InvitesPanel {...common} disabled={disabled || unavailable.includes('invitations')} invites={invites} users={users} families={families} challenges={challenges} progressAvailable={!unavailable.some(name => ['accounts', 'families', 'challenges'].includes(name))} />}
+        {section === 'invites' && <InvitesPanel {...common} disabled={disabled || unavailable.includes('invitations')} invites={invites} users={users} families={families} challenges={challenges} progressAvailable={!pages.slice(0,4).some(page => page.hasMore) && !unavailable.some(name => ['accounts', 'families', 'challenges'].includes(name))} />}
         {section === 'metrics' && <MetricsPanel users={users} families={families} challenges={challenges} invites={invites} loading={loading} unavailable={unavailable} />}
         {section === 'families' && <FamiliesPanel families={families} users={users} challenges={challenges} loading={loading} unavailable={unavailable} />}
         {section === 'feedback' && <FeedbackPanel {...common} disabled={disabled || unavailable.includes('feedback')} feedback={feedback} />}

@@ -128,6 +128,7 @@ export const signUpWithEmail = async (
             badges: [],
             weightUnit: 'lbs',
             weightHistory: [],
+            progressHistoryVersion: 1,
             notificationTokens: [],
             // Default new parent signups to pending_approval if they have early access data
             // or if we enforce it for all parents. For now, let's tie it to earlyAccessData presence or role.

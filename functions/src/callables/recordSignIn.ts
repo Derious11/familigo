@@ -1,5 +1,6 @@
+import {activityProgress, archiveActivity} from '../progress';
 import * as functions from "firebase-functions/v1";
-import {FieldValue, Timestamp} from "firebase-admin/firestore";
+import {Timestamp} from "firebase-admin/firestore";
 import {db} from "../init";
 
 /**
@@ -22,13 +23,12 @@ export function signInProgress(
   const consecutive = day - last === 1;
   const previousXp = Number.isFinite(actor.xp) && actor.xp >= 0 ? actor.xp : 0;
   const xp = previousXp + (consecutive ? 10 : 5);
-  const dayKey = now.toDate().toISOString().slice(0, 10);
   return {
     streak: consecutive ? streak + 1 : 1,
     lastActiveDate: now,
     xp,
     level: 1 + Math.floor(xp / 500),
-    [`activityMap.${dayKey}`]: FieldValue.increment(1),
+    activityMap: activityProgress(actor, now),
   };
 }
 
@@ -54,7 +54,10 @@ export const recordSignIn = functions.region("us-central1").https.onCall(
         );
       }
       const update = signInProgress(actor, now);
-      if (update) tx.update(ref, update);
+      if (update) {
+        tx.update(ref, update);
+        if (update.activityMap) archiveActivity(tx, context.auth!.uid, update.activityMap, now);
+      }
       return {updated: !!update};
     });
   },

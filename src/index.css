@@ -160,3 +160,14 @@ body,
 * {
   -webkit-tap-highlight-color: transparent;
 }
+/* Keyboard focus and reduced motion also apply to dialogs portaled outside app-shell. */
+:focus-visible { outline: 3px solid #2563eb !important; outline-offset: 3px; }
+.dark :focus-visible { outline-color: #93c5fd !important; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

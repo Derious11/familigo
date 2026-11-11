@@ -1,3 +1,4 @@
+import ProfileHistory from './ProfileHistory';
 import React,{ useContext,useEffect,useMemo,useState } from 'react';
 import { AppContext } from '../../App';
 import { requestNotificationPermission,revokeNotificationPermission } from '../../services/pushRouter';
@@ -100,6 +101,7 @@ const Profile: React.FC = () => {
 
 
 
+            <ProfileHistory key={currentUser.id} userId={currentUser.id} />
             <ProfileSettings currentUser={currentUser} hasNotificationsEnabled={hasNotificationsEnabled} isNotificationToggleLoading={isNotificationToggleLoading} onToggleNotifications={handleNotificationToggle} onOpenPrivacy={() => setIsPrivacyOpen(true)} onSignOut={signOut}/>
 
             {/* Modals */}

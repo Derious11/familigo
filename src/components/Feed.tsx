@@ -1,18 +1,14 @@
-import React,{ useContext,useMemo } from 'react';
+import React,{ useContext } from 'react';
 import { AppContext } from '../App';
 import { Challenge } from '../types';
-import { useLiveCollection } from '../hooks/useLiveCollection';
+import { useChallengePages } from '../hooks/useChallengePages';
 import ChallengeCard from './Challenges/ChallengeCard';
 const Feed: React.FC<{
     onCreateChallenge?: () => void;
 }> = ({ onCreateChallenge }) => {
     const context = useContext(AppContext);
-    const {items:challenges, loading:isLoading, error, hasMore, loadMore, retry} = useLiveCollection<Challenge>('challenges', [['familyCircleId', context?.familyCircle?.id]], !!context?.familyCircle?.id);
-    const activeChallenges = useMemo(() => {
-        const now = new Date();
-        return challenges.filter(c => c.expiresAt > now);
-    }, [challenges]);
-    if (isLoading && !challenges.length) {
+    const {items:activeChallenges, loading:isLoading, error, hasMore, loadMore, retry} = useChallengePages(context?.familyCircle?.id, false);
+    if (isLoading && !activeChallenges.length) {
         return (<div className="text-center py-12 text-brand-text-secondary">
                 <p>Loading feed...</p>
             </div>);
@@ -26,8 +22,8 @@ const Feed: React.FC<{
                     {activeChallenges.length > 0 ? (<div className="space-y-6 app-challenge-grid">
                             {activeChallenges.map(challenge => (<ChallengeCard key={challenge.id} challenge={challenge} isActive={true}/>))}
                         </div>) : (<div className="text-center py-12 text-brand-text-secondary dark:text-gray-400 bg-brand-surface dark:bg-gray-800 rounded-lg">
-                            <p className="font-semibold text-lg">{hasMore ? 'No active challenges in this batch.' : 'No active challenges!'}</p>
-                            <p>{hasMore ? 'Load more challenges to check earlier activity.' : 'Create a new challenge to get the family moving.'}</p>
+                            <p className="font-semibold text-lg">{hasMore ? 'Loading active challenges…' : 'No active challenges!'}</p>
+                            <p>{hasMore ? 'Try loading the next batch.' : 'Create a new challenge to get the family moving.'}</p>
                         </div>)}
                     {(hasMore || isLoading) && <button disabled={isLoading} onClick={loadMore} className="min-h-11 p-3 underline">{isLoading ? 'Loading…' : 'Load more challenges'}</button>}
                 </section>

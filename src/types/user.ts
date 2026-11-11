@@ -28,6 +28,7 @@ export interface User {
     emailVerified: boolean;
     currentWeight?: number;
     weightUnit?: 'lbs' | 'kg';
+    progressHistoryVersion?: number;
     weightHistory?: { value: number; timestamp: Date }[];
     notificationTokens?: string[];
     lastReadMessageCount?: number;

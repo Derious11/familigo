@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { livePages } from '../src/lib/livePages.mjs';
-function fixture() {
+function fixture(initialPages = 1) {
     let records = Array.from({length:95},(_,i)=>({id:String(100-i),rank:100-i}));
     const listeners = new Set();
     let state;
     const deliver = sub => sub.receive(records.filter(row => !sub.cursor || row.rank < sub.cursor.rank).slice(0,30));
-    const pager = livePages({pageSize:30,key:r=>r.id,compare:(a,b)=>b.rank-a.rank, publish:s=>{state=s;},listen(cursor,receive,fail) {
+    const pager = livePages({initialPages,pageSize:30,key:r=>r.id,compare:(a,b)=>b.rank-a.rank, publish:s=>{state=s;},listen(cursor,receive,fail) {
         const sub={cursor,receive,fail}; listeners.add(sub); queueMicrotask(()=>{if(listeners.has(sub))deliver(sub);});
         return ()=>listeners.delete(sub);
     }});
@@ -39,4 +39,9 @@ test('a healthy page update cannot clear another page’s listener failure',asyn
     first.receive(f.records.slice(0,30));
     assert.equal(f.state.error.message,'permission-denied');
     f.pager.retry();await settle();assert.equal(f.state.error,null);f.pager.stop();
+});
+
+test('expiry refresh can restore the previously loaded page depth',async()=>{
+    const f=fixture(3);await settle();assert.equal(f.state.items.length,90);
+    assert.equal(f.listeners.size,3);f.pager.stop();assert.equal(f.listeners.size,0);
 });

@@ -2,6 +2,8 @@ import {getFunctions, httpsCallable} from "firebase/functions";
 import {
     doc,
     updateDoc,
+    getDoc,
+    writeBatch,
     serverTimestamp,
     collection,
     query,
@@ -161,18 +163,23 @@ export const updateCoverPhoto = async (
 };
 
 export const updateUserWeight = async (
-    userId: string,
-    weight: number,
-    unit: "lbs" | "kg"
+    userId: string, weight: number, unit: "lbs" | "kg", requestId: string = crypto.randomUUID()
 ) => {
-    await updateDoc(doc(db, "users", userId), {
-        currentWeight: weight,
-        weightUnit: unit,
-        weightHistory: arrayUnion({
-            value: weight,
-            timestamp: new Date(),
-        }),
-    });
+    if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('Reconnect before saving weight.');
+    if (!Number.isFinite(weight) || weight <= 0 || weight > 1500) throw new Error('Enter a weight between 0 and 1500.');
+    const entry = doc(db, 'users', userId, 'weightEntries', requestId);
+    const matches = async () => {
+        const snapshot = await getDoc(entry);
+        if (!snapshot.exists()) return false;
+        if (snapshot.data().value !== weight || snapshot.data().unit !== unit) throw new Error('Weight request already used.');
+        return true;
+    };
+    if (await matches()) return;
+    const batch = writeBatch(db);
+    batch.set(entry, {value:weight, unit, timestamp:serverTimestamp()});
+    batch.update(doc(db,'users',userId), {currentWeight:weight, weightUnit:unit, lastWeightEntryId:requestId});
+    try { await batch.commit(); }
+    catch (error) { if (!(await matches())) throw error; }
 };
 
 /* ============================================================

@@ -275,6 +275,7 @@ export const createChildProfile = async (
         badges: [],
         weightUnit: "lbs",
         weightHistory: [],
+            progressHistoryVersion: 1,
         notificationTokens: [],
     };
 
