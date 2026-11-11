@@ -243,7 +243,8 @@ service cloud.firestore {
         && !request.resource.data.keys().hasAny(["inviteCount", "invitationIds"]);
 
       allow read: if isSignedIn() && (isFamilyMember(circleId) || isAdmin());
-      allow update: if isSignedIn() && (
+      allow update: if isSignedIn()
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["avatarUrl"]) || request.auth.uid in resource.data.get("adminIds", [])) && (
         isAdmin() || (
           isFamilyMember(circleId)
           && request.resource.data.get('adventureTheme', 'mountain') in ['mountain', 'forest', 'coast', 'canyon']

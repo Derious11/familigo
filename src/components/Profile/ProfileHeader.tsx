@@ -1,3 +1,4 @@
+import {bannerPosition} from './profileArt';
 import React,{ useState } from 'react';
 import { User } from '../../types'; // Adjust path if needed
 import { CameraIcon,FireIcon,PencilIcon,ScaleIcon,ShieldCheckIcon } from '../Icons';
@@ -11,6 +12,7 @@ interface ProfileHeaderProps {
 }
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCover, onEditProfile, onUpdateWeight }) => {
     const [isEditingCover, setIsEditingCover] = useState(false);
+    const [ratio,setRatio] = useState(3);
     const handleSaveCover = async (url: string) => {
         await onUpdateCover(url);
         setIsEditingCover(false);
@@ -23,15 +25,15 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ currentUser, onUpdateCove
     return (<div className="app-profile-header bg-brand-surface dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 relative z-10">
             {/* Cover Photo Area */}
             <div className="h-40 bg-gray-200 dark:bg-gray-700 relative">
-                {currentUser.coverPhotoUrl ? (<img src={currentUser.coverPhotoUrl} alt="Cover" className="w-full h-full object-cover opacity-90 transition-opacity duration-500"/>) : (<div className="w-full h-full bg-gradient-to-r from-blue-300 to-purple-400"></div>)}
+                {currentUser.coverPhotoUrl ? (<img src={currentUser.coverPhotoUrl} alt="" style={{objectPosition:bannerPosition(currentUser.coverPhotoUrl)}} className="w-full h-full object-cover opacity-90 transition-opacity duration-500"/>) : (<div className="w-full h-full bg-gradient-to-r from-blue-300 to-purple-400"></div>)}
 
                 {/* Floating Edit Cover Button */}
-                <button aria-label="Edit cover photo" onClick={() => setIsEditingCover(!isEditingCover)} className="absolute top-3 right-3 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md transition-all shadow-sm">
+                <button aria-label="Edit cover photo" onClick={e => {const box=e.currentTarget.parentElement!.getBoundingClientRect();setRatio(box.width/box.height || 3);setIsEditingCover(true)}} className="absolute top-3 right-3 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full backdrop-blur-md transition-all shadow-sm">
                     <CameraIcon className="w-5 h-5"/>
                 </button>
 
                 {/* IMPROVED: Preset Picker Popover */}
-                {isEditingCover && (<CoverPhotoPicker currentCoverUrl={currentUser.coverPhotoUrl} onSave={handleSaveCover} onCancel={() => setIsEditingCover(false)}/>)}
+                {isEditingCover && (<CoverPhotoPicker ratio={ratio} currentCoverUrl={currentUser.coverPhotoUrl} onSave={handleSaveCover} onCancel={() => setIsEditingCover(false)}/>)}
             </div>
 
             {/* Profile Info & XP Bar */}

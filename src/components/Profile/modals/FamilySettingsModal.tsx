@@ -1,3 +1,4 @@
+import {familyCrests,crestFit} from '../profileArt';
 import React, { useState, useContext } from 'react';
 import { usePostHog } from '../../../lib/analytics';
 import { AppContext } from '../../../App';
@@ -47,7 +48,7 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
     const handleSaveProfile = async () => {
         setIsLoading(true);
         try {
-            await updateFamilyProfile(familyCircle.id, { avatarUrl, motto });
+            await updateFamilyProfile(familyCircle.id, { ...(isAdmin && avatarUrl !== (familyCircle.avatarUrl || '') ? { avatarUrl } : {}), motto });
             // Optional: visual success feedback here
             onClose();
         } catch (error) {
@@ -427,44 +428,22 @@ const FamilySettingsModal: React.FC<FamilySettingsModalProps> = ({ onClose, init
                                         <input
                                             type="text"
                                             value={avatarUrl}
-                                            aria-label="Family avatar URL"
+                                            aria-label="Family avatar URL" disabled={!isAdmin}
                                             onChange={(e) => setAvatarUrl(e.target.value)}
                                             placeholder="https://..."
                                             className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                                         />
-                                        <p className="text-[10px] text-gray-400 mt-1">Enter a URL or select a preset below.</p>
+                                        <p className="text-[10px] text-gray-400 mt-1">{isAdmin ? 'Choose a crest or enter a custom image URL.' : 'Family admins can change the crest.'}</p>
                                     </div>
                                     <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 border border-gray-200 dark:border-gray-700 shadow-sm">
-                                        {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" alt="Avatar Preview" /> : <div className="w-full h-full flex items-center justify-center text-xl">🏠</div>}
+                                        {avatarUrl ? <img src={avatarUrl} className={'w-full h-full '+crestFit(avatarUrl)} alt="Avatar Preview" /> : <div className="w-full h-full flex items-center justify-center text-xl">🏠</div>}
                                     </div>
                                 </div>
 
-                                {/* Presets */}
-                                <div className="space-y-2">
-                                    <p className="text-xs font-bold text-gray-400">PRESETS</p>
-                                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                                        {[
-                                            'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Family1&backgroundColor=b6e3f4',
-                                            'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Family2&backgroundColor=c0aede',
-                                            'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Family3&backgroundColor=d1d4f9',
-                                            'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Family4&backgroundColor=ffdfbf',
-                                            'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Family5&backgroundColor=fdcdc5',
-                                            'https://api.dicebear.com/7.x/icons/svg?seed=Home&backgroundColor=b6e3f4',
-                                            'https://api.dicebear.com/7.x/icons/svg?seed=Heart&backgroundColor=ffdfbf'
-                                        ].map((url, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => setAvatarUrl(url)}
-                                                className={`w-10 h-10 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${avatarUrl === url
-                                                    ? 'border-brand-blue scale-110 shadow-sm'
-                                                    : 'border-transparent hover:border-gray-300 opacity-70 hover:opacity-100'
-                                                    }`}
-                                            >
-                                                <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
+                                {isAdmin && <div role="group" aria-label="Family crests" className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                        {familyCrests.map(c=><button type="button" key={c.url} aria-pressed={avatarUrl===c.url} onClick={()=>setAvatarUrl(c.url)} className={'border-2 rounded-lg text-xs p-1 '+(avatarUrl===c.url?'border-blue-600':'border-gray-300')}>
+                                            <img src={c.url} alt="" width="48" height="48" className="mx-auto w-12 h-12 object-contain"/>{c.name}</button>)}
+                                </div>}
                             </div>
                         </div>
 

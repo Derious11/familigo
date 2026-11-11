@@ -1,81 +1,29 @@
-import React, { useState } from 'react';
-import { CheckIcon } from '../Icons';
+import {useState} from 'react';
+import {createPortal} from 'react-dom';
+import Modal from '../ui/Modal';
+import {bannerPosition, profileBanners} from './profileArt';
 
-const COVER_PRESETS = [
-    { id: 'blue', url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1000&q=80', label: 'Abstract Blue' },
-    { id: 'nature', url: 'https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=1000&q=80', label: 'Nature' },
-    { id: 'geo', url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=1000&q=80', label: 'Geometric' },
-    { id: 'warm', url: 'https://images.unsplash.com/photo-1505909182942-e2f09aee3e89?auto=format&fit=crop&w=1000&q=80', label: 'Warm' },
-    { id: 'dark', url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1000&q=80', label: 'Tech' },
-];
-
-interface CoverPhotoPickerProps {
-    currentCoverUrl?: string;
-    onSave: (url: string) => void;
-    onCancel: () => void; // Although the UI doesn't explicitly have a cancel button, clicking outside or toggling closes it.
-}
-
-const CoverPhotoPicker: React.FC<CoverPhotoPickerProps> = ({ currentCoverUrl, onSave }) => {
-    const [coverPhotoInput, setCoverPhotoInput] = useState(currentCoverUrl || '');
-
-    const handleSave = () => {
-        if (coverPhotoInput) {
-            onSave(coverPhotoInput);
-        }
-    };
-
-    return (
-        <div className="absolute top-14 right-3 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl z-20 w-80 border border-gray-200 dark:border-gray-700 animate-slide-in">
-            <p className="text-xs font-bold text-gray-500 uppercase mb-3">Choose Background</p>
-
-            {/* 1. The Grid of Presets */}
-            <div className="grid grid-cols-5 gap-2 mb-4">
-                {COVER_PRESETS.map((preset) => (
-                    <button
-                        key={preset.id}
-                        onClick={() => {
-                            setCoverPhotoInput(preset.url);
-                            // Optional: Auto-save immediately on click for better UX?
-                            // For now, we update state and let them click save.
-                        }}
-                        className={`relative h-10 rounded-lg overflow-hidden border-2 transition-all hover:scale-110 ${coverPhotoInput === preset.url ? 'border-brand-blue ring-2 ring-brand-blue/30' : 'border-transparent'}`}
-                        title={preset.label}
-                    >
-                        <img src={preset.url} alt={preset.label} className="w-full h-full object-cover" />
-                        {/* Checkmark overlay if selected */}
-                        {coverPhotoInput === preset.url && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <CheckIcon className="w-4 h-4 text-white" />
-                            </div>
-                        )}
-                    </button>
-                ))}
-            </div>
-
-            <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-                <span className="flex-shrink-0 mx-2 text-xs text-gray-400">OR PASTE URL</span>
-                <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-            </div>
-
-            {/* 2. Custom Input Fallback */}
-            <div className="flex gap-2">
-                <input
-                    type="text"
-                    placeholder="https://..."
-                    value={coverPhotoInput}
-                    onChange={(e) => setCoverPhotoInput(e.target.value)}
-                    className="flex-1 px-3 py-1.5 text-xs border rounded-lg focus:ring-2 focus:ring-brand-blue outline-none dark:bg-gray-700 dark:text-white dark:border-gray-600 truncate"
-                />
-                <button
-                    onClick={handleSave}
-                    className="text-xs bg-brand-blue hover:bg-blue-600 text-white px-3 py-1 rounded-lg font-medium shadow-md"
-                >
-                    Save
-                </button>
-            </div>
+interface Props {currentCoverUrl?:string; ratio:number; onSave:(url:string)=>Promise<void>; onCancel:()=>void}
+export default function CoverPhotoPicker({currentCoverUrl,ratio,onSave,onCancel}:Props) {
+    const [draft,setDraft]=useState(currentCoverUrl??'');
+    const [busy,setBusy]=useState(false),[error,setError]=useState('');
+    const choose=(url:string)=>{setDraft(url);setError('')};
+    const close=()=>{if(!busy)onCancel()};
+    const url=draft.trim();
+    const valid=!url || profileBanners.some(b=>b.url===url) || /^https?:\/\//i.test(url) || (url.startsWith('/')&&!url.startsWith('//'));
+    const save=async()=>{if(!valid||busy)return;setBusy(true);try{await onSave(url)}catch{setError('Your banner could not be saved. Please try again.');setBusy(false)}};
+    return createPortal(<Modal isOpen onClose={close} title="Profile banner" footer={<div className="flex justify-end gap-3">
+        <button onClick={close} disabled={busy}>Cancel</button>
+        <button className="px-4 py-2 rounded-lg bg-blue-700 text-white" disabled={!valid||busy} onClick={save}>{busy?'Saving…':'Save banner'}</button></div>}>
+        <div className="mb-4 overflow-hidden rounded-lg bg-gradient-to-r from-blue-300 to-purple-400" style={{aspectRatio:ratio}}>
+            {url&&valid&&<img src={url} alt="Banner preview" className="w-full h-full object-cover" style={{objectPosition:bannerPosition(url)}}/>}
         </div>
-    );
-};
-
-export default CoverPhotoPicker;
+        <div role="group" aria-label="Banner choices" className="grid grid-cols-2 gap-2">
+            {profileBanners.map(b=><button type="button" key={b.url} aria-pressed={url===b.url} onClick={()=>choose(b.url)} className={'rounded-lg overflow-hidden border-2 text-sm '+(url===b.url?'border-blue-600':'border-gray-300')}>
+                <img src={b.thumb} alt="" width="300" height="100" className="w-full"/>{b.name}</button>)}
+        </div>
+        <label className="block mt-4">Custom banner URL<input className="block border p-2 w-full rounded dark:bg-gray-700" type="text" value={draft} onChange={e=>choose(e.target.value)}/></label>
+        <button type="button" className="min-h-11 underline" onClick={()=>choose('')}>Use default background</button>
+        {!valid&&<p role="alert">Enter an image URL starting with https:// or http://.</p>}{error&&<p role="alert">{error}</p>}
+    </Modal>,document.body);
+}

@@ -1,3 +1,4 @@
+import {crestFit} from './profileArt';
 import React, { useState } from 'react';
 import { UserGroupIcon, LinkIcon, CheckIcon, ArrowRightStartOnRectangleIcon } from '../Icons';
 import { FamilyCircle, User } from '../../types'; // Adjust path if needed
@@ -29,7 +30,7 @@ const FamilyCircleCard: React.FC<FamilyCircleCardProps> = ({
                 <div className="flex flex-wrap gap-4 justify-between items-start">
                     <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-2xl bg-white dark:bg-gray-700 shadow-sm flex items-center justify-center text-3xl overflow-hidden border-2 border-white dark:border-gray-600">
-                            {familyCircle.avatarUrl ? <img src={familyCircle.avatarUrl} alt="" className="w-full h-full object-cover" /> : "🏠"}
+                            {familyCircle.avatarUrl ? <img src={familyCircle.avatarUrl} alt="" className={'w-full h-full '+crestFit(familyCircle.avatarUrl)} /> : "🏠"}
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">{familyCircle.name}</h3>
