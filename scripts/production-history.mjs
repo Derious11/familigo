@@ -70,7 +70,7 @@ async function run(){
  if(mode!=='verify')check(Date.now()-Date.parse(backup.created)<24*3600000,'Refresh backup');
  const targets=backup.docs.filter(d=>d.fields.progressHistoryVersion?.integerValue!=='1').sort((a,b)=>{const score=d=>summary(d).weights*10000+summary(d).days;return score(b)-score(a)});
  // Convert just the two source fields via SDK-native Timestamps for archive comparisons.
- const {Timestamp}=require('../functions/node_modules/firebase-admin/firestore');
+ const {Timestamp}=require('../functions/node_modules/@google-cloud/firestore');
  function decode(v){if(v.timestampValue){const iso=v.timestampValue;return new Timestamp(Math.floor(Date.parse(iso)/1000),Number((iso.split('.')[1]?.replace('Z','')||'').padEnd(9,'0')))}
  if('integerValue' in v)return Number(v.integerValue);if('doubleValue' in v)return v.doubleValue;if('stringValue' in v)return v.stringValue;
  if(v.mapValue)return Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([k,x])=>[k,decode(x)]));if(v.arrayValue)return (v.arrayValue.values||[]).map(decode);throw Error('Unsupported history type')}
